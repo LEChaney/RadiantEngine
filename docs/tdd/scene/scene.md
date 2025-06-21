@@ -164,7 +164,7 @@ void clearChangedNodes() {
 }
 
 bool isNodeDirty(NodeHandle node) const {
-    return nodes[node].dirty;
+    nodes[node].dirty;
 }
 ```
 
@@ -209,4 +209,101 @@ for (const auto& mesh : meshSystem.meshes) {
 
 ---
 
-This document should be updated as the scene module evolves.
+## 11. Suggested Tests for SceneManager
+
+### 11.1 Scene Lifecycle Tests
+- **Add/Remove Scene:** Add multiple scenes, verify they are retrievable by name. Remove scenes and ensure they are no longer accessible.
+- **Active Scene Switching:** Set and get the active scene, verify correct switching and retrieval.
+
+### 11.2 Node Management Tests
+- **Add/Remove Nodes:** Add nodes (with and without parents), verify hierarchy and parent/child relationships. Remove nodes and ensure all descendants are also removed.
+
+### 11.3 Transform Propagation Tests
+- **Transform Propagation:**
+  - Set up a scene with a hierarchy (e.g., root → child → grandchild).
+  - Set a local transform on a node (e.g., the root or an intermediate node).
+  - Call `updateWorldTransforms()` on the scene.
+  - Verify that all descendants have correct world transforms (compare to expected matrices).
+  - Verify that the set of changed nodes includes the node and all affected descendants.
+
+#### Example (Pseudocode)
+```cpp
+Scene scene;
+auto root = scene.addNode();
+auto child = scene.addNode(root);
+auto grandchild = scene.addNode(child);
+
+scene.setNodeTransform(root, initialRootTransform);
+scene.setNodeTransform(child, initialChildTransform);
+scene.setNodeTransform(grandchild, initialGrandchildTransform);
+
+scene.setNodeTransform(root, newRootTransform);
+scene.updateWorldTransforms();
+
+assert(scene.getNodeTransform(child) == expectedChildWorldTransform);
+assert(scene.getNodeTransform(grandchild) == expectedGrandchildWorldTransform);
+assert(changedNodes.contains(child));
+assert(changedNodes.contains(grandchild));
+```
+
+### 11.4 System Synchronization Tests
+- **Transform Propagation and System Sync:**
+  - Set up a scene with a hierarchy (e.g., root → child → grandchild).
+  - Attach mock or test versions of systems (e.g., MockCullingSystem, MockDrawDataManager) that record when their `syncTransforms` methods are called and what data they receive.
+  - Set a local transform on a node in the scene.
+  - Call `updateWorldTransforms()` on the scene.
+  - Call each system's `syncTransforms(scene.getChangedNodes(), scene)`.
+  - Verify that:
+    - All descendants have correct world transforms (compare to expected matrices).
+    - The set of changed nodes includes the node and all affected descendants.
+    - The mock systems received the correct set of changed nodes and updated their internal transforms accordingly.
+    - If systems update asynchronously, simulate or wait for the update to complete before checking results.
+    - For more robust tests, check that unrelated nodes/systems are not updated.
+
+#### Example (Pseudocode)
+```cpp
+Scene scene;
+auto root = scene.addNode();
+auto child = scene.addNode(root);
+auto grandchild = scene.addNode(child);
+
+MockCullingSystem cullingSystem;
+MockDrawDataManager drawDataManager;
+
+scene.setNodeTransform(root, initialRootTransform);
+scene.setNodeTransform(child, initialChildTransform);
+scene.setNodeTransform(grandchild, initialGrandchildTransform);
+
+scene.setNodeTransform(root, newRootTransform);
+scene.updateWorldTransforms();
+auto changedNodes = scene.getChangedNodes();
+
+// System synchronization
+cullingSystem.syncTransforms(changedNodes, scene);
+drawDataManager.syncTransforms(changedNodes, scene);
+
+// Assertions
+assert(scene.getNodeTransform(child) == expectedChildWorldTransform);
+assert(scene.getNodeTransform(grandchild) == expectedGrandchildWorldTransform);
+assert(cullingSystem.lastSyncedNodes == changedNodes);
+assert(drawDataManager.lastSyncedNodes == changedNodes);
+assert(cullingSystem.transformsInSyncWithScene(scene));
+assert(drawDataManager.transformsInSyncWithScene(scene));
+```
+
+### 11.5 Serialization/Deserialization Tests
+- **Scene Serialization/Deserialization:**
+  - Add a scene, set some transforms, and associate some data.
+  - Serialize the scene to a file.
+  - Deserialize the scene from the file into a new scene manager instance.
+  - Verify that the new scene is structurally identical to the original (same hierarchy, transforms, data associations).
+  - Test with various scene complexities (number of nodes, depth of hierarchy, amount of data).
+
+---
+
+## Coordination with Core System
+
+The coordination of transform propagation (`updateWorldTransforms`), system synchronization (`syncTransforms`), and the main renderer loop is now documented in detail in [Core System Coordination](../core/core_system_coordination.md). Refer to that document for the authoritative workflow and lifecycle. This section is intentionally brief to avoid duplication.
+
+- The scene module is responsible for efficient transform propagation and tracking changed nodes.
+- Systems must synchronize their data after transforms are updated and before rendering, as described in the core coordination document.

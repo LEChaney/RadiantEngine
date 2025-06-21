@@ -164,4 +164,13 @@ void Renderer::performCulling() {
 
 ---
 
+## Coordination with Core System
+
+The workflow for transform updates, system synchronization, and the renderer loop is now documented in [Core System Coordination](../core/core_system_coordination.md). Refer to that document for the high-level sequence and rationale. This section only summarizes the renderer's role:
+
+- The renderer must be called after all system synchronizations are complete.
+- It assumes all per-system data is up to date for the current frame.
+
+---
+
 This document should be updated as the renderer module evolves.
