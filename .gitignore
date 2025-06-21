@@ -1,0 +1,31 @@
+/build
+/bin
+/assets/bistro.glb
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+# OS/Editor files
+.DS_Store
+*.swp
+*.swo
+*.user
+*.sublime-workspace
+*.sublime-project
+
+# Logs
+*.log
+
+# VSCode and cache
+.vscode/
+.cache/
+
+# Shader binaries
+*.spv
+
+# ImGui saved layout files
+imgui.ini
