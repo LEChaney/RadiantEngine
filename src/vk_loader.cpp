@@ -142,7 +142,10 @@ std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(VulkanEngine *engine, std::
     // fastgltf::Options::LoadExternalImages;
 
     fastgltf::GltfDataBuffer data;
-    data.loadFromFile(filePath);
+    if (!data.loadFromFile(filePath)) {
+        std::cerr << "Failed to load glTF file: " << filePath << std::endl;
+        return {};
+    }
 
     fastgltf::Asset gltf;
 

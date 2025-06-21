@@ -1375,25 +1375,29 @@ void VulkanEngine::init_default_data()
     
     // Load default map
     std::string structurePath = { "assets/structure.glb" };
-    auto structureFile = load_gltf(this,structurePath);
-    assert(structureFile.has_value());
-    _loadedScenes["structure"] = *structureFile;
+    auto structureFile = load_gltf(this, structurePath);
+    if (structureFile.has_value()) {
+        _loadedScenes["structure"] = *structureFile;
+    }
 
     std::string basicMeshPath = { "assets/basicmesh.glb" };
-    auto basicMeshFile = load_gltf(this,basicMeshPath);
-    assert(basicMeshFile.has_value());
-    _loadedScenes["basicmesh"] = *basicMeshFile;
-    _loadedScenes["basicmesh"]->delete_all_nodes_except("Suzanne");
+    auto basicMeshFile = load_gltf(this, basicMeshPath);
+    if (basicMeshFile.has_value()) {
+        _loadedScenes["basicmesh"] = *basicMeshFile;
+        _loadedScenes["basicmesh"]->delete_all_nodes_except("Suzanne");
+    }
 
     std::string sponzaMeshPath = { "assets/sponza/Sponza.gltf" };
-    auto sponzaGltf = load_gltf(this,sponzaMeshPath);
-    assert(sponzaGltf.has_value());
-    _loadedScenes["sponza"] = *sponzaGltf;
+    auto sponzaGltf = load_gltf(this, sponzaMeshPath);
+    if (sponzaGltf.has_value()) {
+        _loadedScenes["sponza"] = *sponzaGltf;
+    }
 
     std::string bistroMeshPath = { "assets/bistro.glb" };
-    auto bistroGltf = load_gltf(this,bistroMeshPath);
-    assert(bistroGltf.has_value());
-    _loadedScenes["bistro"] = *bistroGltf;
+    auto bistroGltf = load_gltf(this, bistroMeshPath);
+    if (bistroGltf.has_value()) {
+        _loadedScenes["bistro"] = *bistroGltf;
+    }
 }
 
 void VulkanEngine::resize_swapchain()
