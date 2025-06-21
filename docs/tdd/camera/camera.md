@@ -11,8 +11,8 @@ The camera module is responsible for representing and manipulating the view and 
 - Store camera parameters (position, orientation, FOV, aspect ratio, near/far planes)
 - Compute and provide view and projection matrices
 - Support camera movement and rotation (e.g., FPS, orbit, or custom controls)
-- **Directly handle input events (e.g., SDL events) for interactive control**
 - Respond to viewport size changes to update projection
+- **Directly handle input events (e.g., SDL events) for interactive control**
 - **Optionally attach to a scene node to follow its world transform, supporting camera tracking, third-person, or cutscene behaviors**
 
 ---
@@ -28,7 +28,8 @@ The camera module is responsible for representing and manipulating the view and 
 ### Camera
 - Fields:
   - position, orientation (quaternion or Euler), FOV, aspect, near, far, targetPosition, targetOrientation
-  - **Optional: attached Scene* and NodeHandle, and local offset transform if attached**
+  - Optional: attached Scene* and NodeHandle, and local offset transform if attached
+  - Cached frustum planes in camera view space, updated whenever the projection matrix changes
 - Methods:
   - set/get position & orientation
   - set/get projection parameters
@@ -39,12 +40,14 @@ The camera module is responsible for representing and manipulating the view and 
     - If attached to a node, queries the node's world transform from the scene and applies the local offset to compute position/orientation
     - Otherwise, smoothly interpolates position/orientation toward target values
     - Recalculates view and projection matrices as needed
-  - **processSDLEvent(SDL_Event&): Handles input events directly (movement, mouse, etc.)**
-  - **attachToNode(Scene* scene, NodeHandle node, const glm::mat4& localOffset = glm::mat4(1.0f)): Attaches the camera to a scene node, with optional local offset**
-  - **detachFromNode(): Detaches the camera from any node, resuming independent control**
-  - **isAttached() const: Returns true if the camera is currently attached to a node**
-  - **getAttachedNode() const: Returns the currently attached node handle (or INVALID_HANDLE if not attached)**
-  - **getLocalOffset() const: Returns the local offset transform used when attached**
+    - If the projection matrix has changed, recalculates and caches the frustum planes in camera view space
+  - getFrustumPlanes() const: Returns the cached frustum planes in camera view space.
+  - processSDLEvent(SDL_Event&): Handles input events directly (movement, mouse, etc.)
+  - attachToNode(Scene* scene, NodeHandle node, const glm::mat4& localOffset = glm::mat4(1.0f)): Attaches the camera to a scene node, with optional local offset
+  - detachFromNode(): Detaches the camera from any node, resuming independent control
+  - isAttached() const: Returns true if the camera is currently attached to a node
+  - getAttachedNode() const: Returns the currently attached node handle (or INVALID_HANDLE if not attached)
+  - getLocalOffset() const: Returns the local offset transform used when attached
 
 ---
 
@@ -76,6 +79,9 @@ camera.attachToNode(&scene, playerNode, glm::translate(glm::vec3(0, 2, -5)));
 // In main loop or scene update:
 camera.processSDLEvent(event); // handles input and updates camera state
 camera.update(deltaTime); // Camera follows node's world transform if attached, or interpolates otherwise
+
+// Access frustum planes for culling or other purposes:
+auto frustumPlanes = camera.getFrustumPlanes();
 
 // Detach camera for free movement
 camera.detachFromNode();
@@ -129,6 +135,11 @@ mat4 proj = camera.getProjectionMatrix();
   - Attach and detach repeatedly to different nodes, verifying correct behavior each time.
   - Test with various local offsets (identity, translation, rotation) to ensure correct application.
   - If input is allowed while attached, verify that input affects the local offset (if supported/configured).
+
+- **Frustum Plane Calculation and Caching**
+  - After changing the projection matrix (e.g., via setViewportSize or set/get projection parameters), verify that the frustum planes are recalculated and cached correctly in camera view space.
+  - Call `getFrustumPlanes()` and verify the returned planes match the expected frustum for the current projection.
+  - Test that the frustum planes remain unchanged if the projection matrix does not change between updates.
 
 ### Integration Tests
 

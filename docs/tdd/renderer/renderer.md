@@ -62,10 +62,14 @@ See the Internal Classes & Responsibilities section below for details on each cl
   - Manages swapchain images, image views, and synchronization objects.
   - Responds to window resize and surface changes.
 
-- **FrustumCuller**
-  - Handles frustum plane extraction and culling logic.
-  - Used internally by the renderer to determine object visibility.
-  - Updates frustum planes only when the projection matrix changes.
+- **CullingSystem**
+  - Responsible for efficient visibility determination of scene objects (meshes, mesh draws, etc.) before rendering.
+  - Maintains tightly-packed per-draw culling data (world transforms, bounds) for fast, cache-friendly iteration and SIMD-friendly culling algorithms.
+  - Synchronizes culling data with the scene graph after transform changes via `syncTransforms`.
+  - **Remembers the last set of frustum planes, updating them only when the camera's projection matrix changes.**
+  - The `cull` method takes a `Camera&` and uses the camera's cached frustum planes and view matrix internally.
+  - Exposes APIs for updating transforms and bounds, and for reporting visible mesh draws for rendering.
+  - See [Culling System Design](renderer/culling_system.md) for details.
 
 - **ResourceManager**
   - Allocates and destroys GPU resources (buffers, images, samplers) on request.
@@ -86,7 +90,7 @@ See the Internal Classes & Responsibilities section below for details on each cl
 
 - **beginFrame()**: Prepares the renderer for a new frame (acquire swapchain image, reset command buffers, etc.)
 - **endFrame()**: Finalizes and submits the frame (submit command buffers, handle synchronization, and prepare for presentation)
-- **performCulling()**: Culls invisible objects using FrustumCuller to determine visibility.
+- **performCulling()**: Uses the CullingSystem to determine visible mesh draws for the current frame. The CullingSystem maintains its own per-draw culling data, and uses the camera's cached frustum planes and view matrix. Frustum planes are only updated when the camera's projection matrix changes.
 - **performSorting()**: Sorts visible draw calls for efficiency (e.g., to minimize state changes or for correct transparency rendering).
 - **recordDrawCommands()**: Records Vulkan draw commands for the current frame (uses ResourceManager, PipelineManager, DescriptorManager)
 - **presentFrame()**: Presents the rendered image to the screen (submits the present request to the swapchain)
@@ -95,12 +99,14 @@ See the Internal Classes & Responsibilities section below for details on each cl
 
 ---
 
-## 7. Handling Frustum Culling
+## 7. Handling Culling
 
-- Renderer owns the FrustumCuller
-- On camera projection matrix change (e.g., window resize), renderer calls frustumCuller.update(camera.getProjectionMatrix()) ([see camera design document](camera.md))
-- During draw preparation, renderer uses frustumCuller to cull objects before issuing draw calls
-- Culling interface uses bounds and a bounds-to-view matrix for flexibility
+- Renderer owns the CullingSystem.
+- After scene transforms are updated and synchronized, the renderer calls `cullingSystem.cull(camera)` to determine the set of visible mesh draws for the current frame.
+- The CullingSystem maintains its own tightly-packed per-draw culling data, which is synchronized with the scene after transform changes via `syncTransforms`.
+- The CullingSystem uses the camera's cached frustum planes and view matrix. Frustum planes are only recalculated if the camera's projection matrix has changed since the last frame.
+- The renderer uses the list of visible draw indices returned by the CullingSystem to issue draw calls for only visible objects.
+- See [Culling System Design](renderer/culling_system.md) for further details and API.
 
 ---
 
@@ -129,22 +135,17 @@ renderer.resizeSwapchain(newWidth, newHeight);
 // Internal renderer workflow (simplified):
 void Renderer::renderFrame() {
     beginFrame();
-    performCulling(); // Uses FrustumCuller to determine visible objects
-    performSorting(); // Sorts visible objects for batching/state changes
-    recordDrawCommands(); // Uses ResourceManager, PipelineManager, DescriptorManager
+    auto visibleDraws = cullingSystem.cull(camera); // Uses camera's cached frustum planes and view matrix
+    performSorting(visibleDraws); // Sorts visible objects for batching/state changes
+    recordDrawCommands(visibleDraws); // Uses ResourceManager, PipelineManager, DescriptorManager
     endFrame();
     presentFrame();
 }
 
 // Example of culling and resource usage:
 void Renderer::performCulling() {
-    frustumCuller.update(camera.getProjectionMatrix()); // Only if projection changed
-    for (auto& object : scene.objects) {
-        glm::mat4 boundsToView = camera.getViewMatrix() * object.worldTransform * object.boundsTransform;
-        if (frustumCuller.isAABBVisible(object.bounds, boundsToView)) {
-            visibleObjects.push_back(&object);
-        }
-    }
+    auto visibleDraws = cullingSystem.cull(camera);
+    // visibleDraws contains indices of visible mesh draws for this frame
 }
 ```
 

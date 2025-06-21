@@ -29,6 +29,8 @@ std::vector<MeshDrawCullData> meshDrawCullData; // 1:1 with MeshDrawData
 
 - No mesh/section indices or NodeHandle are stored; the array is always kept in sync and 1:1 with MeshDrawData.
 - A separate mapping from (scene, node) to mesh draw indices is maintained elsewhere for transform sync, but not in this struct.
+- **Frustum planes are cached on the Camera. The CullingSystem does not store or cache frustum planes or projection matrix state.**
+- **The CullingSystem obtains frustum planes and view matrix for culling by calling the camera's public API (e.g., `camera.getFrustumPlanes()` and `camera.getViewMatrix()`). The camera is responsible for ensuring these are up to date whenever its projection or transform changes. The culling system treats the camera as a stateless provider of frustum data, allowing culling from multiple views in the same frame without internal state management.**
 
 ---
 
@@ -43,19 +45,23 @@ void addCullData(const glm::mat4& worldTransform, const Bounds& bounds);
 void removeCullData(size_t drawIndex);
 
 // Culling
-std::vector<uint32_t> cull(const std::array<FrustumPlane, 6>& frustumPlanes, const glm::mat4& view) const; // Returns indices of visible draws
+std::vector<uint32_t> cull(const Camera& camera); // Returns indices of visible draws
 
 // Query
 const MeshDrawCullData& getMeshDrawCullData(uint32_t index) const;
 ```
 
+- The `cull` method takes a `Camera&` and uses the camera's cached frustum planes and view matrix. The camera is responsible for maintaining and updating its cached frustum planes when its projection matrix changes. The CullingSystem queries these planes as needed and does not store any per-camera state.
+- **The CullingSystem uses the camera's API to obtain the current frustum planes (e.g., `camera.getFrustumPlanes()`) and view matrix (e.g., `camera.getViewMatrix()`) for each culling operation. This ensures that culling always uses the latest camera state, and allows the same culling system to be used with multiple cameras or views in a single frame.**
+
 ---
 
 ## 4. Culling Algorithm
 
-- For each mesh draw, transform its bounds to view space using the draw's world transform and the current view matrix.
-- Perform frustum-AABB testing in view space using the frustum planes, as in the `is_in_frustum` implementation.
+- For each mesh draw, transform its bounds to view space using the draw's world transform and the current camera's view matrix (obtained via `camera.getViewMatrix()`).
+- Perform frustum-AABB testing in view space using the camera's cached frustum planes (obtained via `camera.getFrustumPlanes()`).
 - Only draws passing the test are considered visible.
+- The CullingSystem does not cache or store any camera or frustum state, so it can cull from multiple camera views in the same frame without additional state management.
 
 ---
 
@@ -85,13 +91,19 @@ const MeshDrawCullData& getMeshDrawCullData(uint32_t index) const;
 scene.updateWorldTransforms();
 cullingSystem.syncTransforms(changedNodes, scene);
 
-// During culling:
-auto visibleDraws = cullingSystem.cull(frustumPlanes, viewMatrix);
-for (uint32_t idx : visibleDraws) {
-    const auto& cullData = cullingSystem.getMeshDrawCullData(idx);
-    // Pass to renderer/draw data
+// During culling and rendering:
+auto visibleDraws = cullingSystem.cull(camera); // Returns indices of visible mesh draws
+for (uint32_t drawIdx : visibleDraws) {
+    // drawIdx is an index into both meshDrawCullData and MeshDrawData
+    // Use drawIdx directly to access per-draw culling data or draw data for rendering
+    // Example:
+    const auto& drawData = drawDataManager.getMeshDrawData()[drawIdx];
+    // ... issue draw call using drawData ...
 }
 ```
+
+- The `visibleDraws` vector contains indices into both the CullingSystem's `meshDrawCullData` array and the DrawDataManager's `MeshDrawData` array. This allows direct, efficient access to all per-draw data needed for rendering visible objects, without further indirection or lookup.
+- External code should not need to access `meshDrawCullData` directly except for debugging or advanced queries; it is used internally by the culling system.
 
 ---
 
@@ -102,6 +114,66 @@ for (uint32_t idx : visibleDraws) {
 - Transform and bounds updates are explicit and must be synchronized after scene changes.
 - The MeshDrawCullData array is always kept in sync and 1:1 with the MeshDrawData array for fast lookup and iteration.
 - Mapping from (scene, node) to mesh draw indices is maintained externally for transform sync.
+
+---
+
+## 9. Suggested Tests
+
+### Unit Tests
+
+- **Frustum Culling Logic**
+  - Given a set of mesh draws with known world transforms and bounds, verify that `cull(camera)` returns the correct set of visible indices for a variety of camera positions and orientations.
+  - Test with objects fully inside, fully outside, and intersecting the frustum.
+  - Test with degenerate bounds (zero size, negative extents) to ensure robust handling.
+
+- **Transform Synchronization**
+  - After calling `syncTransforms` with a set of changed nodes, verify that only the corresponding entries in `meshDrawCullData` are updated.
+  - Confirm that repeated calls with the same unchanged nodes do not result in unnecessary updates.
+
+- **Frustum Plane Usage**
+  - Mock a camera with known frustum planes and verify that the culling system uses the camera's cached planes, not its own state.
+  - Change the camera's projection matrix and ensure that the culling system reflects the updated frustum planes on the next cull.
+
+- **Add/Remove Cull Data**
+  - Add and remove cull data entries and verify that the internal array remains tightly packed and 1:1 with MeshDrawData.
+  - Confirm that removed indices are not returned by `cull` and that subsequent additions are handled correctly.
+
+- **Query API**
+  - For a known index, verify that `getMeshDrawCullData(index)` returns the expected transform and bounds.
+
+### Integration Tests
+
+- **Scene Transform Propagation**
+  - Modify node transforms in the scene, propagate with `updateWorldTransforms`, and synchronize with `syncTransforms`. Verify that culling results reflect the new transforms.
+  - Attach/detach mesh draws to nodes and ensure culling results update accordingly.
+
+- **Multi-Camera/Multiview Support**
+  - Cull the same set of mesh draws from multiple cameras in a single frame. Verify that results are correct and independent for each camera.
+
+- **Draw Data Synchronization**
+  - After mesh draw data is added/removed in the DrawDataManager, ensure the culling system's data remains in sync and no stale indices are returned.
+
+### Edge Cases
+
+- **Empty Scene**
+  - Call `cull` on an empty culling system and verify that the result is empty and no errors occur.
+
+- **All Objects Outside Frustum**
+  - Place all mesh draws outside the frustum and verify that `cull` returns an empty set.
+
+- **All Objects Inside Frustum**
+  - Place all mesh draws inside the frustum and verify that `cull` returns all indices.
+
+- **Large Number of Draws**
+  - Test with a large number of mesh draws (e.g., 10,000+) to ensure performance and correctness under load.
+
+### Visual/Manual Validation
+
+- **Debug Visualization**
+  - Render the frustum and bounding volumes for a test scene. Visually confirm that only objects inside/intersecting the frustum are rendered.
+
+- **Camera Movement**
+  - Move the camera through the scene and verify that objects enter and exit the visible set as expected.
 
 ---
 

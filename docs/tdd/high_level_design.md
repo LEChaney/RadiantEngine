@@ -42,7 +42,7 @@ This document describes the proposed refactoring of the Vulkan renderer codebase
 - **PipelineManager**: Manages graphics and compute pipelines globally. Pipelines are referenced by scenes as needed, but are owned and destroyed by the PipelineManager.
 - **DescriptorManager**: Allocates and recycles descriptor sets. Scenes are responsible for freeing descriptor sets they allocate.
 - **ResourceManager**: Allocates and destroys GPU resources (buffers, images, samplers) on request. Does not own or track resource lifetime; scenes (or scene manager) are responsible for tracking and releasing resources they use.
-- **FrustumCuller**: Frustum plane extraction and culling logic.
+- **CullingSystem**: Maintains a tightly-packed, per-draw array of world transforms and bounds for culling. The CullingSystem is fully decoupled from the scene graph and draw data, and is synchronized after transform changes via `syncTransforms`. It does not store or cache any camera or frustum state; instead, it uses the camera's cached frustum planes and view matrix for culling. This enables efficient, stateless culling from multiple camera views in the same frame. The mapping from (scene, node) to mesh draw indices is maintained externally (see Mesh System). See [Culling System Design](renderer/culling_system.md) for details and API.
 
 #### 3.2.3. Scene
 
