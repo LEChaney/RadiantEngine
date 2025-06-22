@@ -55,7 +55,6 @@ This document describes the proposed refactoring of the Vulkan renderer codebase
 
 - See [Camera Module Design](camera/camera.md) for details.
 - **Camera**: Stores view/projection, frustum, movement logic, and handles input events directly (e.g., SDL events).
-- **FrustumCuller**: Extracts and tests frustum planes (see Renderer for implementation).
 
 #### 3.2.5. Assets
 
