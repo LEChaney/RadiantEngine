@@ -39,17 +39,17 @@ This document describes the proposed refactoring of the Vulkan renderer codebase
 - See [Renderer Module Design](renderer/renderer.md) for details.
 - **VulkanContext**: Encapsulates Vulkan instance, device, and surface.
 - **SwapchainManager**: Handles swapchain creation and recreation.
-- **PipelineManager**: Manages graphics and compute pipelines globally. Pipelines are referenced by scenes as needed, but are owned and destroyed by the PipelineManager.
-- **DescriptorManager**: Allocates and recycles descriptor sets. Scenes are responsible for freeing descriptor sets they allocate.
-- **ResourceManager**: Allocates and destroys GPU resources (buffers, images, samplers) on request. Does not own or track resource lifetime; scenes (or scene manager) are responsible for tracking and releasing resources they use.
-- **CullingSystem**: Maintains a tightly-packed, per-draw array of world transforms and bounds for culling. The CullingSystem is fully decoupled from the scene graph and draw data, and is synchronized after transform changes via `syncTransforms`. It does not store or cache any camera or frustum state; instead, it uses the camera's cached frustum planes and view matrix for culling. This enables efficient, stateless culling from multiple camera views in the same frame. The mapping from (scene, node) to mesh draw indices is maintained externally (see Mesh System). See [Culling System Design](renderer/culling_system.md) for details and API.
+- **PipelineManager**: Manages graphics and compute pipelines.
+- **DescriptorManager**: Allocates and recycles descriptor sets.
+- **ResourceManager**: Allocates and destroys GPU resources on request.
+- **CullingSystem**: Performs visibility determination for scene objects before rendering, using camera frustum data. Decoupled from scene and draw data for performance. See [Culling System Design](renderer/culling_system.md) for details.
 
 #### 3.2.3. Scene
 
-- **Node**: Base class for scene graph nodes, with transform and hierarchy. See [Scene Module Design](scene/scene.md).
-- **MeshNode**: Node with mesh reference for rendering. See [Scene Module Design](scene/scene.md#key-classes--public-api).
-- **LightNode** (future): Node with lighting information. See [Scene Module Design](scene/scene.md#future-extensions).
-- **SceneGraph**: Hierarchical structure for nodes. See [Scene Module Design](scene/scene.md#internal-structure--workflow-for-maintainers).
+- **Scene Graph**: Represents the logical structure and transform hierarchy of the world. Stores nodes and their relationships, but not system-specific data.
+- **System Data Association**: All rendering, lighting, and physics data is managed externally and associated to scene nodes by handle.
+- **Transform Propagation**: Responsible for updating world transforms and tracking changes for synchronization with other systems.
+- **SceneManager**: Manages multiple scenes and the active scene. See [Scene Module Design](scene/scene.md) for details.
 
 #### 3.2.4. Camera
 
