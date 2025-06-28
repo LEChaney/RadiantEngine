@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The CullingSystem is responsible for efficient visibility determination of the visiblility of mesh draws before rendering. It maintains its own tightly-packed data for culling, including per-draw world transforms and bounds, to enable fast, cache-friendly iteration and SIMD-friendly culling algorithms. Culling is performed in view space using the current view matrix and frustum planes. This system is decoupled from the draw data and scene graph for maximum performance.
+The CullingSystem is responsible for efficient visibility determination of mesh draws before rendering. It maintains its own tightly-packed data for culling, including per-draw world transforms and bounds, to enable fast, cache-friendly iteration and SIMD-friendly culling algorithms. Culling is performed in view space using the current view matrix and frustum planes. This system is decoupled from the draw data and scene graph for maximum performance.
 
 ---
 
@@ -20,15 +20,21 @@ The CullingSystem is responsible for efficient visibility determination of the v
 
 ```cpp
 struct MeshDrawCullData {
-    glm::mat4 worldTransform; // Per-draw world transform
-    Bounds bounds;            // Per-draw bounds (in bounds space, e.g., AABB)
+    glm::mat4 boundsToWorld; // Cached OBB in world space (for culling)
+};
+
+struct MeshDrawBoundsData {
+    glm::mat4 boundsToMesh; // OBB in mesh local space (static, only needed for resync)
 };
 
 std::vector<MeshDrawCullData> meshDrawCullData; // 1:1 with MeshDrawData
+std::vector<MeshDrawBoundsData> meshDrawBoundsData; // 1:1 with MeshDrawData
 ```
 
-- No mesh/section indices or NodeHandle are stored; the array is always kept in sync and 1:1 with MeshDrawData.
-- A separate mapping from (scene, node) to mesh draw indices is maintained elsewhere for transform sync, but not in this struct.
+- Each mesh draw now has two associated matrices:
+  - `boundsToWorld`: The OBB in world space, updated whenever the owning node's world transform changes. Used for culling.
+  - `boundsToMesh`: The OBB in mesh local space, typically set at creation and only updated if the mesh section's bounds change.
+- Both arrays are kept in sync and indexed 1:1 with MeshDrawData.
 
 ---
 
@@ -39,7 +45,7 @@ std::vector<MeshDrawCullData> meshDrawCullData; // 1:1 with MeshDrawData
 void syncTransforms(const std::vector<NodeHandle>& changedNodes, const Scene& scene);
 
 // Called when mesh draw cull data is added or removed
-void addCullData(const glm::mat4& worldTransform, const Bounds& bounds);
+void addCullData(const glm::mat4& boundsToMesh, const glm::mat4& meshToWorld);
 void removeCullData(size_t drawIndex);
 
 // Culling
@@ -47,58 +53,56 @@ std::vector<uint32_t> cull(const Camera& camera); // Returns indices of visible 
 
 // Query
 const MeshDrawCullData& getMeshDrawCullData(uint32_t index) const;
+const MeshDrawBoundsData& getMeshDrawBoundsData(uint32_t index) const;
 ```
 
-- The CullingSystem uses the camera's API to obtain the current frustum planes (e.g., `camera.getFrustumPlanes()`) and view matrix (e.g., `camera.getViewMatrix()`) for each culling operation. This ensures that culling always uses the latest camera state, and allows the same culling system to be used with multiple cameras or views in a single frame.
+- When a new mesh draw is added, its `boundsToMesh` is stored in `meshDrawBoundsData`, and `boundsToWorld` is initialized.
+- On transform sync, only `boundsToWorld` is updated; `boundsToMesh` remains unchanged unless the mesh section's bounds are modified.
 
 ---
 
 ## Culling Algorithm
 ### Frustum Culling Algorithm Overview
 
-Frustum culling in view space involves determining whether each object's bounding volume (typically an axis-aligned bounding box, or AABB) intersects the camera's view frustum. Performing culling in view space—where the camera is at the origin and aligned with the axes—simplifies the intersection tests and improves numerical stability.
+Frustum culling in view space involves determining whether each object's bounding volume (typically an oriented bounding box, or OBB, represented as a mat4) intersects the camera's view frustum. Performing culling in view space—where the camera is at the origin and aligned with the axes—simplifies the intersection tests and improves numerical stability.
 
 ### Algorithm Steps
 
-**1. Transform Bounds to View Space:**
-For each mesh draw, compute a conservative view-space AABB from its bounds-space AABB using the following pseudo code:
+**1. Transform OBB to View Space:**
+For each mesh draw, compute a conservative view-space AABB from its OBB using the following pseudo code (see geometry.md for OBB definition):
 
 ```cpp
 // Inputs:
-// - boundsToWorld: 4x4 matrix transforming from bounds space to world space
+// - boundsToWorld: 4x4 OBB matrix (see geometry.md)
 // - view: 4x4 view matrix
-// - aabb_center: center of the AABB in bounds space
-// - aabb_extents: half-size (extent) of the AABB in bounds space
 
 // 1. Combine transforms to get bounds-to-view matrix
-boundsToView = view * boundsToWorld
+boundsToView = view * boundsToWorld;
 
 // 2. Transform the AABB center to view space
-center_vs = TransformPoint(boundsToView, aabb_center)
+center_vs = boundsToView[3].xyz; // translation component
 
 // 3. Compute conservative view-space extents
 //    - Take the absolute value of the upper 3x3 part of the matrix (rotation, scale, shear)
 //    - Multiply each column by the corresponding bounds-space extent
-absRotScale = Abs3x3(boundsToView) // Each element is abs(matrix[i][j])
-extents_vs = absRotScale * aabb_extents
+absRotScale = Abs3x3(boundsToView); // Each element is abs(matrix[i][j])
+extents_vs = absRotScale * vec3(1, 1, 1);
 
 // 4. The view-space AABB is defined by center_vs and extents_vs
 ```
 
 **Explanation:**
+- The OBB is represented as a 4x4 matrix as described in geometry.md. The first three columns encode the half-axes (scaled by extents), and the fourth column is the center.
 - `Abs3x3` means taking the absolute value of each element in the 3x3 rotation/scale/shear part of the matrix.
 - Multiplying this matrix by the bounds-space extents gives the maximum reach of the transformed box along each view-space axis, conservatively enclosing the oriented box.
-- This method works for any AABB in any local space, and always produces a view-space AABB that fully contains the transformed box, regardless of rotation or scale.
 
-For more details, see [Converting OBB to AABB in Target Space](https://madmann91.github.io/2024/02/10/converting-oriented-bounding-boxes-to-axis-aligned-ones.html).
+For more details, see [Converting OBB to AABB in Target Space](https://madmann91.github.io/2024/02/10/converting-oriented-bounding-boxes-to-axis-aligned-ones.html) and the geometry.md documentation.
 
 **2. Frustum Plane Extraction**
 Obtain the camera's six frustum planes in view space (left, right, top, bottom, near, far), typically via `camera.getFrustumPlanes()`. Because these planes are defined in view space, their orientation and position are fixed relative to the camera axes, simplifying intersection tests and allowing them to be efficiently reused or cached on the camera.
 
 **3. AABB-Frustum Plane Testing**
 For each transformed AABB, test it against all frustum planes using the following method:
-
-To test an AABB (defined by its center and extents) against a plane:
 
 ```cpp
 // AABB parameters in view space
@@ -135,22 +139,42 @@ This approach is efficient and SIMD-friendly, and is commonly known as the "slab
 - [Real-Time Rendering, 4th Edition](https://www.realtimerendering.com/) – Section on frustum culling  
 - [OGRE3D Frustum Culling](https://ogrecave.github.io/ogre/api/latest/classOgre_1_1Frustum.html)  
 - [Converting OBB to AABB in Target Space](https://madmann91.github.io/2024/02/10/converting-oriented-bounding-boxes-to-axis-aligned-ones.html)
+- [Geometry Primitives and Operations](../utils/geometry.md)
 
 ---
 
 ## Transform Synchronization
 
-- When a node's transform changes the scene graph updates the world transform for all affected nodes.
-- The CullingSystem is notified via `syncTransforms`, passing the list of changed nodes.
-- The CullingSystem uses a mapping from (scene, node) to mesh draw indices to update the world transform for all affected draws.
-- This ensures culling data is always up to date and decoupled from the scene graph.
+- When a node's transform changes, the CullingSystem is notified via `syncTransforms`, passing the list of changed nodes.
+- For each affected mesh draw, the CullingSystem recomputes `boundsToWorld` as:
+  ```cpp
+  boundsToWorld = worldTransform * boundsToMesh;
+  ```
+  - `worldTransform` is read from the changed node.
+  - `boundsToMesh` is read from the CullingSystem's own `meshDrawBoundsData` array.
+- This avoids the need to query the MeshSystem during sync, and ensures all culling data is up to date and cache-friendly.
+
+**Example Pseudocode:**
+```cpp
+for (NodeHandle node : changedNodes) {
+    glm::mat4 worldTransform = node.worldTransform;
+    const auto& drawIndices = drawDataManager.getDrawIndicesForNode(scene, node);
+    for (size_t drawIdx : drawIndices) {
+        glm::mat4 boundsToMesh = meshDrawBoundsData[drawIdx].boundsToMesh;
+        meshDrawCullData[drawIdx].boundsToWorld = worldTransform * boundsToMesh;
+    }
+}
+```
+
+- If a mesh section's bounds change (e.g., mesh deformation), update the corresponding `boundsToMesh` in `meshDrawBoundsData` and resync transforms as needed.
+- This design keeps the CullingSystem self-contained and efficient for both culling and transform updates.
 
 ---
 
 ## Integration with Scene and DrawData
 
 - The CullingSystem does not store or access draw data or rendering state.
-- It only tracks transforms and bounds for culling.
+- It only tracks transforms and bounds for culling, with OBBs represented as mat4s.
 - The DrawDataManager and renderer receive the list of visible draw indices from the CullingSystem for rendering.
 - Both CullingSystem and DrawDataManager store their own transforms for maximum iteration speed.
 - There is a one-to-one mapping between the MeshDrawCullData and MeshDrawData arrays.
@@ -176,13 +200,14 @@ for (uint32_t drawIdx : visibleDraws) {
 ```
 
 - The `visibleDraws` vector contains indices into both the CullingSystem's `meshDrawCullData` array and the DrawDataManager's `MeshDrawData` array. This allows direct, efficient access to all per-draw data needed for rendering visible objects, without further indirection or lookup.
+- The OBB for each draw is always represented as a mat4, as described in geometry.md.
 
 ## Suggested Tests
 
 ### Unit Tests
 
 - **Frustum Culling Logic**
-  - Given a set of mesh draws with known world transforms and bounds, verify that `cull(camera)` returns the correct set of visible indices for a variety of camera positions and orientations.
+  - Given a set of mesh draws with known world OBB transforms (mat4) and bounds, verify that `cull(camera)` returns the correct set of visible indices for a variety of camera positions and orientations.
   - Test with objects fully inside, fully outside, and intersecting the frustum.
   - Test with degenerate bounds (zero size, negative extents) to ensure robust handling.
 
@@ -199,7 +224,7 @@ for (uint32_t drawIdx : visibleDraws) {
   - Confirm that removed indices are not returned by `cull` and that subsequent additions are handled correctly.
 
 - **Query API**
-  - For a known index, verify that `getMeshDrawCullData(index)` returns the expected transform and bounds.
+  - For a known index, verify that `getMeshDrawCullData(index)` returns the expected OBB transform (mat4).
 
 ### Integration Tests
 
