@@ -2,11 +2,11 @@
 
 ## Purpose
 
-The CullingSystem is responsible for efficient visibility determination of scene objects (meshes, mesh draws, etc.) before rendering. It maintains its own tightly-packed data for culling, including per-draw world transforms and bounds, to enable fast, cache-friendly iteration and SIMD-friendly culling algorithms. Culling is performed in view space using the current view matrix and frustum planes, matching the approach in the `is_in_frustum` implementation. This system is decoupled from the draw data and scene graph for maximum performance.
+The CullingSystem is responsible for efficient visibility determination of the visiblility of mesh draws before rendering. It maintains its own tightly-packed data for culling, including per-draw world transforms and bounds, to enable fast, cache-friendly iteration and SIMD-friendly culling algorithms. Culling is performed in view space using the current view matrix and frustum planes. This system is decoupled from the draw data and scene graph for maximum performance.
 
 ---
 
-## 1. Responsibilities
+## Responsibilities
 
 - Store all data required for culling (world transform, bounds) per mesh draw.
 - Provide fast, linear iteration for culling algorithms (frustum, occlusion, etc.) in view space.
@@ -16,7 +16,7 @@ The CullingSystem is responsible for efficient visibility determination of scene
 
 ---
 
-## 2. Data Structures
+## Data Structures
 
 ```cpp
 struct MeshDrawCullData {
@@ -29,12 +29,10 @@ std::vector<MeshDrawCullData> meshDrawCullData; // 1:1 with MeshDrawData
 
 - No mesh/section indices or NodeHandle are stored; the array is always kept in sync and 1:1 with MeshDrawData.
 - A separate mapping from (scene, node) to mesh draw indices is maintained elsewhere for transform sync, but not in this struct.
-- **Frustum planes are cached on the Camera. The CullingSystem does not store or cache frustum planes or projection matrix state.**
-- **The CullingSystem obtains frustum planes and view matrix for culling by calling the camera's public API (e.g., `camera.getFrustumPlanes()` and `camera.getViewMatrix()`). The camera is responsible for ensuring these are up to date whenever its projection or transform changes. The culling system treats the camera as a stateless provider of frustum data, allowing culling from multiple views in the same frame without internal state management.**
 
 ---
 
-## 3. API Overview
+## API Overview
 
 ```cpp
 // Called after scene graph transform update
@@ -51,30 +49,105 @@ std::vector<uint32_t> cull(const Camera& camera); // Returns indices of visible 
 const MeshDrawCullData& getMeshDrawCullData(uint32_t index) const;
 ```
 
-- The `cull` method takes a `Camera&` and uses the camera's cached frustum planes and view matrix. The camera is responsible for maintaining and updating its cached frustum planes when its projection matrix changes. The CullingSystem queries these planes as needed and does not store any per-camera state.
-- **The CullingSystem uses the camera's API to obtain the current frustum planes (e.g., `camera.getFrustumPlanes()`) and view matrix (e.g., `camera.getViewMatrix()`) for each culling operation. This ensures that culling always uses the latest camera state, and allows the same culling system to be used with multiple cameras or views in a single frame.**
+- The CullingSystem uses the camera's API to obtain the current frustum planes (e.g., `camera.getFrustumPlanes()`) and view matrix (e.g., `camera.getViewMatrix()`) for each culling operation. This ensures that culling always uses the latest camera state, and allows the same culling system to be used with multiple cameras or views in a single frame.
 
 ---
 
-## 4. Culling Algorithm
+## Culling Algorithm
+### Frustum Culling Algorithm Overview
 
-- For each mesh draw, transform its bounds to view space using the draw's world transform and the current camera's view matrix (obtained via `camera.getViewMatrix()`).
-- Perform frustum-AABB testing in view space using the camera's cached frustum planes (obtained via `camera.getFrustumPlanes()`).
-- Only draws passing the test are considered visible.
-- The CullingSystem does not cache or store any camera or frustum state, so it can cull from multiple camera views in the same frame without additional state management.
+Frustum culling in view space involves determining whether each object's bounding volume (typically an axis-aligned bounding box, or AABB) intersects the camera's view frustum. Performing culling in view space—where the camera is at the origin and aligned with the axes—simplifies the intersection tests and improves numerical stability.
+
+### Algorithm Steps
+
+**1. Transform Bounds to View Space:**
+For each mesh draw, compute a conservative view-space AABB from its bounds-space AABB using the following pseudo code:
+
+```cpp
+// Inputs:
+// - boundsToWorld: 4x4 matrix transforming from bounds space to world space
+// - view: 4x4 view matrix
+// - aabb_center: center of the AABB in bounds space
+// - aabb_extents: half-size (extent) of the AABB in bounds space
+
+// 1. Combine transforms to get bounds-to-view matrix
+boundsToView = view * boundsToWorld
+
+// 2. Transform the AABB center to view space
+center_vs = TransformPoint(boundsToView, aabb_center)
+
+// 3. Compute conservative view-space extents
+//    - Take the absolute value of the upper 3x3 part of the matrix (rotation, scale, shear)
+//    - Multiply each column by the corresponding bounds-space extent
+absRotScale = Abs3x3(boundsToView) // Each element is abs(matrix[i][j])
+extents_vs = absRotScale * aabb_extents
+
+// 4. The view-space AABB is defined by center_vs and extents_vs
+```
+
+**Explanation:**
+- `Abs3x3` means taking the absolute value of each element in the 3x3 rotation/scale/shear part of the matrix.
+- Multiplying this matrix by the bounds-space extents gives the maximum reach of the transformed box along each view-space axis, conservatively enclosing the oriented box.
+- This method works for any AABB in any local space, and always produces a view-space AABB that fully contains the transformed box, regardless of rotation or scale.
+
+For more details, see [Converting OBB to AABB in Target Space](https://madmann91.github.io/2024/02/10/converting-oriented-bounding-boxes-to-axis-aligned-ones.html).
+
+**2. Frustum Plane Extraction**
+Obtain the camera's six frustum planes in view space (left, right, top, bottom, near, far), typically via `camera.getFrustumPlanes()`. Because these planes are defined in view space, their orientation and position are fixed relative to the camera axes, simplifying intersection tests and allowing them to be efficiently reused or cached on the camera.
+
+**3. AABB-Frustum Plane Testing**
+For each transformed AABB, test it against all frustum planes using the following method:
+
+To test an AABB (defined by its center and extents) against a plane:
+
+```cpp
+// AABB parameters in view space
+vec3 center;   // Center of the AABB
+vec3 extents;  // Half-size (extent) of the AABB
+vec4 plane;    // Frustum plane (xyz = normal, w = distance)
+
+// Compute signed distance from box center to plane
+float d = dot(plane.xyz, center) + plane.w;
+
+// Compute the maximum projected radius of the box along the plane normal
+float r = dot(abs(plane.xyz), extents);
+
+// Culling test
+if (d + r < 0.0) {
+  // The AABB is fully outside this frustum plane → cull
+}
+```
+
+**Explanation:**  
+The line `float r = dot(abs(plane.xyz), extents);` computes the maximum projected radius of the AABB along the plane normal.  
+Using `abs(plane.xyz)` here effectively selects the AABB corner that yields the largest possible projection (`r`) onto the plane normal.  
+For example, if the plane normal is `(-x, -y, +z)`, the corner `(-extents.x, -extents.y, +extents.z)` produces the largest `r` value.  
+In general, the sign of each extent component is chosen to match the sign of the corresponding plane normal component, ensuring maximization.  
+This is equivalent to taking the absolute value of the plane normal components and dotting with extents, which is both simpler and more efficient.
+
+- If `d + r < 0.0`, the box is entirely outside the plane and can be culled.
+- If `d - r > 0.0`, the box is entirely inside the plane (rarely used in practice).
+- Otherwise, the box intersects the plane.
+
+This approach is efficient and SIMD-friendly, and is commonly known as the "slab method" for AABB-plane intersection.
+
+### References  
+- [Real-Time Rendering, 4th Edition](https://www.realtimerendering.com/) – Section on frustum culling  
+- [OGRE3D Frustum Culling](https://ogrecave.github.io/ogre/api/latest/classOgre_1_1Frustum.html)  
+- [Converting OBB to AABB in Target Space](https://madmann91.github.io/2024/02/10/converting-oriented-bounding-boxes-to-axis-aligned-ones.html)
 
 ---
 
-## 5. Transform Synchronization
+## Transform Synchronization
 
-- When a node's transform changes (including parent propagation), the scene graph updates the world transform for all affected nodes.
+- When a node's transform changes the scene graph updates the world transform for all affected nodes.
 - The CullingSystem is notified via `syncTransforms`, passing the list of changed nodes.
 - The CullingSystem uses a mapping from (scene, node) to mesh draw indices to update the world transform for all affected draws.
 - This ensures culling data is always up to date and decoupled from the scene graph.
 
 ---
 
-## 6. Integration with Scene and DrawData
+## Integration with Scene and DrawData
 
 - The CullingSystem does not store or access draw data or rendering state.
 - It only tracks transforms and bounds for culling.
@@ -84,7 +157,7 @@ const MeshDrawCullData& getMeshDrawCullData(uint32_t index) const;
 
 ---
 
-## 7. Example Usage
+## Example Usage
 
 ```cpp
 // After scene graph transform update:
@@ -103,21 +176,8 @@ for (uint32_t drawIdx : visibleDraws) {
 ```
 
 - The `visibleDraws` vector contains indices into both the CullingSystem's `meshDrawCullData` array and the DrawDataManager's `MeshDrawData` array. This allows direct, efficient access to all per-draw data needed for rendering visible objects, without further indirection or lookup.
-- External code should not need to access `meshDrawCullData` directly except for debugging or advanced queries; it is used internally by the culling system.
 
----
-
-## 8. Notes
-
-- CullingSystem is global/singleton-like, but all culling data is per scene.
-- All culling data is duplicated for performance; no indirection to scene graph or draw data.
-- Transform and bounds updates are explicit and must be synchronized after scene changes.
-- The MeshDrawCullData array is always kept in sync and 1:1 with the MeshDrawData array for fast lookup and iteration.
-- Mapping from (scene, node) to mesh draw indices is maintained externally for transform sync.
-
----
-
-## 9. Suggested Tests
+## Suggested Tests
 
 ### Unit Tests
 
