@@ -52,6 +52,7 @@ Draw data structs serve as the bridge between the CPU-side scene representation 
 - Owns and manages all draw data and related arrays:
   - `std::vector<MeshDrawData> meshDrawData;` // Per mesh section
   - `std::vector<LightDrawData> lightDrawData;`
+  - `std::unordered_map<NodeHandle, std::vector<size_t>> nodeToDrawIndices;` // Maps scene nodes to their draw data indices
 - Methods:
   - `void clearAllData();` // Clears all draw data and mappings.
   - `void populateFromScene(Scene* scene);` // Populates all draw data and mappings from the given scene.
