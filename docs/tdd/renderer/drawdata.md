@@ -13,6 +13,7 @@ Draw data structs serve as the bridge between the CPU-side scene representation 
 - Provide a stable, tightly-packed data layout for the renderer to access per-draw-call data for issuing Vulkan draw commands.
 - Support efficient, on-demand per-section updates (rather than full scene syncs).
 - Enable future GPU-driven workflows (e.g., visibility buffer, meshlet shading, ray tracing).
+- Provide APIs for clearing all draw data and repopulating from a new scene.
 
 ---
 
@@ -37,7 +38,7 @@ Draw data structs serve as the bridge between the CPU-side scene representation 
   - `VkPipeline pipeline` // Inline, from material assignment
   - `VkPipelineLayout pipelineLayout` // Inline, from material assignment
   - `VkDescriptorSet materialDescriptorSet` // Inline, from material assignment
-  - `glm::mat4 transform` // Per mesh section, for rendering (duplicated)
+  - `glm::mat4 worldTransform` // Per mesh section, for rendering (duplicated)
   - (Optional: mesh/section/surface ID for tracking)
 
 ### LightDrawData
@@ -52,44 +53,72 @@ Draw data structs serve as the bridge between the CPU-side scene representation 
   - `std::vector<MeshDrawData> meshDrawData;` // Per mesh section
   - `std::vector<LightDrawData> lightDrawData;`
 - Methods:
-  - `void updateDrawDataForNode(const Node* node)` // Updates all draw data for the node and marks them dirty for GPU sync
-  - `void syncTransforms(const std::vector<NodeHandle>& changedNodes, const Scene& scene)` // Synchronize transforms after scene update
+  - `void clearAllData();` // Clears all draw data and mappings.
+  - `void populateFromScene(Scene* scene);` // Populates all draw data and mappings from the given scene.
+  - `void syncTransforms(const std::vector<NodeHandle>& changedNodes)` // Synchronize transforms after scene update. Also marks draw data dirty for GPU sync
   - `const std::vector<MeshDrawData>& getMeshDrawData() const`
+  - `void createDrawDataForMeshInstance(const MeshInstance& meshInstance);` // Creates MeshDrawData for each mesh section in the given mesh instance
 
 ---
 
-## 5. Data Flow & Integration with Scene Module
+## 5. Data Flow & Integration
 
-- When a node's transform or mesh/material assignment changes, the scene immediately notifies the DrawDataManager by calling `updateDrawDataForNode(node)`.
-- The DrawDataManager marks the corresponding draw data (one per mesh section/draw call) as dirty.
-- At a defined point in the frame (e.g., before rendering), the DrawDataManager calls `syncGpuBuffers()`, which updates all dirty draw data GPU buffer regions and clears their dirty flags.
-- No full scene sync or traversal is required each frame; only changed draw data are updated.
-- The renderer uses the draw data and GPU buffers to issue draw/dispatch calls (e.g., a single visibility pass draw call referencing all mesh draw data).
-- The `MeshNode::gather_draw_data` method is responsible for creating `MeshDrawData` for each mesh section, which is then mirrored in the corresponding arrays managed by DrawDataManager.
-- **Transforms are stored per mesh section in MeshDrawData.** This enables fast, indirection-free rendering.
+- DrawDataManager tracks per-mesh-section draw data and marks only changed entries as dirty.
+- Before rendering, `syncGpuBuffers()` updates all dirty regions in GPU buffers and resets their dirty flags.
+- Only modified draw data are synchronized each frame—no full scene traversal is required.
+- The renderer issues draw calls directly from the flat arrays managed by DrawDataManager.
+- Per-section transforms are stored directly in `MeshDrawData` for fast, indirection-free access.
+- When switching scenes, DrawDataManager clears all data and repopulates from the new scene.
 
 ---
 
-## 5a. Draw Data and Transform Creation and Lifetime
+## 5a. Draw Data Lifecycle
 
-- Draw data (per mesh section) and transforms (per mesh section) are created immediately when the node is loaded into the scene (e.g., during scene loading or GLTF import).
-- The DrawDataManager is notified by the scene module or loader to create draw data and transforms for each relevant mesh and mesh section as soon as they are instantiated and added to the scene graph.
-- These arrays are kept alive for the lifetime of their corresponding scene nodes and destroyed only when the node is removed from the scene or the scene is unloaded.
-- This matches the lifetime of other GPU resources (meshes, textures, buffers), ensuring all GPU-side data is available for the duration of the scene.
-- Scene switching simply updates the renderer's pointer to the new active scene and its draw data; no additional creation or destruction is performed at switch time.
+- Draw data are created when a scene is activated or when a mesh instance is added at runtime.
+- Draw data persist for the lifetime of its corresponding mesh instance and are destroyed when the mesh instance is destroyed, or the scene is unloaded.
+- This ensures GPU resources are always in sync with the active scene.
+- On scene switch, DrawDataManager clears and repopulates all draw data and mappings.
+
+---
+
+### Node-to-Draw Index Mapping
+
+DrawDataManager maintains a mapping from scene nodes to their associated draw indices (one per mesh section). This enables efficient, targeted updates:
+
+- When a node's transform changes, DrawDataManager uses this mapping to update only the relevant draw data and culling entries.
+- The mapping is updated whenever mesh instances are added, removed, or when the scene is loaded/unloaded.
+- Only DrawDataManager owns and maintains this mapping; other systems query it as needed.
+
+**Example:**
+```cpp
+for (NodeHandle node : changedNodes) {
+    for (size_t drawIdx : drawDataManager.getDrawIndicesForNode(node)) {
+        // Update transform in DrawDataManager and CullingSystem
+    }
+}
+```
+
+This design enables flat, cache-friendly, and parallel updates to per-draw data after scene changes.
 
 ---
 
 ## 6. Example Usage
 
 ```cpp
+// When switching scenes:
+drawDataManager.clearAllData();
+drawDataManager.populateFromScene(newScene); // Repopulates all draw data from the new scene
+
 // When a node's transform or mesh/material assignment changes:
 node->setLocalTransform(newTransform); // updates local transform
 scene.updateWorldTransforms(); // propagates to children
-cullingSystem.syncTransforms({node}, scene); // update culling system
+cullingSystem.syncTransforms({node}); // update culling system
 // ...
-drawDataManager.updateDrawDataForNode(node); // marks all draw data for this node as dirty for GPU sync
-drawDataManager.syncTransforms({node}, scene); // update draw data transforms
+drawDataManager.syncTransforms({node}); // update draw data transforms and add to dirty queue for gpu sync
+
+// When dynamically adding a mesh instance to the active scene:
+MeshInstance& meshInstance = meshSystem.addMeshInstance(activeScene, node, mesh, matSet); // Automatically creates draw data for the new mesh instance if the scene is active
+// (Internally, this will call drawDataManager.createDrawDataForMeshInstance(meshInstance);)
 
 // At the start of the frame (before rendering):
 drawDataManager.syncGpuBuffers(); // updates all dirty draw data GPU buffers, clears dirty flags

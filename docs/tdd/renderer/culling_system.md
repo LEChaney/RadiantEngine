@@ -13,6 +13,7 @@ The CullingSystem is responsible for efficient visibility determination of mesh 
 - Synchronize culling data with the scene graph after transform changes.
 - Expose APIs for updating transforms and bounds after scene or node changes.
 - Report visible mesh draws for rendering.
+- Provide APIs for clearing all culling data and repopulating from a new scene.
 
 ---
 
@@ -40,9 +41,15 @@ std::vector<MeshDrawBoundsData> meshDrawBoundsData; // 1:1 with MeshDrawData
 
 ## API Overview
 
+The CullingSystem exposes the following key APIs:
+
 ```cpp
-// Called after scene graph transform update
-void syncTransforms(const std::vector<NodeHandle>& changedNodes, const Scene& scene);
+// Scene repopulation (called by Renderer on scene switch)
+void clearAllData(); // Clears all culling and bounds data.
+void populateFromScene(Scene* scene); // Populates all culling and bounds data from the given scene.
+
+// Transform synchronization
+void syncTransforms(const std::vector<NodeHandle>& changedNodes);
 
 // Called when mesh draw cull data is added or removed
 void addCullData(const glm::mat4& boundsToMesh, const glm::mat4& meshToWorld);
@@ -55,9 +62,6 @@ std::vector<uint32_t> cull(const Camera& camera); // Returns indices of visible 
 const MeshDrawCullData& getMeshDrawCullData(uint32_t index) const;
 const MeshDrawBoundsData& getMeshDrawBoundsData(uint32_t index) const;
 ```
-
-- When a new mesh draw is added, its `boundsToMesh` is stored in `meshDrawBoundsData`, and `boundsToWorld` is initialized.
-- On transform sync, only `boundsToWorld` is updated; `boundsToMesh` remains unchanged unless the mesh section's bounds are modified.
 
 ---
 
@@ -175,6 +179,7 @@ for (NodeHandle node : changedNodes) {
 
 - The CullingSystem does not store or access draw data or rendering state.
 - It only tracks transforms and bounds for culling, with OBBs represented as mat4s.
+- When the scene is switched, the Renderer calls `clearAllData()` and then `populateFromScene(newScene)` to repopulate all culling and bounds data from the new scene's mesh/instance data.
 - The DrawDataManager and renderer receive the list of visible draw indices from the CullingSystem for rendering.
 - Both CullingSystem and DrawDataManager store their own transforms for maximum iteration speed.
 - There is a one-to-one mapping between the MeshDrawCullData and MeshDrawData arrays.
@@ -184,9 +189,13 @@ for (NodeHandle node : changedNodes) {
 ## Example Usage
 
 ```cpp
+// When switching scenes:
+cullingSystem.clearAllData();
+cullingSystem.populateFromScene(newScene); // Repopulates all culling data from the new scene
+
 // After scene graph transform update:
 scene.updateWorldTransforms();
-cullingSystem.syncTransforms(changedNodes, scene);
+cullingSystem.syncTransforms(changedNodes);
 
 // During culling and rendering:
 auto visibleDraws = cullingSystem.cull(camera); // Returns indices of visible mesh draws

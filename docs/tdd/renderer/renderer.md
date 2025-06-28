@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-The renderer module is responsible for orchestrating the rendering pipeline, managing GPU resources, handling draw calls, culling, and coordinating the interaction between the camera ([see camera design document](camera.md)), scene, and Vulkan API. It serves as the central hub for all rendering operations.
+The renderer module is responsible for orchestrating the rendering pipeline, managing GPU resources, handling draw calls, culling, and coordinating the interaction between the camera ([see camera design document](camera.md)), scene, and Vulkan API. It serves as the central hub for all rendering operations, including managing the active scene and ensuring all per-frame data is up to date.
 
 ---
 
@@ -16,6 +16,7 @@ The renderer module is responsible for orchestrating the rendering pipeline, man
 - Manage descriptor sets and pipeline state
 - Handle window resizing and swapchain recreation
 - Integrate with UI (e.g., ImGui) and post-processing
+- **Track the active scene and coordinate the clearing and repopulation of draw and culling data when the scene changes**
 
 ---
 
@@ -30,8 +31,8 @@ The renderer module consists of the following main files and folders:
 - src/renderer/ResourceManager.h / ResourceManager.cpp
 - src/renderer/PipelineManager.h / PipelineManager.cpp
 - src/renderer/DescriptorManager.h / DescriptorManager.cpp
-
-See the Internal Classes & Responsibilities section below for details on each class.
+- src/renderer/DrawDataManager.h / DrawDataManager.cpp
+- src/renderer/CullingSystem.h / CullingSystem.cpp
 
 ---
 
@@ -44,7 +45,13 @@ See the Internal Classes & Responsibilities section below for details on each cl
   - Renders the current scene from the perspective of the current camera ([see camera design document](camera.md)).
   - Handles all internal steps (frame begin/end, culling, draw call recording, presentation, etc.)
 - switchScene(Scene*)
-  - Switches the active scene pointer; render proxies are grouped by scene for efficient switching.
+  - Switches the active scene pointer and coordinates all necessary data repopulation for rendering.
+
+#### Scene Switching and Data Repopulation
+When the active scene is switched, the Renderer is responsible for:
+- Clearing all mesh draw data and culling/bounds data by calling `clearAllData()` on both the DrawDataManager and CullingSystem.
+- Repopulating these systems by calling `populateFromScene(Scene*)` with the new scene.
+- Ensuring that only the current scene's data is used for culling and rendering.
 
 ---
 
@@ -66,10 +73,18 @@ See the Internal Classes & Responsibilities section below for details on each cl
   - Responsible for efficient visibility determination of scene objects (meshes, mesh draws, etc.) before rendering.
   - Maintains tightly-packed per-draw culling data (world transforms, bounds) for fast, cache-friendly iteration and SIMD-friendly culling algorithms.
   - Synchronizes culling data with the scene graph after transform changes via `syncTransforms`.
-  - **Remembers the last set of frustum planes, updating them only when the camera's projection matrix changes.**
+  - Provides APIs for clearing all culling data (`clearAllData()`) and repopulating from a scene (`populateFromScene(Scene*)`).
+  - The Renderer is responsible for invoking these methods when the scene changes.
+  - Remembers the last set of frustum planes, updating them only when the camera's projection matrix changes.
   - The `cull` method takes a `Camera&` and uses the camera's cached frustum planes and view matrix internally.
   - Exposes APIs for updating transforms and bounds, and for reporting visible mesh draws for rendering.
   - See [Culling System Design](renderer/culling_system.md) for details.
+
+- **DrawDataManager**
+  - Owns and manages all draw data and related arrays.
+  - Provides APIs for clearing all draw data (`clearAllData()`) and repopulating from a scene (`populateFromScene(Scene*)`).
+  - The Renderer is responsible for invoking these methods when the scene changes.
+  - Provides APIs for synchronizing transforms, updating GPU buffers, and querying draw data.
 
 - **ResourceManager**
   - Allocates and destroys GPU resources (buffers, images, samplers) on request.
@@ -95,7 +110,7 @@ See the Internal Classes & Responsibilities section below for details on each cl
 - **recordDrawCommands()**: Records Vulkan draw commands for the current frame (uses ResourceManager, PipelineManager, DescriptorManager)
 - **presentFrame()**: Presents the rendered image to the screen (submits the present request to the swapchain)
 - **Resource Ownership**: Scenes (or SceneManager) are responsible for tracking and releasing all GPU resources (images, buffers, samplers, descriptor sets) they use. ResourceManager and DescriptorManager only allocate and destroy resources on request.
-- **Scene Switching**: The renderer maintains a pointer to the active scene. To switch scenes, call `switchScene(Scene*)` or `setScene(Scene*)`. Render proxies and GPU resources are grouped by scene, so switching scenes updates the active proxy set and ensures correct resource usage. Old scene proxies/resources can be released or kept alive as needed.
+- **Scene Switching and Data Repopulation**: When switching scenes, the renderer calls `clearAllData()` and then `populateFromScene(newScene)` on both the DrawDataManager and CullingSystem. This ensures that only the current scene's data is used for culling and rendering, and that all per-draw and per-cull data is up to date.
 
 ---
 
@@ -133,6 +148,14 @@ renderer.resizeSwapchain(newWidth, newHeight);
 
 ```cpp
 // Internal renderer workflow (simplified):
+void Renderer::switchScene(Scene* newScene) {
+    setScene(newScene);
+    drawDataManager.clearAllData();
+    cullingSystem.clearAllData();
+    drawDataManager.populateFromScene(newScene);
+    cullingSystem.populateFromScene(newScene);
+}
+
 void Renderer::renderFrame() {
     beginFrame();
     auto visibleDraws = cullingSystem.cull(camera); // Uses camera's cached frustum planes and view matrix
