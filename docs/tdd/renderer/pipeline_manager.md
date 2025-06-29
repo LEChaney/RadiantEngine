@@ -1,14 +1,27 @@
 # Pipeline Manager Design Document
 
+## Summary Table
+
+| Responsibility                | Owned/Managed by PipelineManager | Delegated To                |
+|-------------------------------|:--------------------------------:|-----------------------------|
+| Pipeline creation/caching     | Yes                              |                             |
+| Pipeline layout management    | Yes                              |                             |
+| Pipeline deduplication        | Yes                              |                             |
+| Pipeline/layout metadata      | Yes                              |                             |
+| Descriptor set layouts        | Yes (metadata only)              | MaterialSystem, Renderer    |
+| Material descriptor sets      | No                               | MaterialSystem              |
+| Global descriptor sets        | No                               | Renderer                    |
+
+
 ## Purpose
 
-The PipelineManager is responsible for creating, caching, and managing all Vulkan graphics and compute pipelines and pipeline layouts used by the renderer. It ensures that each unique pipeline/layout is created only once, provides handles or references for materials and other systems to use, and manages the lifetime and cleanup of pipeline resources.
+The PipelineManager creates, caches, and manages all Vulkan pipelines and pipeline layouts, ensuring deduplication and providing metadata for descriptor set layouts. It exposes APIs for querying required sets for each pipeline layout.
 
 ---
 
 ## 1. Responsibilities
 
-- Create and cache Vulkan pipelines and pipeline layouts based on shader code, render pass, pipeline state, and specialization constants.
+- Create and cache Vulkan pipelines/layouts based on shader code, render pass, and pipeline state.
 - Deduplicate pipelines/layouts: ensure that each unique configuration is created only once and shared among all users.
 - Provide handles or references for materials and other systems to use pipelines/layouts without duplicating resources.
 - Track pipeline usage and manage lifetime, releasing resources when no longer needed (typically at application shutdown or reload).
@@ -45,6 +58,13 @@ The PipelineManager is responsible for creating, caching, and managing all Vulka
   - Optional: layout flags or metadata for reflection
 
 These descriptor structs are used as keys for deduplication and as the source of truth for pipeline and layout creation. They should be hashable and comparable for efficient registry lookup.
+
+### Descriptor Set Layout Convention and Metadata
+
+- Pipeline layouts follow a convention where set 0 is reserved for global (shared) data (e.g., camera, lights), and set 1+ are reserved for material-specific data.
+- The PipelineManager stores metadata about the descriptor set layouts required by each pipeline layout, including which sets are expected for global and material data.
+- The PipelineManager provides APIs to query required descriptor set layouts for each pipeline layout, enabling the renderer to bind the correct sets for each draw.
+- This metadata is used by the renderer to bind the correct global and material descriptor sets in the correct order.
 
 ---
 

@@ -1,8 +1,21 @@
 # Renderer Module Design Document
 
+## Summary Table
+
+| Responsibility                | Owned/Managed by Renderer | Delegated To                   |
+|-------------------------------|:-------------------------:|--------------------------------|
+| Main rendering loop           | Yes                       |                                |
+| Global descriptor sets        | Yes                       |                                |
+| Material descriptor sets      | No                        | MaterialSystem                 |
+| Pipeline/layout metadata      | No                        | PipelineManager                |
+| Texture resources             | No                        | TextureManager                 |
+| Draw/culling data             | No                        | DrawDataManager, CullingSystem |
+
+---
+
 ## 1. Purpose
 
-The renderer module is responsible for orchestrating the rendering pipeline, managing GPU resources, handling draw calls, culling, and coordinating the interaction between the camera ([see camera design document](camera.md)), scene, and Vulkan API. It serves as the central hub for all rendering operations, including managing the active scene and ensuring all per-frame data is up to date.
+The renderer orchestrates the rendering pipeline, manages the main loop, global descriptor sets, and coordinates draw calls, culling, and resource binding between systems.
 
 ---
 
@@ -194,6 +207,15 @@ The workflow for transform updates, system synchronization, and the renderer loo
 
 - The renderer must be called after all system synchronizations are complete.
 - It assumes all per-system data is up to date for the current frame.
+
+---
+
+## Global Descriptor Set Management
+
+- The renderer is responsible for creating, updating, and binding global (shared) descriptor sets each frame, typically at set 0, containing data such as camera parameters, light data, and other per-frame or per-scene resources.
+- The renderer queries the PipelineManager for the required descriptor set layouts for each pipeline layout, ensuring that all required sets are bound before issuing draw calls.
+- The renderer binds global descriptor sets (set 0) and material descriptor sets (set 1+) for each draw call.
+- This workflow ensures that all shaders have access to both global and material data, and that descriptor set binding is consistent and efficient across all pipelines.
 
 ---
 

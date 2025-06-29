@@ -1,18 +1,30 @@
 # Material System Design Document
 
+## Summary Table
+
+| Responsibility                | Owned/Managed by MaterialSystem | Delegated To                |
+|-------------------------------|:-------------------------------:|-----------------------------|
+| Material definitions          | Yes                             |                             |
+| Material descriptor sets      | Yes                             |                             |
+| Material parameter buffers    | Yes                             |                             |
+| Texture resources             | No                              | TextureManager              |
+| Pipeline/layout references    | No                              | PipelineManager             |
+| Per-instance assignment       | No                              | MeshSystem                  |
+| Global descriptor sets        | No                              | Renderer                    |
+
 ## Purpose
 
-The Material System manages all material resources for each loaded scene. It provides APIs for material creation, destruction, and lookup, and maintains the association between materials and mesh instances (not meshes directly). This enables the same mesh to be drawn with different materials in different mesh instances, supporting instancing and material overrides. Texture resources used by materials are managed and deduplicated by the TextureManager, allowing safe and efficient sharing of textures across multiple materials.
+The MaterialSystem manages material definitions for each scene, including their GPU bindings. It creates, updates, and queries materials, manages material-specific descriptor sets and buffers, and coordinates with the TextureManager and PipelineManager for shared resources. This enables flexible, efficient material workflows and resource usage without directly managing mesh or instance associations.
 
 ---
 
 ## 1. Responsibilities
 
-- Manage all material resources (shaders, parameters, texture handles, GPU resources) per scene.
+- Manage all material definitions, descriptor sets, and parameter buffers per scene.
 - Provide APIs for creating, destroying, and querying materials.
 - Integrate with the Resource Allocator for GPU resource management (buffers).
 - Integrate with the TextureManager for all texture resource requests, deduplication, and lifetime management.
-- Provide Vulkan pipeline, pipeline layout, and descriptor set(s) for each material, using texture GPU handles from the TextureManager.
+- Provide Vulkan pipeline/layout/descriptor set(s) for each material, referencing shared resources from the TextureManager and PipelineManager. The MaterialSystem creates and updates descriptor sets and parameter buffers as needed.
 - Support per-mesh-instance material assignment: each mesh instance specifies a set of materials (one per mesh section) to use for rendering.
 - Notify the DrawDataManager when material resources or assignments change, so draw data can be updated accordingly.
 - Track all material allocations per scene for efficient release on scene unload.
@@ -45,11 +57,19 @@ The Material System manages all material resources for each loaded scene. It pro
 - This separation allows the Material System to manage editable material data for tools and asset workflows, while the renderer and DrawDataManager only interact with the minimal, cache-friendly `MaterialDrawData` for each draw.
 - When a material is created or updated, the Material System generates or updates the corresponding `MaterialDrawData` and notifies the DrawDataManager to update draw data as needed.
 
+### 2.5 Global (Shared) Descriptor Sets and Renderer Coordination
+
+- Some pipelines and pipeline layouts require a global (shared) descriptor set, typically bound at set 0, for data such as camera parameters, light data, and other per-frame or per-scene resources.
+- The MaterialSystem is responsible for material-specific descriptor sets (e.g., set 1), while the renderer is responsible for creating, updating, and binding global descriptor sets (set 0) each frame.
+- The PipelineManager exposes metadata about required descriptor set layouts for each pipeline layout, allowing the renderer to query which sets must be bound for a given draw.
+- During rendering, the renderer binds the global descriptor set(s) at the appropriate set index (e.g., set 0), followed by the material descriptor set(s) (e.g., set 1), before issuing draw calls.
+- This convention ensures that all required data is available to the shaders, and that global and material data are managed by the appropriate systems.
+
 ---
 
 ## 3. Data Structures
 
-- `Material` struct: Contains all data needed for a material, including shader references, parameter buffers, texture handles (from the TextureManager), and Vulkan pipeline/layout/descriptor set(s). The high-level Material is editable and toolable, but only the minimal `MaterialDrawData` is used for rendering.
+- `Material` struct: Contains all data needed for a material, including shader references, parameter buffers, texture handles (from the TextureManager), Vulkan pipeline/layout/descriptor set(s), and any additional buffers required for material parameters or dynamic data. The MaterialSystem is responsible for creating, updating, and releasing these buffers as material resources change.
 - `MaterialDrawData` struct: Contains only the pipeline, pipeline layout, and descriptor set required for a draw call. This struct is generated by the Material System and stored inline in `MeshDrawData` for each draw call.
 - `MaterialHandle`: Opaque handle or index for referencing materials.
 - Per-scene material registry: Maps handles to material data for each scene.
@@ -93,11 +113,11 @@ These descriptor structs are used for material creation, updates, and as the bas
   - When generating or updating draw data, queries the MeshSystem for the material handle for each mesh section in an instance, then queries the MaterialSystem for the Vulkan pipeline, layout, and descriptor set for that material.
   - Updates the relevant fields in `MeshDrawData`.
 - **TextureManager:**
-  - The Material System requests all required textures from the TextureManager when creating or updating materials, and stores only texture handles in material data.
+  - The Material System requests all required textures from the TextureManager when creating or updating materials, and stores only texture handles in material data. It is responsible for creating and updating the Vulkan descriptor set(s) for each material, using the GPU handles provided by the TextureManager.
   - The TextureManager deduplicates textures, provides GPU handles (VkImage, VkImageView, VkSampler) for descriptor set creation, and manages texture lifetime and cleanup.
   - When a material is destroyed, the Material System releases its texture handles via the TextureManager, which manages reference counting or per-scene ownership and releases GPU resources when no longer needed.
 - **Resource Allocator:**
-  - All GPU resources (buffers) for materials are allocated and released via the Resource Allocator. Texture GPU resources are managed by the TextureManager.
+  - All GPU resources (buffers, including any additional constant or dynamic buffers) for materials are allocated and released via the Resource Allocator. Texture GPU resources are managed by the TextureManager.
 - **Renderer:**
   - Uses the Vulkan data in `MeshDrawData` for draw call submission; does not interact with high-level material or texture handles.
 
@@ -114,7 +134,7 @@ These descriptor structs are used for material creation, updates, and as the bas
 
 ## 7. Notes
 
-- The Material System does not track which mesh instances use a material; it only manages material resources and provides APIs for lookup and update.
+- The MaterialSystem does not track mesh instance usage; it only manages material resources and provides APIs for lookup and update.
 - The MeshSystem is responsible for per-instance material assignment and for updating draw data when assignments change.
 - The TextureManager is responsible for deduplication, GPU resource management, and lifetime of all textures referenced by materials.
 - This design supports instancing, material overrides, efficient resource management, and safe texture sharing.
