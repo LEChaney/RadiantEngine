@@ -27,6 +27,14 @@ Draw data structs serve as the bridge between the CPU-side scene representation 
 
 ## 4. Key Data Structures
 
+### MaterialDrawData
+- Represents the minimal, immutable set of data required for a draw call from a material: pipeline, pipeline layout, and descriptor set.
+- **Does not reference high-level material parameters, textures, or buffers directly.**
+- Fields:
+  - `VkPipeline pipeline`
+  - `VkPipelineLayout pipelineLayout`
+  - `VkDescriptorSet descriptorSet`
+
 ### MeshDrawData
 - Represents a single draw call for a mesh section/surface, not the entire mesh.
 - **All fields are stored inline for maximum iteration speed; no pointers to material or indirection.**
@@ -35,9 +43,7 @@ Draw data structs serve as the bridge between the CPU-side scene representation 
   - `uint32 firstIndex`
   - `VkBuffer indexBuffer`
   - `VkDeviceAddress vertexBufferAddress`
-  - `VkPipeline pipeline` // Inline, from material assignment
-  - `VkPipelineLayout pipelineLayout` // Inline, from material assignment
-  - `VkDescriptorSet materialDescriptorSet` // Inline, from material assignment
+  - `MaterialDrawData materialDrawData` // Inline struct, see above
   - `glm::mat4 worldTransform` // Per mesh section, for rendering (duplicated)
   - (Optional: mesh/section/surface ID for tracking)
 
