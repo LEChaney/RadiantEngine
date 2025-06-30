@@ -10,6 +10,7 @@ The scene module is responsible for representing and managing the logical struct
 
 - **Minimalism:** The scene graph only manages hierarchy and transforms. No node types, no polymorphism, no component system.
 - **Slot Map Storage:** All nodes are stored in a slot map, referenced by a `NodeHandle` (a slot map key). Scenes themselves are also managed in a slot map, referenced by a `SceneHandle`.
+- **Single Scene Root Node:** Each scene contains a single, always-present root node (`NodeHandle sceneRoot`). All user nodes are descendants of this root. The scene root can be used to move, scale, or rotate the entire scene as a unit, and simplifies global transforms and scene instancing.
 - **Separation of Data:** All system-specific data (meshes, lights, physics, etc.) is stored externally, associated to nodes via `NodeHandle`.
 - **Explicit Association:** Systems maintain their own data arrays, each entry referencing a node. The scene graph is agnostic to what data is attached to each node.
 - **Cache-Friendly:** Slot map storage and separation of data enable efficient traversal, stable handles, and system updates.
@@ -28,14 +29,21 @@ The scene module is responsible for representing and managing the logical struct
 
 All nodes are stored in a slot map, indexed by `NodeHandle` (a slot map key, see [Slot Map Container](../utils/containers/slotmap.md)).
 
+#### Scene Root Node
+- Each scene contains a single root node, accessible via `scene.getRootNode()` or `scene.sceneRoot`.
+- The root node is always present and cannot be removed.
+- All user nodes are added as children (directly or indirectly) of the root node.
+- Modifying the root node's transform moves, rotates, or scales the entire scene as a unit.
+- The root node's parent is always `INVALID_HANDLE`.
+
 ---
 
 ## 4. Public API
 
 ### Scene
-- `NodeHandle addNode(NodeHandle parent = INVALID_HANDLE)` – Create a new node, optionally as a child of `parent`. Returns a slot map key.
+- `NodeHandle getRootNode() const` – Returns the handle to the scene's root node.
+- `NodeHandle addNode(NodeHandle parent = INVALID_HANDLE)` – Create a new node, optionally as a child of `parent`. If `parent` is `INVALID_HANDLE`, the node is added as a child of the scene root. Returns a slot map key.
 - `void removeNode(NodeHandle)` – Remove a node and its descendants.
-- `std::vector<NodeHandle> getRootNodes()` – Get handles of root nodes.
 - `NodeHandle getParent(NodeHandle)` / `std::vector<NodeHandle> getChildren(NodeHandle)` – Query parent/children.
 - `void traverse(std::function<void(NodeHandle)>, NodeHandle start = INVALID_HANDLE)` – Traverse the hierarchy, visiting each node by handle, starting at `start` (default: all roots).
 - `NodeHandle findNodeByName(const std::string&)` – Find a node by name.
