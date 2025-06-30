@@ -116,12 +116,33 @@ Each system (rendering, lighting, physics, etc.) is responsible for managing its
 
 ## 7. SceneManager
 
+- **SceneManager is responsible for managing all loaded scenes and determining which scene(s) are active.**
+- Systems such as the Renderer, DrawDataManager, and CullingSystem should register as observers to the SceneManager to be notified when the set of active scenes changes. This enables them to repopulate or clear their data as needed.
+- The SceneManager enforces invariants (e.g., only one active scene, or a set of active scenes for multi-viewport/multi-world support) and decouples scene activation from rendering logic.
+
+### API
 - `SceneHandle addScene()` – Adds a new scene to the manager, returns a slot map key.
 - `void removeScene(SceneHandle)` – Removes a scene by handle.
 - `Scene* getScene(SceneHandle)` – Retrieves a scene by handle.
-- `Scene* getActiveScene()` – Returns the currently active scene.
+- `Scene* getActiveScene() const` – Returns the currently active scene (if only one is supported).
+- `std::vector<SceneHandle> getActiveScenes() const` – Returns all currently active scenes (for multi-scene support).
 - `void setActiveScene(SceneHandle)` – Sets the active scene by handle.
-- `std::vector<SceneHandle> getAllScenes()` – Returns all loaded scenes (slot map keys).
+- `void setActiveScenes(const std::vector<SceneHandle>& scenes)` – Sets the set of active scenes (for multi-scene support).
+- `void addObserver(ISceneManagerObserver* observer)` – Register an observer to be notified when the active scene(s) change.
+- `void removeObserver(ISceneManagerObserver* observer)` – Unregister an observer.
+
+#### Observer Interface Example
+```cpp
+class ISceneManagerObserver {
+public:
+    virtual void onActiveScenesChanged(const std::vector<SceneHandle>& newActiveScenes) = 0;
+};
+```
+
+#### Workflow
+- When the active scene(s) change, the SceneManager notifies all registered observers via `onActiveScenesChanged`.
+- Observers (Renderer, DrawDataManager, etc.) then clear and repopulate their data from the new active scene(s).
+- This pattern supports both single-scene and multi-scene rendering, and enables robust, decoupled system updates.
 
 Scenes are stored in a slot map, indexed by `SceneHandle` (a slot map key).
 
@@ -262,26 +283,16 @@ for (const auto& mesh : meshSystem.meshes) {
 
 ---
 
-## 11. Notes
+## 11. Suggested Tests for SceneManager
 
-- The scene graph is intentionally minimal and agnostic to system data.
-- All per-system data is managed externally and associated via `NodeHandle` (slot map key).
-- Transform synchronization with systems is explicit and must be performed after transform updates.
-- This design enables cache-friendly, parallel, and system-oriented updates.
-- See [Slot Map Container](../utils/containers/slotmap.md) for details on slot map design and rationale.
-
----
-
-## 12. Suggested Tests for SceneManager
-
-### 12.1 Scene Lifecycle Tests
+### 11.1 Scene Lifecycle Tests
 - **Add/Remove Scene:** Add multiple scenes, verify they are retrievable by name. Remove scenes and ensure they are no longer accessible.
 - **Active Scene Switching:** Set and get the active scene, verify correct switching and retrieval.
 
-### 12.2 Node Management Tests
+### 11.2 Node Management Tests
 - **Add/Remove Nodes:** Add nodes (with and without parents), verify hierarchy and parent/child relationships. Remove nodes and ensure all descendants are also removed.
 
-### 12.3 Transform Propagation Tests
+### 11.3 Transform Propagation Tests
 - **Transform Propagation:**
   - Set up a scene with a hierarchy (e.g., root → child → grandchild).
   - Set a local transform on a node (e.g., the root or an intermediate node).
@@ -309,7 +320,7 @@ assert(changedNodes.contains(child));
 assert(changedNodes.contains(grandchild));
 ```
 
-### 12.4 System Synchronization Tests
+### 11.4 System Synchronization Tests
 - **Transform Propagation and System Sync:**
   - Set up a scene with a hierarchy (e.g., root → child → grandchild).
   - Attach mock or test versions of systems (e.g., MockCullingSystem, MockDrawDataManager) that record when their observer callbacks (e.g., `onNodeTransformsChanged`) are called and what data they receive.
@@ -348,7 +359,7 @@ assert(cullingSystem.transformsInSyncWithScene(scene));
 assert(drawDataManager.transformsInSyncWithScene(scene));
 ```
 
-### 12.5 Serialization/Deserialization Tests
+### 11.5 Serialization/Deserialization Tests
 - **Scene Serialization/Deserialization:**
   - Add a scene, set some transforms, and associate some data.
   - Serialize the scene to a file.
