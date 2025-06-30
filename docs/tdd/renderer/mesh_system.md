@@ -128,6 +128,8 @@ void destroyBuffer(GPUBuffer buffer);
 - **DrawDataManager:** Consumes mesh and section data to generate draw data for rendering. **Relies on the Mesh System's (scene, node) → draw indices mapping for efficient transform synchronization.**
 - **MaterialSystem:** Each mesh instance references a set of materials (one per section); actual material data is managed by the MaterialSystem.
 - **Scene Graph:** MeshSystem does not own nodes; it only associates meshes to nodes via `NodeHandle`.
+- **Observer Pattern:** MeshSystem acts as a subject and notifies observers (e.g., DrawDataManager) when mesh instance assignments or per-instance material sets change. See [Observer Pattern](../core/observer_pattern.md) for details on decoupled update notification.
+- **Testability:** Observer registration is explicit and can be performed with either real or mock systems, supporting robust unit and integration testing.
 
 ---
 

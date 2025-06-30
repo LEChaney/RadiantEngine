@@ -1,0 +1,5 @@
+- Create slot map documentation
+- Figure out scene storage and handle type (shared pointer, slotmap handle, unique pointer and get by ref, etc)
+- Document observer pattern for mesh instance creation / removal updates.
+- Document observer pattern for material assignment and removal to mesh instances.
+- Document observer pattern for active scenes change event

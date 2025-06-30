@@ -62,9 +62,9 @@ Draw data structs serve as the bridge between the CPU-side scene representation 
 - Methods:
   - `void clearAllData();` // Clears all draw data and mappings.
   - `void populateFromScene(Scene* scene);` // Populates all draw data and mappings from the given scene.
-  - `void syncTransforms(const std::vector<NodeHandle>& changedNodes)` // Synchronize transforms after scene update. Also marks draw data dirty for GPU sync
   - `const std::vector<MeshDrawData>& getMeshDrawData() const`
   - `void createDrawDataForMeshInstance(const MeshInstance& meshInstance);` // Creates MeshDrawData for each mesh section in the given mesh instance
+  - `void onNodeTransformsChanged(const std::vector<NodeHandle>& changedNodes);` // Observer pattern callback: updates transforms for changed nodes
 
 ---
 
@@ -76,6 +76,8 @@ Draw data structs serve as the bridge between the CPU-side scene representation 
 - The renderer issues draw calls directly from the flat arrays managed by DrawDataManager.
 - Per-section transforms are stored directly in `MeshDrawData` for fast, indirection-free access.
 - When switching scenes, DrawDataManager clears all data and repopulates from the new scene.
+- **Observer Pattern:** DrawDataManager acts as an observer to MeshSystem and MaterialSystem, updating draw data in response to notifications about mesh instance or material changes. See [Observer Pattern](../core/observer_pattern.md) for details.
+- **Testability:** Observer registration is explicit and can be performed with either real or mock systems, supporting robust unit and integration testing.
 
 ---
 
@@ -92,7 +94,7 @@ Draw data structs serve as the bridge between the CPU-side scene representation 
 
 DrawDataManager maintains a mapping from scene nodes to their associated draw indices (one per mesh section). This enables efficient, targeted updates:
 
-- When a node's transform changes, DrawDataManager uses this mapping to update only the relevant draw data and culling entries.
+- When a node's transform changes, DrawDataManager is notified via the observer pattern (by the Scene or another subject). The notification includes the set of changed nodes, and DrawDataManager updates only the relevant draw data and culling entries. See [Observer Pattern](../core/observer_pattern.md) for details.
 - The mapping is updated whenever mesh instances are added, removed, or when the scene is loaded/unloaded.
 - Only DrawDataManager owns and maintains this mapping; other systems query it as needed.
 
@@ -118,10 +120,8 @@ drawDataManager.populateFromScene(newScene); // Repopulates all draw data from t
 
 // When a node's transform or mesh/material assignment changes:
 node->setLocalTransform(newTransform); // updates local transform
-scene.updateWorldTransforms(); // propagates to children
-cullingSystem.syncTransforms({node}); // update culling system
-// ...
-drawDataManager.syncTransforms({node}); // update draw data transforms and add to dirty queue for gpu sync
+scene.propogateTransforms(); // propagates to children
+scene.finalizeForRendering(); // Notifies observers of changed nodes and clears the changed set
 
 // When dynamically adding a mesh instance to the active scene:
 MeshInstance& meshInstance = meshSystem.addMeshInstance(activeScene, node, mesh, matSet); // Automatically creates draw data for the new mesh instance if the scene is active

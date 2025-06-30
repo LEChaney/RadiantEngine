@@ -65,6 +65,11 @@ The MaterialSystem is responsible for managing all material definitions within a
 - During rendering, the renderer binds the global descriptor set(s) at the appropriate set index (e.g., set 0), followed by the material descriptor set(s) (e.g., set 1), before issuing draw calls.
 - This convention ensures that all required data is available to the shaders, and that global and material data are managed by the appropriate systems.
 
+### 2.6 Observer Pattern and Notifications
+
+- The MaterialSystem acts as a subject, notifying observers (such as DrawDataManager) when material resources (descriptor sets, buffers) are created, updated, or destroyed. This enables decoupled, robust update flows between systems. See [Observer Pattern](../core/observer_pattern.md) for details.
+- **Testability:** Observer registration is explicit and can be performed with either real or mock systems, supporting robust unit and integration testing.
+
 ---
 
 ## 3. Data Structures
@@ -156,6 +161,25 @@ const MaterialDrawData& drawData = materialSystem.getMaterial(scene, matHandle).
 // Destroy a material when no longer needed
 materialSystem.destroyMaterial(scene, matHandle);
 ```
+
+---
+
+## Observer Pattern for System Updates
+
+To ensure robust synchronization between systems, the MaterialSystem, MeshSystem, and Scene support an observer pattern for update notifications. Systems such as DrawDataManager and CullingSystem can register as observers to receive notifications when relevant changes occur:
+
+- **MaterialSystem** notifies observers when material resources change (e.g., material parameters, textures, or buffers are updated).
+- **MeshSystem** notifies observers when per-instance material assignments change (e.g., a mesh instance's material set is updated).
+- **Scene** notifies observers when node transforms change (e.g., after `propogateTransforms()`).
+
+Observers implement a common interface (e.g., `ISystemObserver`) and register with the relevant systems. When a change occurs, the notifying system calls the appropriate notification method, and all observers update their internal data accordingly. This decouples systems and ensures all interested parties are kept in sync.
+
+**Example Notification Flow:**
+- When a material resource changes, MaterialSystem calls `onMaterialResourceChanged(MaterialHandle)` on all observers.
+- When a mesh instance's material assignment changes, MeshSystem calls `onMaterialAssignmentChanged(NodeHandle)` on all observers.
+- When node transforms change, Scene calls `onTransformChanged(const std::vector<NodeHandle>&)` on all observers.
+
+This pattern enables efficient, event-driven updates and simplifies the update flow for both per-frame and event-driven changes.
 
 ---
 

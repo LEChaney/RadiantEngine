@@ -46,10 +46,10 @@ The CullingSystem exposes the following key APIs:
 ```cpp
 // Scene repopulation (called by Renderer on scene switch)
 void clearAllData(); // Clears all culling and bounds data.
-void populateFromScene(Scene* scene); // Populates all culling and bounds data from the given scene.
+void populateFromScene(Scene* scene); // Populates all culling and bounds data from the given scene;
 
-// Transform synchronization
-void syncTransforms(const std::vector<NodeHandle>& changedNodes);
+// Observer pattern callback for transform changes
+void onNodeTransformsChanged(const std::vector<NodeHandle>& changedNodes) override; // Updates culling data for changed nodes
 
 // Called when mesh draw cull data is added or removed
 void addCullData(const glm::mat4& boundsToMesh, const glm::mat4& meshToWorld);
@@ -149,7 +149,7 @@ This approach is efficient and SIMD-friendly, and is commonly known as the "slab
 
 ## Transform Synchronization
 
-- When a node's transform changes, the CullingSystem is notified via `syncTransforms`, passing the list of changed nodes.
+- When a node's transform changes, the CullingSystem is notified via the observer pattern (by the Scene or DrawDataManager). The notification includes the set of changed nodes, and CullingSystem updates only the relevant culling data. See [Observer Pattern](../core/observer_pattern.md) for details.
 - For each affected mesh draw, the CullingSystem recomputes `boundsToWorld` as:
   ```cpp
   boundsToWorld = worldTransform * boundsToMesh;
@@ -186,6 +186,13 @@ for (NodeHandle node : changedNodes) {
 
 ---
 
+## Integration with Observer Pattern
+
+- The CullingSystem may act as an observer to the Scene or DrawDataManager, receiving notifications when node transforms or draw data change. This enables efficient, decoupled synchronization of culling data. See [Observer Pattern](../core/observer_pattern.md) for details.
+- **Testability:** Observer registration is explicit and can be performed with either real or mock systems, supporting robust unit and integration testing.
+
+---
+
 ## Example Usage
 
 ```cpp
@@ -194,8 +201,8 @@ cullingSystem.clearAllData();
 cullingSystem.populateFromScene(newScene); // Repopulates all culling data from the new scene
 
 // After scene graph transform update:
-scene.updateWorldTransforms();
-cullingSystem.syncTransforms(changedNodes);
+scene.propogateTransforms();
+cullingSystem.onNodeTransformsChanged(changedNodes); // Observer pattern callback for transform changes
 
 // During culling and rendering:
 auto visibleDraws = cullingSystem.cull(camera); // Returns indices of visible mesh draws
@@ -238,8 +245,8 @@ for (uint32_t drawIdx : visibleDraws) {
 ### Integration Tests
 
 - **Scene Transform Propagation**
-  - Modify node transforms in the scene, propagate with `updateWorldTransforms`, and synchronize with `syncTransforms`. Verify that culling results reflect the new transforms.
-  - Attach/detach mesh draws to nodes and ensure culling results update accordingly.
+  - Modify node transforms in the scene, call `scene.propogateTransforms()`, and notify the culling system using `cullingSystem.onNodeTransformsChanged(changedNodes)`. Verify that culling results reflect the updated transforms.
+  - Attach or detach mesh draws to nodes, then notify the culling system of changes as appropriate. Ensure that culling results update to match the new scene structure.
 
 - **Multi-Camera/Multiview Support**
   - Cull the same set of mesh draws from multiple cameras in a single frame. Verify that results are correct and independent for each camera.
