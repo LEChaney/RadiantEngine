@@ -14,7 +14,7 @@
 
 ## Purpose
 
-The MaterialSystem manages material definitions for each scene, including their GPU bindings. It creates, updates, and queries materials, manages material-specific descriptor sets and buffers, and coordinates with the TextureManager and PipelineManager for shared resources. This enables flexible, efficient material workflows and resource usage without directly managing mesh or instance associations.
+The MaterialSystem is responsible for managing all material definitions within a scene, including their associated parameter buffers and descriptor sets for GPU binding. It provides APIs for creating, updating, and querying materials, and handles the allocation and update of material-specific GPU resources. The MaterialSystem coordinates with the TextureManager for texture resources and with the PipelineManager for pipeline and layout references, enabling efficient sharing of resources and supporting flexible material workflows.
 
 ---
 
@@ -26,7 +26,7 @@ The MaterialSystem manages material definitions for each scene, including their 
 - Integrate with the TextureManager for all texture resource requests, deduplication, and lifetime management.
 - Provide Vulkan pipeline/layout/descriptor set(s) for each material, referencing shared resources from the TextureManager and PipelineManager. The MaterialSystem creates and updates descriptor sets and parameter buffers as needed.
 - Support per-mesh-instance material assignment: each mesh instance specifies a set of materials (one per mesh section) to use for rendering.
-- Notify the DrawDataManager when material resources or assignments change, so draw data can be updated accordingly.
+- Notify the DrawDataManager when material resources change, so draw data can be updated accordingly. The MeshSystem is responsible for notifying the DrawDataManager when per-instance material assignments change.
 - Track all material allocations per scene for efficient release on scene unload.
 
 ---
