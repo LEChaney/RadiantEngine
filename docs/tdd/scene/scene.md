@@ -64,14 +64,43 @@ All nodes are stored in a slot map, indexed by `NodeHandle` (a slot map key, see
 ---
 
 ## 5. System Data (External to Scene Graph)
+Each system (rendering, lighting, physics, etc.) is responsible for managing its own data structures, with each data entry explicitly associated with a node via its `NodeHandle`. The scene graph itself is agnostic to what data is attached to each node; all associations are maintained externally by the systems.
 
-Each system (rendering, lighting, physics, etc.) maintains its own data arrays, each entry referencing a `NodeHandle` (slot map key).
+**Association Pattern:**
+- Systems typically store their data in arrays, slot maps, or hash maps, where each entry includes a `NodeHandle` to indicate which node it is attached to.
+- To associate a mesh instance with a node, the rendering system might store:
+    ```cpp
+    struct MeshInstance {
+            NodeHandle node;    // The node this mesh instance is attached to
+            Mesh* meshAsset;    // Pointer or handle to mesh asset
+            Material* material; // Pointer or handle to material
+            // ...other per-instance data...
+    };
+    std::vector<MeshInstance> meshInstances;
+    ```
+- Similarly, the lighting system might use:
+    ```cpp
+    struct LightInstance {
+            NodeHandle node;    // The node this light is attached to
+            LightParams params; // Light parameters (color, intensity, etc.)
+            // ...other per-light data...
+    };
+    std::vector<LightInstance> lightInstances;
+    ```
 
-**Example:**
-- `struct MeshData { NodeHandle node; Mesh* mesh; ... }`
-- `struct LightData { NodeHandle node; LightParams params; ... }`
+**Lookup and Synchronization:**
+- To find all mesh instances for rendering, iterate the `meshInstances` array and use each entry's `node` to query the node's world transform from the scene.
+- To find all lights, iterate the `lightInstances` array in the same way.
+- If fast lookup from `NodeHandle` to system data is needed (e.g., for removal or updates), systems may maintain an auxiliary map:
+    ```cpp
+    std::unordered_map<NodeHandle, size_t> nodeToMeshInstanceIndex;
+    ```
+- When a node is removed from the scene, each system is responsible for removing or updating any associated data entries.
 
-Systems may maintain registries/maps for quick lookup from `NodeHandle` to data.
+**Summary:**  
+- The association between nodes and system data is always explicit and external to the scene graph.
+- The scene graph only provides stable `NodeHandle` keys and transform queries; all other data management is handled by the systems themselves.
+- This design enables flexible, decoupled, and cache-friendly updates across all systems.
 
 ---
 
