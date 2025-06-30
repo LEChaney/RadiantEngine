@@ -9,31 +9,31 @@ The scene module is responsible for representing and managing the logical struct
 ## 2. Design Principles
 
 - **Minimalism:** The scene graph only manages hierarchy and transforms. No node types, no polymorphism, no component system.
-- **Flat Storage:** All nodes are stored in a flat array or pool, referenced by a `NodeHandle` (integer or struct).
+- **Slot Map Storage:** All nodes are stored in a slot map, referenced by a `NodeHandle` (a slot map key). Scenes themselves are also managed in a slot map, referenced by a `SceneHandle`.
 - **Separation of Data:** All system-specific data (meshes, lights, physics, etc.) is stored externally, associated to nodes via `NodeHandle`.
 - **Explicit Association:** Systems maintain their own data arrays, each entry referencing a node. The scene graph is agnostic to what data is attached to each node.
-- **Cache-Friendly:** Flat storage and separation of data enable efficient traversal and system updates.
+- **Cache-Friendly:** Slot map storage and separation of data enable efficient traversal, stable handles, and system updates.
 
 ---
 
 ## 3. Scene Graph Structure
 
 ### Node (internal structure)
-- `NodeHandle parent`
-- `std::vector<NodeHandle> children`
+- `NodeHandle parent` (slot map key)
+- `std::vector<NodeHandle> children` (slot map keys)
 - `glm::mat4 localTransform`
 - `glm::mat4 worldTransform`
 - `std::string name`
 - `bool dirty` // **True if this node (or its ancestors) need world transform update**
 
-All nodes are stored in a flat array or pool, indexed by `NodeHandle`.
+All nodes are stored in a slot map, indexed by `NodeHandle` (a slot map key, see [Slot Map Container](../utils/containers/slotmap.md)).
 
 ---
 
 ## 4. Public API
 
 ### Scene
-- `NodeHandle addNode(NodeHandle parent = INVALID_HANDLE)` – Create a new node, optionally as a child of `parent`.
+- `NodeHandle addNode(NodeHandle parent = INVALID_HANDLE)` – Create a new node, optionally as a child of `parent`. Returns a slot map key.
 - `void removeNode(NodeHandle)` – Remove a node and its descendants.
 - `std::vector<NodeHandle> getRootNodes()` – Get handles of root nodes.
 - `NodeHandle getParent(NodeHandle)` / `std::vector<NodeHandle> getChildren(NodeHandle)` – Query parent/children.
@@ -57,7 +57,7 @@ All nodes are stored in a flat array or pool, indexed by `NodeHandle`.
 
 ## 5. System Data (External to Scene Graph)
 
-Each system (rendering, lighting, physics, etc.) maintains its own data arrays, each entry referencing a `NodeHandle`.
+Each system (rendering, lighting, physics, etc.) maintains its own data arrays, each entry referencing a `NodeHandle` (slot map key).
 
 **Example:**
 - `struct MeshData { NodeHandle node; Mesh* mesh; ... }`
@@ -72,19 +72,21 @@ Systems may maintain registries/maps for quick lookup from `NodeHandle` to data.
 - The scene graph is responsible for transform propagation and hierarchy only.
 - Systems are responsible for associating their data to nodes and updating as needed.
 - To find all mesh data, iterate the mesh data array; to find all lights, iterate the light data array, etc.
-- To find the node for a given data entry, use the stored `NodeHandle`.
+- To find the node for a given data entry, use the stored `NodeHandle` (slot map key).
 - **Transform Synchronization:** After all transform updates, call `finalizeForRendering()` to perform final transform propagation and notify registered observers (such as CullingSystem, DrawDataManager, etc.) via the observer pattern, passing the set of changed nodes for synchronization. This ensures all systems are updated exactly once per frame, just before rendering. See [Observer Pattern](../core/observer_pattern.md) for details.
 
 ---
 
 ## 7. SceneManager
 
-- `void addScene(std::shared_ptr<Scene>)` – Adds a new scene to the manager.
-- `void removeScene(const std::string& name)` – Removes a scene by name.
-- `std::shared_ptr<Scene> getScene(const std::string& name)` – Retrieves a scene by name.
-- `std::shared_ptr<Scene> getActiveScene()` – Returns the currently active scene.
-- `void setActiveScene(const std::string& name)` – Sets the active scene by name.
-- `const std::vector<std::shared_ptr<Scene>>& getAllScenes()` – Returns all loaded scenes.
+- `SceneHandle addScene()` – Adds a new scene to the manager, returns a slot map key.
+- `void removeScene(SceneHandle)` – Removes a scene by handle.
+- `Scene* getScene(SceneHandle)` – Retrieves a scene by handle.
+- `Scene* getActiveScene()` – Returns the currently active scene.
+- `void setActiveScene(SceneHandle)` – Sets the active scene by handle.
+- `std::vector<SceneHandle> getAllScenes()` – Returns all loaded scenes (slot map keys).
+
+Scenes are stored in a slot map, indexed by `SceneHandle` (a slot map key).
 
 ---
 
@@ -226,9 +228,10 @@ for (const auto& mesh : meshSystem.meshes) {
 ## 11. Notes
 
 - The scene graph is intentionally minimal and agnostic to system data.
-- All per-system data is managed externally and associated via `NodeHandle`.
+- All per-system data is managed externally and associated via `NodeHandle` (slot map key).
 - Transform synchronization with systems is explicit and must be performed after transform updates.
 - This design enables cache-friendly, parallel, and system-oriented updates.
+- See [Slot Map Container](../utils/containers/slotmap.md) for details on slot map design and rationale.
 
 ---
 
@@ -320,7 +323,11 @@ assert(drawDataManager.transformsInSyncWithScene(scene));
 
 ## Coordination with Core System
 
-The coordination of transform propagation (`propogateTransforms`), system synchronization, and the main renderer loop is now documented in detail in [Core System Coordination](../core/core_system_coordination.md). Refer to that document for the authoritative workflow and lifecycle. This section is intentionally brief to avoid duplication.
+The workflow for transform propagation, system synchronization, and integration with the main renderer loop is now fully specified in [Core System Coordination](../core/core_system_coordination.md). Please refer to that document for the latest and most accurate process.
 
-- The scene module is responsible for efficient transform propagation and tracking changed nodes.
-- Systems must synchronize their data after transforms are updated and before rendering, as described in the core coordination document.
+- The scene module handles transform propagation, dirty tracking, and changed node collection.
+- After all transform updates, `finalizeForRendering()` must be called to propagate transforms and notify observers.
+- All dependent systems (rendering, culling, physics, etc.) must synchronize their data in response to these notifications, before rendering begins.
+- This ensures all systems operate on up-to-date transforms and remain in sync with the scene state.
+
+This section is intentionally concise; always consult the core coordination document for authoritative details.
