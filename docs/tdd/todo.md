@@ -1,3 +1,4 @@
+# Planned updates
 - [x] Create slot map documentation
 - [x] Figure out scene storage and handle type (shared pointer, slotmap handle, unique pointer and get by ref, etc)
 - [x] Decide how scenes are made active, can multiple be active?
@@ -6,4 +7,24 @@
 - [ ] Document observer pattern for material assignment and removal to mesh instances.
 - [ ] Document observer pattern for active scenes change event
 - [ ] Document observer pattern for scene node insertion and removal
-- [ ] Update how camera works to seperate 
+- [ ] Document observer pattern and input stack for SDL input events
+- [ ] Update how camera works to seperate movement control (controller listens for sdl input, moves scene node, camera attached to scene node) and camera logic (updating view transform, etc).
+- [ ] Finalize vulkan context and swapchain initialization documentation in renderer and any extra seperate context documention to go along with this.
+- [ ] Add documentation to all systems for depency injection of sytems (which systems to they depend on)
+- [ ] Add documentation to each system describing mocked tests for dependencies.
+
+# Read Throughs
+- [ ] Complete read through: Material System
+- [ ] Complete read through: Pipeline manager
+- [ ] Complete read through: Texture manager
+- [ ] Complete read through: Observer Pattern Documentation
+- [ ] Complete read through: Scene System
+- [ ] Complete read through: Draw Data Manager
+- [ ] Complete read through: Culling System
+- [ ] Complete read through: Camera System
+- [ ] Complete read through: Renderer
+- [ ] Complete read through: Slotmap
+- [ ] Complete read through: Resource Allocator
+- [ ] Complete read through: Scene Resource Ownership
+- [ ] Complete read through: Core system coordination
+- [ ] Complete read through: Gltf scene loader
