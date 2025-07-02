@@ -323,7 +323,7 @@ assert(changedNodes.contains(grandchild));
 ### 11.4 System Synchronization Tests
 - **Transform Propagation and System Sync:**
   - Set up a scene with a hierarchy (e.g., root → child → grandchild).
-  - Attach mock or test versions of systems (e.g., MockCullingSystem, MockDrawDataManager) that record when their observer callbacks (e.g., `onNodeTransformsChanged`) are called and what data they receive.
+  - Attach mock or test versions of systems (e.g., MockCullingSystem, MockDrawDataManager) that record when their observer callbacks (e.g., `onTransformsFinalized`) are called and what data they receive.
   - Set a local transform on a node in the scene.
   - Call `finalizeForRendering()` on the scene (which will perform transform propagation and notify observers).
   - Verify that:
@@ -348,7 +348,7 @@ scene.setLocalTransform(child, initialChildTransform);
 scene.setLocalTransform(grandchild, initialGrandchildTransform);
 
 scene.setLocalTransform(root, newRootTransform);
-scene.finalizeForRendering(); // Performs transform propagation and notifies observers
+scene.finalizeForRendering(); // Performs final transform propagation and notifies observers
 
 // Assertions
 assert(scene.getLocalTransform(child) == expectedChildWorldTransform);

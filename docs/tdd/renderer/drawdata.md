@@ -54,17 +54,31 @@ Draw data structs serve as the bridge between the CPU-side scene representation 
   - `float intensity`
   - (Other light-specific fields as needed)
 
+### MeshDrawCullData
+- Stores the oriented bounding box (OBB) for a mesh section in world space, used for culling.
+- Fields:
+  - `glm::mat4 boundsToWorld` // OBB transform in world space (updated when node/world transform changes)
+
+### MeshDrawBoundsData
+- Stores the OBB for a mesh section in mesh local space (static, only needed for resync or mesh deformation).
+- Fields:
+  - `glm::mat4 boundsToMesh` // OBB transform in mesh local space
+
 ### DrawDataManager
-- Owns and manages all draw data and related arrays:
+Owns and manages all per-draw arrays required for rendering and culling:
   - `std::vector<MeshDrawData> meshDrawData;` // Per mesh section
+  - `std::vector<MeshDrawCullData> meshDrawCullData;` // Per mesh section, for culling (was previously owned by CullingSystem)
+  - `std::vector<MeshDrawBoundsData> meshDrawBoundsData;` // Per mesh section, for culling (was previously owned by CullingSystem)
   - `std::vector<LightDrawData> lightDrawData;`
   - `std::unordered_map<NodeHandle, std::vector<size_t>> nodeToDrawIndices;` // Maps scene nodes to their draw data indices
-- Methods:
-  - `void clearAllData();` // Clears all draw data and mappings.
-  - `void populateFromScene(Scene* scene);` // Populates all draw data and mappings from the given scene.
+Methods:
+  - `void clearAllData();` // Clears all draw/culling data and mappings.
+  - `void populateFromScene(Scene* scene);` // Populates all draw/culling data and mappings from the given scene.
   - `const std::vector<MeshDrawData>& getMeshDrawData() const`
-  - `void createDrawDataForMeshInstance(const MeshInstance& meshInstance);` // Creates MeshDrawData for each mesh section in the given mesh instance
-  - `void onNodeTransformsChanged(const std::vector<NodeHandle>& changedNodes);` // Observer pattern callback: updates transforms for changed nodes
+  - `const std::vector<MeshDrawCullData>& getMeshDrawCullData() const`
+  - `const std::vector<MeshDrawBoundsData>& getMeshDrawBoundsData() const`
+  - `void createDrawDataForMeshInstance(const MeshInstance& meshInstance);` // Creates MeshDrawData and culling data for each mesh section in the given mesh instance
+  - `void onTransformsFinalized(const std::vector<NodeHandle>& changedNodes);` // Observer pattern callback: updates transforms and culling data for changed nodes
 
 ---
 
@@ -110,6 +124,32 @@ for (NodeHandle node : changedNodes) {
 This design enables flat, cache-friendly, and parallel updates to per-draw data after scene changes.
 
 ---
+
+## Transform Synchronization & Draw Data Updates
+
+When a node's transform changes (e.g., due to animation, movement, or scene graph updates), the DrawDataManager is notified (typically via the observer pattern from the Scene or another system). The DrawDataManager is responsible for updating all per-draw data that depends on transforms, including:
+
+- `MeshDrawData.worldTransform`: Updated to reflect the new world transform for each mesh section attached to the node.
+- `MeshDrawCullData.boundsToWorld`: Updated for each mesh section attached to the node, using the formula:
+  ```cpp
+  boundsToWorld = worldTransform * boundsToMesh;
+  ```
+  where `worldTransform` is the node's new world transform, and `boundsToMesh` is the static OBB in mesh local space from `MeshDrawBoundsData`.
+
+**Example:**
+```cpp
+for (NodeHandle node : changedNodes) {
+    glm::mat4 worldTransform = ...; // new world transform for node
+    for (size_t drawIdx : drawDataManager.getDrawIndicesForNode(node)) {
+        drawDataManager.meshDrawData[drawIdx].worldTransform = worldTransform;
+        glm::mat4 boundsToMesh = drawDataManager.meshDrawBoundsData[drawIdx].boundsToMesh;
+        drawDataManager.meshDrawCullData[drawIdx].boundsToWorld = worldTransform * boundsToMesh;
+    }
+}
+```
+
+- If a mesh section's bounds change (e.g., mesh deformation), update the corresponding `boundsToMesh` in `MeshDrawBoundsData` and resync transforms as needed.
+- This design ensures all per-draw data is kept in sync and ready for culling and rendering after any transform or mesh update.
 
 ## 6. Example Usage
 
