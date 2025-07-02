@@ -4,6 +4,10 @@
 - [x] Decide how scenes are made active, can multiple be active?
 - [x] How to mock systems that should return valid vulkan object handles?
 - [x] The seperation of draw and culling data into completely seperate systems is a bit awkward when the data arrays need to be 1:1 in sync. Should all the arrays be moved to the draw data manager, with the culling system doc just detailing the core culling algorithm.
+- [ ] Handle currently seperate slotmaps on the draw data manager that need to be in sync and indexable via shared handles
+- [ ] Slotmap handle type safety
+- [ ] Handle multiple mesh instances on same node
+- [x] Refactor meshes instance storage and draw data to support auto instancing.
 - [ ] Document observer pattern for mesh instance creation / removal updates.
 - [ ] Document observer pattern for material assignment and removal to mesh instances.
 - [ ] Document observer pattern for active scenes change event

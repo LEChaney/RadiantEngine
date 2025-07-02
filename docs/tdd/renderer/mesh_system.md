@@ -112,13 +112,14 @@ void destroyBuffer(GPUBuffer buffer);
     - MeshSystem maintains all mesh and instance data for the scene.
     - Provides mesh and section data to the DrawDataManager for draw data generation.
     - Materials for each draw are taken from the instance's material set.
-    - When a mesh instance is added to the active scene, MeshSystem will automatically call `drawDataManager.createDrawDataForMeshInstance(meshInstance)` to create the necessary draw data for rendering.
+    - When a mesh instance is added to the active scene, MeshSystem will automatically call `drawDataManager.createDrawDataForMeshInstance(meshInstance)` to create the necessary instance data and update draw groupings for rendering. DrawDataManager uses a slot map to store all instance data flatly, and MeshDrawData only stores handles/indices into this slot map for instancing.
 3. **Node Removal:**
     - When a node is removed, the MeshSystem removes the corresponding `MeshInstance`.
-    - The mesh resource remains alive until the scene is unloaded.
+    - The mesh resource remains alive until the scene is unloaded. DrawDataManager erases the instance data from its slot map and updates draw groupings accordingly.
 4. **Scene Unload:**
     - All meshes and mesh instances for the scene are destroyed.
     - All GPU buffers are deallocated via the Resource Allocator.
+    - DrawDataManager clears all instance data and mappings from its slot map.
 
 ---
 
@@ -126,6 +127,7 @@ void destroyBuffer(GPUBuffer buffer);
 
 - **Resource Allocator:** Used for all GPU buffer allocations and deallocations.
 - **DrawDataManager:** Consumes mesh and section data to generate draw data for rendering. **Relies on the Mesh System's (scene, node) → draw indices mapping for efficient transform synchronization.**
+ **DrawDataManager:** Consumes mesh and section data to generate draw data for rendering. **DrawDataManager now maintains a mapping from (scene, node) to instance handles in its slot map for efficient transform synchronization and per-instance updates.**
 - **MaterialSystem:** Each mesh instance references a set of materials (one per section); actual material data is managed by the MaterialSystem.
 - **Scene Graph:** MeshSystem does not own nodes; it only associates meshes to nodes via `NodeHandle`.
 - **Observer Pattern:** MeshSystem acts as a subject and notifies observers (e.g., DrawDataManager) when mesh instance assignments or per-instance material sets change. See [Observer Pattern](../core/observer_pattern.md) for details on decoupled update notification.
@@ -160,10 +162,21 @@ MeshInstance& meshInstance = meshSystem.addMeshInstance(activeScene, node, mesh,
 - No mesh or buffer is ever shared between scenes.
 - All GPU resource allocation is delegated to the Resource Allocator.
 - MeshSystem does not perform reference counting; lifetime is managed by scene load/unload.
-- MeshInstances enable multiple nodes in a scene to reference the same mesh, each with its own material set.
-- Each mesh section can have a different material and bounds, and is the unit of culling and draw call generation.
-- The Mesh System maintains the mapping from (scene, node) to mesh draw indices, which is used by the CullingSystem and DrawDataManager for efficient transform synchronization. This mapping is not stored in those systems.
+    - MeshInstances enable multiple nodes in a scene to reference the same mesh, each with its own material set.
+    - Each mesh section can have a different material and bounds, and is the unit of culling and draw call generation.
+    - DrawDataManager maintains a global slot map for all instance data, and MeshDrawData only stores handles/indices into this slot map for instancing. Node-to-instance-handle mapping enables efficient updates and synchronization.
 
 ---
+
+---
+
+## Notes on Automatic Instancing and Slot Map Integration
+
+- DrawDataManager uses a slot map to store all instance data (transforms, per-instance material overrides, etc.) flatly and globally.
+- When a mesh instance is added, its instance data is allocated in the slot map, and the handle is added to the appropriate MeshDrawData's list for instanced rendering.
+- When a mesh instance is removed, its slot is erased and the handle is removed from the MeshDrawData's list.
+- Node-to-instance-handle mapping enables fast per-node updates (e.g., transform changes, material overrides).
+- This approach supports both rasterization (instanced draw calls) and ray tracing (TLAS instance data, SBT offset per instance).
+- See `drawdata.md` for details on the slot map architecture and per-instance data management.
 
 This document should be updated as the mesh system evolves.
