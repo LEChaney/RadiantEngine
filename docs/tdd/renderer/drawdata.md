@@ -157,4 +157,25 @@ for (const auto& drawData : drawDataManager.getMeshDrawData()) {
 
 ---
 
+## Dependency Injection and System Dependencies
+
+The DrawDataManager depends on several systems for correct operation. All dependencies should be injected via constructor parameters, setter methods, or explicit registration APIs to enable modularity, testability, and decoupling.
+
+### DrawDataManager Dependencies
+- **RHI (RHIBase/IRHI)**: Injected via constructor or setter if DrawDataManager is responsible for GPU buffer/resource management. Allows for testable, decoupled GPU operations.
+- **MeshSystem**: Injected via constructor or setter. Used to receive mesh instance changes.
+- **MaterialSystem**: Injected via constructor or setter. Used to receive material changes.
+- **Scene**: Registered as an observer to receive node transform changes.
+
+#### Example (C++)
+```cpp
+DrawDataManager(RHIBase& rhi, MeshSystem* meshSys, MaterialSystem* materialSys);
+void registerWithScene(Scene* scene) { scene->addObserver(this); }
+```
+
+- All dependencies, including the RHI, can be replaced with mocks or test doubles for unit testing.
+- DrawDataManager does not own these systems; it only uses them via interfaces or pointers.
+
+---
+
 This document should be updated as the renderer and scene modules evolve.

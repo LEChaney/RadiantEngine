@@ -379,3 +379,26 @@ The workflow for transform propagation, system synchronization, and integration 
 - This ensures all systems operate on up-to-date transforms and remain in sync with the scene state.
 
 This section is intentionally concise; always consult the core coordination document for authoritative details.
+
+---
+
+## Dependency Injection and System Dependencies
+
+The Scene module is designed to be agnostic to all system-specific data and logic. It does not depend on any external systems for its core functionality (hierarchy, transforms, node management). However, it acts as a subject in the observer pattern, allowing systems such as DrawDataManager, CullingSystem, and others to register as observers for transform change notifications.
+
+### Scene Dependencies
+- **Observers (e.g., DrawDataManager, CullingSystem, Allocator, etc.)**: Registered via explicit observer registration APIs (e.g., `addObserver`, `removeObserver`).
+- **No direct dependencies**: The Scene module does not require any other system to function and can be instantiated and tested in isolation.
+- **Note:** Systems that interact with GPU resources (such as allocators or resource managers) should receive the RHI as a dependency for testability and decoupling, following the same pattern as the Renderer.
+
+#### Example (C++)
+```cpp
+scene.addObserver(&drawDataManager);
+scene.addObserver(&cullingSystem);
+// Allocator or resource manager would be constructed with an RHI reference
+```
+
+- Observers and dependencies can be real systems or test/mocked systems for unit testing.
+- This design enables robust, decoupled, and testable system integration.
+
+---

@@ -193,6 +193,26 @@ for (NodeHandle node : changedNodes) {
 
 ---
 
+## Dependency Injection and System Dependencies
+
+The CullingSystem depends on several systems for correct operation. All dependencies should be injected via constructor parameters, setter methods, or explicit registration APIs to enable modularity, testability, and decoupling.
+
+### CullingSystem Dependencies
+- **RHI (RHIBase/IRHI)**: Injected via constructor or setter if the CullingSystem performs GPU-side culling or manages GPU buffers. Allows for testable, decoupled GPU operations.
+- **DrawDataManager**: Injected via constructor or setter. Used to map nodes to draw indices and synchronize culling data.
+- **Scene**: Registered as an observer to receive node transform changes.
+
+#### Example (C++)
+```cpp
+CullingSystem(RHIBase& rhi, DrawDataManager* drawDataMgr);
+void registerWithScene(Scene* scene) { scene->addObserver(this); }
+```
+
+- All dependencies, including the RHI, can be replaced with mocks or test doubles for unit testing.
+- CullingSystem does not own these systems; it only uses them via interfaces or pointers.
+
+---
+
 ## Example Usage
 
 ```cpp

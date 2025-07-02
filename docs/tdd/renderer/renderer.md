@@ -218,4 +218,36 @@ The workflow for transform updates, system synchronization, and the renderer loo
 
 ---
 
+## Dependency Injection and System Dependencies
+
+The Renderer depends on several core systems, which should be injected or registered explicitly to enable modularity, testability, and decoupling. All dependencies should be provided via constructor parameters, setter methods, or explicit registration APIs.
+
+### Renderer Dependencies
+- **RHI (RHIBase/IRHI)**: Injected via constructor or setter. All rendering API calls are made through this abstraction. The RHI can be a real backend (Vulkan, Metal, etc.) or a mock for testing.
+- **DrawDataManager**: Injected via constructor or setter. Used for managing draw data.
+- **CullingSystem**: Injected via constructor or setter. Used for culling visible objects.
+- **PipelineManager**: Injected via constructor or setter. Used for pipeline state management.
+- **TextureManager**: Injected via constructor or setter. Used for texture resource management.
+- **MaterialSystem**: Injected via constructor or setter. Used for material descriptor sets.
+- **SceneManager**: Registered as an observer to receive active scene changes.
+- **Camera**: Set via `setCamera()`.
+
+#### Example (C++)
+```cpp
+Renderer(RHIBase& rhi,
+         DrawDataManager* drawDataMgr,
+         CullingSystem* cullingSys,
+         PipelineManager* pipelineMgr,
+         TextureManager* textureMgr,
+         MaterialSystem* materialSys,
+         SceneManager* sceneMgr);
+
+void setCamera(Camera* camera);
+```
+
+- All dependencies, including the RHI, can be replaced with mocks or test doubles for unit testing.
+- The Renderer does not create or own these systems; it only uses them via interfaces or pointers.
+
+---
+
 This document should be updated as the renderer module evolves.
