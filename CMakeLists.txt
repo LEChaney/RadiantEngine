@@ -23,6 +23,10 @@ else()
 endif()
 
 add_subdirectory(src)
+enable_testing()
+# Define a global build_tests target before adding subdirectories
+add_custom_target(build_tests)
+add_subdirectory(tests)
 
 find_program(GLSL_VALIDATOR glslangValidator HINTS /usr/bin /usr/local/bin $ENV{VULKAN_SDK}/Bin/ $ENV{VULKAN_SDK}/Bin32/)
 
@@ -48,4 +52,9 @@ endforeach(GLSL)
 add_custom_target(
     Shaders 
     DEPENDS ${SPIRV_BINARY_FILES}
-    )
+)
+
+# Custom target to build everything: engine, tests, shaders
+add_custom_target(build_all
+    DEPENDS engine Shaders build_tests
+)

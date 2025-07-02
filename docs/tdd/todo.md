@@ -2,6 +2,7 @@
 - [x] Create slot map documentation
 - [x] Figure out scene storage and handle type (shared pointer, slotmap handle, unique pointer and get by ref, etc)
 - [x] Decide how scenes are made active, can multiple be active?
+- [ ] How to mock systems that should return valid vulkan object handles?
 - [ ] The seperation of draw and culling data into completely seperate systems is a bit awkward when the data arrays need to be 1:1 in sync. Should all the arrays be moved to the draw data manager, the the culling system doc just detailing the core culling algorithm.
 - [ ] Document observer pattern for mesh instance creation / removal updates.
 - [ ] Document observer pattern for material assignment and removal to mesh instances.
