@@ -14,10 +14,10 @@
 - [ ] Document observer pattern for scene node insertion and removal
 - [ ] Document observer pattern and input stack for SDL input events
 - [ ] Update how camera works to seperate movement control (controller listens for sdl input, moves scene node, camera attached to scene node) and camera logic (updating view transform, etc).
-- [ ] Finalize vulkan context and swapchain initialization documentation in renderer and any extra seperate context documention to go along with this.
+- [x] Finalize vulkan context and swapchain initialization documentation in renderer and any extra seperate context documention to go along with this.
 - [ ] Add documentation to all systems for depency injection of sytems (which systems to they depend on)
 - [ ] Add documentation to each system describing mocked tests for dependencies.
-- [ ] Finalize high level design document
+- [x] Finalize high level design document
 
 # Read Throughs
 - [ ] Complete read through: Material System
