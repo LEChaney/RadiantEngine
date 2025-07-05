@@ -1,145 +1,80 @@
-# Vulkan Renderer Refactor: High-Level Technical Design Document
+# RadiantEngine High-Level Design Overview
 
-## 1. Overview
-
-This document describes the proposed refactoring of the Vulkan renderer codebase. The goal is to improve modularity, maintainability, testability, and extensibility while preserving existing functionality.
+This document provides a high-level architectural overview of RadiantEngine, summarizing the core systems, their responsibilities, and how they interact. For detailed design and API documentation, see the linked module documents.
 
 ---
 
-## 2. Current State
+## 1. Architecture Summary
 
-- **Monolithic source files**: Core logic (Vulkan setup, camera, pipelines, etc.) is implemented in large, tightly coupled files.
-- **Direct resource management**: Manual handling of Vulkan resources, with limited abstraction.
-- **Limited separation of concerns**: Rendering, input, and scene management are not clearly separated.
-- **Minimal testing**: No clear boundaries for unit or integration testing.
+RadiantEngine is a modular, testable, and data-driven real-time rendering engine. Its architecture emphasizes clear separation of concerns, robust resource management, and modern rendering techniques (instancing, culling, GPU-driven workflows, etc.).
 
----
-
-## 3. Refactored Architecture
-
-### 3.1. High-Level Structure
-
-- **src/**
-  - [`core/`](core/) – Engine core (initialization, main loop, logging)
-  - [`renderer/`](renderer/renderer.md) – Vulkan abstraction (device, swapchain, pipelines, descriptors)
-  - [`scene/`](scene/scene.md) – Scene graph and node hierarchy (see [Scene Module Design](scene/scene.md) for details)
-  - [`camera/`](camera/camera.md) – Camera logic, controls, and input handling
-  - [`assets/`](assets/) – Asset loading (models, textures, shaders)
-  - [`utils/`](utils/) – Math, helpers, utilities
-
-### 3.2. Key Modules
-
-#### 3.2.1. Core Engine
-
-- **Engine**: Entry point, manages main loop, delegates to subsystems.
-- **Logger**: Centralized logging facility.
-
-#### 3.2.2. Renderer
-
-- See [Renderer Module Design](renderer/renderer.md) for details.
-- **VulkanContext**: Encapsulates Vulkan instance, device, and surface.
-- **SwapchainManager**: Handles swapchain creation and recreation.
-- **PipelineManager**: Manages graphics and compute pipelines.
-- **DescriptorManager**: Allocates and recycles descriptor sets.
-- **ResourceManager**: Allocates and destroys GPU resources on request.
-- **CullingSystem**: Performs visibility determination for scene objects before rendering, using camera frustum data. Decoupled from scene and draw data for performance. See [Culling System Design](renderer/culling_system.md) for details.
-
-#### 3.2.3. Scene
-
-- **Scene Graph**: Represents the logical structure and transform hierarchy of the world. Stores nodes and their relationships, but not system-specific data.
-- **System Data Association**: All rendering, lighting, and physics data is managed externally and associated to scene nodes by handle.
-- **Transform Propagation**: Responsible for updating world transforms and tracking changes for synchronization with other systems.
-- **SceneManager**: Manages multiple scenes and the active scene. See [Scene Module Design](scene/scene.md) for details.
-
-#### 3.2.4. Camera
-
-- See [Camera Module Design](camera/camera.md) for details.
-- **Camera**: Stores view/projection, frustum, movement logic, and handles input events directly (e.g., SDL events).
-
-#### 3.2.5. Assets
-
-- **AssetLoader**: Loads models, textures, and shaders.
-- **ShaderManager**: Compiles and manages shader modules.
-
-#### 3.2.6. Utilities
-
-- **Math**: Common math functions and types.
-- **Helpers**: Miscellaneous utilities.
+Key principles:
+- **Modularity:** Each system (renderer, scene, draw data, culling, resource management, etc.) is encapsulated and interacts via explicit APIs and observer patterns.
+- **Testability:** All dependencies are injected or registered, supporting unit and integration testing.
+- **Data-Oriented Design:** Flat, cache-friendly data layouts and slot map containers are used for all dynamic data.
+- **Robust Resource Ownership:** Ownership and lifetime of all resources (CPU and GPU) are clearly defined and documented.
 
 ---
 
-## 4. Design Principles
+## 2. Core Systems and Documentation
 
-- **Single Responsibility Principle**: Each class/module has a clear, focused purpose.
-- **Encapsulation**: Hide Vulkan and SDL details behind clean interfaces.
-- **Testability**: Decouple logic for easier unit and integration testing.
-- **Extensibility**: Facilitate adding new features (e.g., new rendering techniques, input devices).
-- **Documentation**: Each module/class is documented with usage and design rationale.
-- **Explicit Resource Ownership**: ResourceManager and DescriptorManager act as allocators/services only. Scene/SceneManager owns and tracks all GPU resources it uses, and is responsible for releasing them on unload. PipelineManager owns pipelines globally.
+### Renderer
+- Orchestrates the rendering pipeline, manages the main loop, and coordinates draw calls, culling, and resource binding.
+- Handles Vulkan initialization, swapchain setup, and frame lifecycle.
+- See: [renderer.md](renderer/renderer.md)
 
----
+### Draw Data Manager
+- Owns and manages all per-draw and per-instance data (draw groups, instance data, culling, bounds, etc.) using slot maps.
+- Ensures robust synchronization and efficient updates via observer pattern and reverse handle lookups.
+- See: [drawdata.md](renderer/drawdata.md)
 
-## 5. Example: Camera Refactor
+### Mesh System
+- Manages mesh resources per scene, including GPU buffers and mesh/section associations.
+- Integrates with DrawDataManager for draw data generation and supports automatic instancing.
+- See: [mesh_system.md](renderer/mesh_system.md)
 
-See [Camera Module Design](camera/camera.md) for more details.
+### Culling System
+- Stateless, efficient culling of draw data based on camera frustum and per-draw bounds.
+- Consumes data from DrawDataManager and returns visible draw handles for rendering.
+- See: [culling_system.md](renderer/culling_system.md)
 
-- **camera/Camera.h / Camera.cpp**: Camera math, state, and direct input handling.
+### Scene System
+- Manages scene graphs, nodes, transforms, and resource associations.
+- Notifies observers (e.g., DrawDataManager) of changes for efficient data updates.
+- See: [scene.md](scene/scene.md)
 
-**Benefits**:
-- Camera logic is testable without SDL.
-- Input handling is simple and direct, with no unnecessary abstraction.
+### Resource Management
+- Handles allocation and deallocation of GPU resources (buffers, images, samplers) and CPU-side assets.
+- See: [scene_resource_ownership.md](renderer/scene_resource_ownership.md)
 
----
-
-## 6. Build System
-
-- **CMake**: Modular targets for each subsystem.
-- **Third-party dependencies**: Managed in `third_party/`, linked via CMake.
-
----
-
-## 7. Testing
-
-- **Unit tests**: For math, camera, and utility modules (see [Camera Module Design](camera/camera.md#testing)).
-- **Integration tests**: For renderer and scene management (see [Scene Module Design](scene/scene.md#example-usage)).
-- **Test assets**: Minimal GLTFs and textures for automated tests.
-
----
-
-## 8. Migration Plan
-
-1. Incrementally extract modules (start with Camera, Renderer, Scene).
-2. Write unit tests for extracted modules.
-3. Refactor main loop to use new subsystems.
-4. Update build scripts.
-5. Document new architecture.
+### Slot Map Containers
+- All dynamic data (draw groups, instances, culling, bounds, lights) is managed using slot maps for stable handles and robust associations.
+- See: [slotmap.md](utils/containers/slotmap.md)
 
 ---
 
-## 9. Future Work
+## 3. System Integration and Data Flow
 
-### Minimum Features
-- Meshlet shading and culling
-- Ray traced shadows and reflections
-- DDGI (Dynamic Diffuse Global Illumination)
-- Dynamic PBR sky system
-
-### Stretch Features
-- Volumetric fog
-- Simple particle system (dust motes, floating leaves) with wind system
-- Wind system affecting foliage
-- Fur/hair rendering (focus on fur)
-- Character skin rendering (focus on animal skin)
-- Rigged character animation (simple playback, no complex blending)
+- **Scene changes** trigger notifications to the renderer, which clears and repopulates draw and culling data.
+- **DrawDataManager** observes mesh, material, and transform changes, updating all per-draw and per-instance data.
+- **CullingSystem** queries DrawDataManager for bounds and instance data, returning visible draws for the current frame.
+- **Renderer** issues draw calls using the visible draw handles and manages the frame lifecycle, swapchain, and presentation.
+- **ResourceManager** and **PipelineManager** provide allocation and state management for all GPU resources and pipelines.
 
 ---
 
-## 10. Appendix
+## 4. References and Further Reading
 
-- **UML diagrams** (to be added as modules are refactored).
-- **Code style guide**.
-- **Module API documentation**.
+- [Renderer Module](renderer/renderer.md)
+- [Draw Data Manager](renderer/drawdata.md)
+- [Mesh System](renderer/mesh_system.md)
+- [Culling System](renderer/culling_system.md)
+- [Scene System](scene/scene.md)
+- [Resource Ownership](renderer/scene_resource_ownership.md)
+- [Slot Map Container](utils/containers/slotmap.md)
+
+For detailed API, data structure, and workflow documentation, see the linked module documents above.
 
 ---
 
-This document should serve as a living reference for the refactor. Each module should have its own mini-design doc as it is implemented.
+This document should be updated as the engine architecture evolves.
