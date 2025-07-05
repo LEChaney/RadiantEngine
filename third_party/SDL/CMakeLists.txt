@@ -5,7 +5,7 @@ endif()
 # MSVC runtime library flags are selected by an abstraction.
 set(CMAKE_POLICY_DEFAULT_CMP0091 NEW)
 
-cmake_minimum_required(VERSION 3.0.0...3.5)
+cmake_minimum_required(VERSION 3.16)
 project(SDL2 C CXX)
 
 if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
@@ -3204,7 +3204,7 @@ if (SDL_ASAN)
 endif()
 
 if(SDL_CCACHE AND NOT CMAKE_VERSION VERSION_LESS 3.4)
-  cmake_minimum_required(VERSION 3.4...3.5)
+  cmake_minimum_required(VERSION 3.16)
   find_program(CCACHE_BINARY ccache)
   if(CCACHE_BINARY)
     set(CMAKE_C_COMPILER_LAUNCHER ${CCACHE_BINARY})

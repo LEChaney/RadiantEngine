@@ -1,9 +1,20 @@
 ﻿# CMakeList.txt : CMake project for vulkan_guide, include source and define
 # project specific logic here.
 #
-cmake_minimum_required (VERSION 3.8)
+cmake_minimum_required (VERSION 3.16)
 
 project ("vulkan_guide")
+
+# GoogleTest FetchContent for unit tests
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/refs/heads/main.zip
+  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
 
 
 find_package(Vulkan REQUIRED)
@@ -26,7 +37,7 @@ add_subdirectory(src)
 enable_testing()
 # Define a global build_tests target before adding subdirectories
 add_custom_target(build_tests)
-add_subdirectory(tests)
+add_subdirectory(test)
 
 find_program(GLSL_VALIDATOR glslangValidator HINTS /usr/bin /usr/local/bin $ENV{VULKAN_SDK}/Bin/ $ENV{VULKAN_SDK}/Bin32/)
 

@@ -1,4 +1,9 @@
-# Planned updates
+# Code Todo
+- [ ] Add memory reservation code to slotmap.
+- [ ] Add warnings on memory realloc of underlying vectors to slotmap
+- [ ] Add test for above
+
+# Planned Docs updates
 - [x] Create slot map documentation
 - [x] Figure out scene storage and handle type (shared pointer, slotmap handle, unique pointer and get by ref, etc)
 - [x] Decide how scenes are made active, can multiple be active?
@@ -19,7 +24,7 @@
 - [ ] Add documentation to each system describing mocked tests for dependencies.
 - [x] Finalize high level design document
 
-# Read Throughs
+# Docs Read Throughs
 - [ ] Complete read through: Material System
 - [ ] Complete read through: Pipeline manager
 - [ ] Complete read through: Texture manager
