@@ -33,6 +33,7 @@ The renderer orchestrates the rendering pipeline, manages the main loop, global 
 
 ---
 
+
 ## 3. Structure
 
 The renderer module consists of the following main files and folders:
@@ -46,6 +47,47 @@ The renderer module consists of the following main files and folders:
 - src/renderer/DescriptorManager.h / DescriptorManager.cpp
 - src/renderer/DrawDataManager.h / DrawDataManager.cpp
 - src/renderer/CullingSystem.h / CullingSystem.cpp
+
+---
+
+## 3a. Vulkan Initialization and Swapchain Setup
+
+### VulkanContext Initialization
+- Responsible for creating and managing the Vulkan instance, physical and logical devices, and the rendering surface.
+- Handles Vulkan API version selection, validation layers, and device feature queries.
+- Manages device selection (discrete GPU preferred), queue family discovery, and logical device creation.
+- Creates the Vulkan surface (via windowing system integration, e.g., SDL or GLFW).
+- Cleans up all Vulkan objects on shutdown.
+
+### SwapchainManager Setup
+- Handles creation, recreation, and destruction of the Vulkan swapchain.
+- Selects optimal surface format, present mode, and swapchain extent based on window and device capabilities.
+- Manages swapchain images, image views, framebuffers, and synchronization primitives (semaphores, fences).
+- Responds to window resize and surface changes by recreating the swapchain and all dependent resources.
+- Provides APIs for acquiring the next image, presenting, and handling out-of-date/resize events.
+
+### Integration and Error Handling
+- VulkanContext and SwapchainManager are initialized during renderer startup.
+- On window resize or surface loss, the renderer triggers swapchain recreation via SwapchainManager.
+- All Vulkan errors are checked and reported; swapchain recreation is robust to minimize frame drops.
+- The renderer integrates swapchain image acquisition and presentation into the main frame loop.
+
+#### Example Initialization Flow
+```cpp
+// During renderer startup:
+vulkanContext.initialize(windowHandle);
+swapchainManager.createSwapchain(vulkanContext, windowExtent);
+
+// Per frame:
+swapchainManager.acquireNextImage();
+// ...record and submit draw commands...
+swapchainManager.presentImage();
+
+// On window resize:
+swapchainManager.recreateSwapchain(newExtent);
+```
+
+---
 
 ---
 
