@@ -873,26 +873,96 @@ void VulkanEngine::init_vulkan()
     features12.bufferDeviceAddress = true;
     features12.descriptorIndexing = true;
 
-    vkb::PhysicalDeviceSelector selector{ vkb_inst };
-    vkb::PhysicalDevice physicalDevice = selector
-        .set_minimum_version(1, 3)
-        .set_required_features_13(features)
-        .set_required_features_12(features12)
-        .set_surface(_surface)
-        .select()
-        .value();
+    // Enumerate physical devices
+    uint32_t gpuCount = 0;
+    VK_CHECK(vkEnumeratePhysicalDevices(_instance, &gpuCount, nullptr));
+    if (gpuCount == 0) {
+        throw std::runtime_error("No Vulkan-compatible GPUs found.");
+    }
+    std::vector<VkPhysicalDevice> physicalDevices(gpuCount);
+    VK_CHECK(vkEnumeratePhysicalDevices(_instance, &gpuCount, physicalDevices.data()));
 
-    // Create the final vulkan device
-    vkb::DeviceBuilder deviceBuilder{ physicalDevice };
-    vkb::Device vkbDevice = deviceBuilder.build().value();
+    // Pick first suitable discrete GPU
+    VkPhysicalDevice selectedDevice = VK_NULL_HANDLE;
+    VkPhysicalDeviceProperties selectedProps{};
+    if (selectedDevice == VK_NULL_HANDLE) {
+        for (const auto& device : physicalDevices) {
+            VkPhysicalDeviceProperties props;
+            vkGetPhysicalDeviceProperties(device, &props);
+            if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+                selectedDevice = device;
+                selectedProps = props;
+                break;
+            }
+        }
+    }
+    if (selectedDevice == VK_NULL_HANDLE) {
+        throw std::runtime_error("No suitable discrete GPU found.");
+    }
+
+    // Query queue families
+    uint32_t queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(selectedDevice, &queueFamilyCount, nullptr);
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(selectedDevice, &queueFamilyCount, queueFamilies.data());
+
+    // Find a queue family that supports graphics and present
+    int graphicsQueueFamily = -1;
+    for (uint32_t i = 0; i < queueFamilyCount; ++i) {
+        VkBool32 presentSupport = false;
+        vkGetPhysicalDeviceSurfaceSupportKHR(selectedDevice, i, _surface, &presentSupport);
+        if ((queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) && presentSupport) {
+            graphicsQueueFamily = i;
+            break;
+        }
+    }
+    if (graphicsQueueFamily == -1) {
+        throw std::runtime_error("No suitable graphics queue family found.");
+    }
+
+    // Enable required device features
+    float queuePriority = 1.0f;
+    VkDeviceQueueCreateInfo queueCreateInfo{};
+    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueCreateInfo.queueFamilyIndex = graphicsQueueFamily;
+    queueCreateInfo.queueCount = 1;
+    queueCreateInfo.pQueuePriorities = &queuePriority;
+
+    // Enable Vulkan 1.3 and 1.2 features
+    features.pNext = &features12;
+
+    // Required device extensions
+    std::vector<const char*> deviceExtensions = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    };
+
+    VkDeviceCreateInfo deviceCreateInfo{};
+    deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    deviceCreateInfo.pNext = &features;
+    deviceCreateInfo.queueCreateInfoCount = 1;
+    deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
+    deviceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
+    deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
+
+    // Create logical device
+    VkDevice device;
+    VK_CHECK(vkCreateDevice(selectedDevice, &deviceCreateInfo, nullptr, &device));
+
+    // Save handles
+    _device = device;
+    _chosenGPU = selectedDevice;
+    _graphicsQueueFamily = graphicsQueueFamily;
+
+    // Get graphics queue
+    vkGetDeviceQueue(_device, _graphicsQueueFamily, 0, &_graphicsQueue);
 
     // Save vk handles
-    _device = vkbDevice.device;
-    _chosenGPU = physicalDevice.physical_device;
+    // _device = vkbDevice.device;
+    // _chosenGPU = physicalDevice.physical_device;
 
-    /******* Initializing queue *******/
-    _graphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
-    _graphicsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
+    // /******* Initializing queue *******/
+    // _graphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
+    // _graphicsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
 
     /******* Initialize the memory allocator *******/
     VmaAllocatorCreateInfo allocatorInfo = {};
@@ -905,6 +975,71 @@ void VulkanEngine::init_vulkan()
     _mainDeletionQueue.push_function([&]() {
         vmaDestroyAllocator(_allocator);
     });
+
+    // Print selected GPU device properties
+    VkPhysicalDeviceProperties deviceProperties;
+    vkGetPhysicalDeviceProperties(_chosenGPU, &deviceProperties);
+
+    // Convert VkPhysicalDeviceType to string
+    const char* deviceTypeStr = "Unknown";
+    switch (deviceProperties.deviceType) {
+        case VK_PHYSICAL_DEVICE_TYPE_OTHER: deviceTypeStr = "Other"; break;
+        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU: deviceTypeStr = "Integrated GPU"; break;
+        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU: deviceTypeStr = "Discrete GPU"; break;
+        case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU: deviceTypeStr = "Virtual GPU"; break;
+        case VK_PHYSICAL_DEVICE_TYPE_CPU: deviceTypeStr = "CPU"; break;
+    }
+    
+    // Print device properties
+    fmt::print("Selected GPU Device:\n");
+    fmt::print("  Name: {}\n", deviceProperties.deviceName);
+    fmt::print("  Type: {}\n", deviceTypeStr);
+    fmt::print("  API Version: {}.{}.{}\n",
+        VK_VERSION_MAJOR(deviceProperties.apiVersion),
+        VK_VERSION_MINOR(deviceProperties.apiVersion),
+        VK_VERSION_PATCH(deviceProperties.apiVersion));
+    fmt::print("  Driver Version: {}\n", deviceProperties.driverVersion);
+    fmt::print("  Vendor ID: {:#06x}\n", deviceProperties.vendorID);
+    fmt::print("  Device ID: {:#06x}\n", deviceProperties.deviceID);
+
+    // Query physical device memory properties
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(_chosenGPU, &memProperties);
+
+    fmt::print("Available VkMemoryHeaps:\n");
+    for (uint32_t i = 0; i < memProperties.memoryHeapCount; ++i) {
+        VkDeviceSize heapSizeMB = memProperties.memoryHeaps[i].size / (1024 * 1024);
+        VkMemoryHeapFlags flags = memProperties.memoryHeaps[i].flags;
+
+        std::string flagStr;
+        if (flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) flagStr += "DEVICE_LOCAL ";
+        if (flags & VK_MEMORY_HEAP_MULTI_INSTANCE_BIT) flagStr += "MULTI_INSTANCE ";
+#if defined(VK_VERSION_1_2)
+        if (flags & VK_MEMORY_HEAP_MULTI_INSTANCE_BIT_KHR) flagStr += "MULTI_INSTANCE_KHR ";
+#endif
+
+        if (flagStr.empty()) flagStr = "None";
+
+        fmt::print("  Heap {}: {} MB [{}]\n", i, heapSizeMB, flagStr);
+    }
+
+    fmt::print("Available VkMemoryTypes:\n");
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; ++i) {
+        const VkMemoryType& type = memProperties.memoryTypes[i];
+        std::string propertyStr;
+        if (type.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) propertyStr += "DEVICE_LOCAL ";
+        if (type.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) propertyStr += "HOST_VISIBLE ";
+        if (type.propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) propertyStr += "HOST_COHERENT ";
+        if (type.propertyFlags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) propertyStr += "HOST_CACHED ";
+        if (type.propertyFlags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) propertyStr += "LAZILY_ALLOCATED ";
+#if defined(VK_VERSION_1_1)
+        if (type.propertyFlags & VK_MEMORY_PROPERTY_PROTECTED_BIT) propertyStr += "PROTECTED ";
+        if (type.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_COHERENT_BIT_AMD) propertyStr += "DEVICE_COHERENT_AMD ";
+        if (type.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_UNCACHED_BIT_AMD) propertyStr += "DEVICE_UNCACHED_AMD ";
+#endif
+        if (propertyStr.empty()) propertyStr = "None";
+        fmt::print("  Type {}: Heap {} [{}]\n", i, type.heapIndex, propertyStr);
+    }
 }
 
 void VulkanEngine::init_swapchain()
@@ -1397,6 +1532,140 @@ void VulkanEngine::init_default_data()
     auto bistroGltf = load_gltf(this, bistroMeshPath);
     if (bistroGltf.has_value()) {
         _loadedScenes["bistro"] = *bistroGltf;
+    }
+
+    // Manually create a scene with RGB axis arrows
+    {
+        // Create vertices for 3 arrows (X: red, Y: green, Z: blue)
+        // Cube arrow geometry for X (red), Y (green), Z (blue) axes
+        // Each arrow is a thin box from (0,0,0) to (1,0.05,0.05) for X,
+        // (0,0,0) to (0.05,1,0.05) for Y, (0,0,0) to (0.05,0.05,1) for Z
+
+        std::vector<Vertex> axisVertices;
+
+        // X axis (red)
+        glm::vec4 red(1,0,0,1);
+        // 8 corners of the X arrow box
+        glm::vec3 x0(0, -0.025f, -0.025f);
+        glm::vec3 x1(1, -0.025f, -0.025f);
+        glm::vec3 x2(1,  0.025f, -0.025f);
+        glm::vec3 x3(0,  0.025f, -0.025f);
+        glm::vec3 x4(0, -0.025f,  0.025f);
+        glm::vec3 x5(1, -0.025f,  0.025f);
+        glm::vec3 x6(1,  0.025f,  0.025f);
+        glm::vec3 x7(0,  0.025f,  0.025f);
+
+        // Y axis (green)
+        glm::vec4 green(0,1,0,1);
+        glm::vec3 y0(-0.025f, 0, -0.025f);
+        glm::vec3 y1(-0.025f, 1, -0.025f);
+        glm::vec3 y2( 0.025f, 1, -0.025f);
+        glm::vec3 y3( 0.025f, 0, -0.025f);
+        glm::vec3 y4(-0.025f, 0,  0.025f);
+        glm::vec3 y5(-0.025f, 1,  0.025f);
+        glm::vec3 y6( 0.025f, 1,  0.025f);
+        glm::vec3 y7( 0.025f, 0,  0.025f);
+
+        // Z axis (blue)
+        glm::vec4 blue(0,0,1,1);
+        glm::vec3 z0(-0.025f, -0.025f, 0);
+        glm::vec3 z1(-0.025f, -0.025f, 1);
+        glm::vec3 z2( 0.025f, -0.025f, 1);
+        glm::vec3 z3( 0.025f, -0.025f, 0);
+        glm::vec3 z4(-0.025f,  0.025f, 0);
+        glm::vec3 z5(-0.025f,  0.025f, 1);
+        glm::vec3 z6( 0.025f,  0.025f, 1);
+        glm::vec3 z7( 0.025f,  0.025f, 0);
+
+        // Helper lambda to add a box (cube) to the vertex/index arrays
+        auto add_box = [&](glm::vec3 v[8], glm::vec4 color, std::vector<Vertex>& verts, std::vector<uint32_t>& inds) {
+            uint32_t base = static_cast<uint32_t>(verts.size());
+            // Normals for each face
+            glm::vec3 normals[6] = {
+            { 1, 0, 0}, {-1, 0, 0},
+            { 0, 1, 0}, { 0,-1, 0},
+            { 0, 0, 1}, { 0, 0,-1}
+            };
+            // Each face: 4 indices (quad), two triangles
+            uint32_t faces[6][4] = {
+            {1,2,6,5}, // +X
+            {0,4,7,3}, // -X
+            {2,3,7,6}, // +Y
+            {0,1,5,4}, // -Y
+            {4,5,6,7}, // +Z
+            {0,3,2,1}  // -Z
+            };
+            for (int f = 0; f < 6; ++f) {
+            // 4 verts per face
+            for (int vi = 0; vi < 4; ++vi) {
+                glm::vec3 pos = v[faces[f][vi]];
+                float uv_x = (vi == 1 || vi == 2) ? 1.0f : 0.0f;
+                float uv_y = (vi >= 2) ? 1.0f : 0.0f;
+                verts.push_back(Vertex{pos, uv_x, normals[f], uv_y, color});
+            }
+            // Indices for two triangles
+            inds.push_back(base + f*4 + 0);
+            inds.push_back(base + f*4 + 1);
+            inds.push_back(base + f*4 + 2);
+            inds.push_back(base + f*4 + 2);
+            inds.push_back(base + f*4 + 3);
+            inds.push_back(base + f*4 + 0);
+            }
+        };
+
+        std::vector<uint32_t> axisIndices;
+        // Add X arrow
+        glm::vec3 xverts[8] = {x0,x1,x2,x3,x4,x5,x6,x7};
+        add_box(xverts, red, axisVertices, axisIndices);
+        // Add Y arrow
+        glm::vec3 yverts[8] = {y0,y1,y2,y3,y4,y5,y6,y7};
+        add_box(yverts, green, axisVertices, axisIndices);
+        // Add Z arrow
+        glm::vec3 zverts[8] = {z0,z1,z2,z3,z4,z5,z6,z7};
+        add_box(zverts, blue, axisVertices, axisIndices);
+
+        // Upload mesh to GPU
+        GPUMeshBuffers meshBuffers = upload_mesh(axisIndices, axisVertices);
+
+        // Create a dummy bounds for the arrows
+        Bounds bounds;
+        bounds.origin = glm::vec3(0.5f, 0.5f, 0.5f);
+        bounds.extents = glm::vec3(1.0f);
+
+        // Create a dummy material for the axes (using white texture, colored by vertex color)
+        GLTFMetallicRoughness::MaterialResources matRes;
+        matRes.dataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU).buffer;
+        matRes.colorImage = _whiteImage;
+        matRes.colorSampler = _defaultSamplerLinear;
+        matRes.metalRoughImage = _whiteImage;
+        matRes.metalRoughSampler = _defaultSamplerLinear;
+
+        // Use opaque pipeline for all arrows
+        MaterialInstance axisMaterial = _metalRoughMaterial.write_material(
+            _device, AlphaMode::Opaque, matRes, _frames[0].frameDescriptorAllocator);
+
+        // Create a new scene
+        auto axisScene = std::make_shared<LoadedGLTF>();
+        axisScene->creator = this;
+
+        // Create a single MeshAsset for all axes
+        auto meshAsset = std::make_shared<MeshAsset>();
+        meshAsset->name = "Axes";
+        GeoSurface surface;
+        surface.startIndex = 0;
+        surface.count = static_cast<uint32_t>(axisIndices.size());
+        surface.bounds = bounds;
+        surface.material = std::make_shared<MaterialInstance>(axisMaterial);
+        meshAsset->surfaces.push_back(surface);
+        meshAsset->meshBuffers = meshBuffers;
+
+        // Create a single MeshNode for the axes
+        auto meshNode = std::make_shared<MeshNode>();
+        meshNode->mesh = meshAsset;
+        meshNode->worldTransform = glm::mat4(1.0f);
+        axisScene->topNodes.push_back(meshNode);
+
+        _loadedScenes["axes"] = axisScene;
     }
 }
 

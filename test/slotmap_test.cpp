@@ -1,6 +1,7 @@
 #include "utils/containers/slotmap.h"
 #include <gtest/gtest.h>
 #include <string>
+#include <type_traits>
 
 struct Position { float x, y; };
 struct Velocity { float dx, dy; };
@@ -133,4 +134,24 @@ TEST(SlotMapTest, RemoveInvalidHandleIsNoOp) {
     EXPECT_EQ(pos2->y, 6);
     EXPECT_EQ(vel2->dx, 7);
     EXPECT_EQ(vel2->dy, 8);
+}
+
+TEST(SlotMapTest, NullHandleProperties) {
+    using Handle = SlotMap<Position>::Handle;
+    // Null handle should be equal to itself
+    EXPECT_EQ(Handle::null(), Handle::null());
+    // Null handle should not be valid in any slotmap
+    SlotMap<Position> sm;
+    auto h = sm.add(Position{1, 2});
+    EXPECT_FALSE(sm.valid(Handle::null()));
+    // Null handle should be detected by is_null()
+    EXPECT_TRUE(Handle::null().is_null());
+    // Null handle should convert to false in boolean context
+    EXPECT_FALSE(static_cast<bool>(Handle::null()));
+    // Null handle should not be equal to a valid handle
+    EXPECT_NE(h, Handle::null());
+    // Null handle should be trivially copyable and constexpr
+    static_assert(std::is_trivially_copyable<Handle>::value, "Handle should be trivially copyable");
+    constexpr Handle nh = Handle::null();
+    (void)nh;
 }
