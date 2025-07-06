@@ -99,13 +99,13 @@ These descriptor structs are used for material creation, updates, and as the bas
 
 ## 4. API Overview
 
-- `MaterialHandle createMaterial(Scene* scene, const MaterialDesc& desc);` // Creates a new material for a scene, requesting all required textures from the TextureManager
-- `void destroyMaterial(Scene* scene, MaterialHandle handle);` // Destroys a material and releases its resources, including releasing texture handles via the TextureManager
-- `const Material& getMaterial(Scene* scene, MaterialHandle handle) const;` // Retrieves material data
-- `VkPipeline getPipeline(MaterialHandle handle) const;` // Returns the Vulkan pipeline for a material
-- `VkPipelineLayout getPipelineLayout(MaterialHandle handle) const;`
-- `VkDescriptorSet getDescriptorSet(MaterialHandle handle) const;`
-- `void updateMaterialResources(Scene* scene, MaterialHandle handle, const MaterialResourceUpdate& update);` // Updates textures, parameters, etc., requesting new textures from the TextureManager as needed
+- `MaterialHandle create_material(Scene* scene, const MaterialDesc& desc);` // Creates a new material for a scene, requesting all required textures from the TextureManager
+- `void destroy_material(Scene* scene, MaterialHandle handle);` // Destroys a material and releases its resources, including releasing texture handles via the TextureManager
+- `const Material& get_material(Scene* scene, MaterialHandle handle) const;` // Retrieves material data
+- `VkPipeline get_pipeline(MaterialHandle handle) const;` // Returns the Vulkan pipeline for a material
+- `VkPipelineLayout get_pipeline_layout(MaterialHandle handle) const;`
+- `VkDescriptorSet get_descriptor_set(MaterialHandle handle) const;`
+- `void update_material_resources(Scene* scene, MaterialHandle handle, const MaterialResourceUpdate& update);` // Updates textures, parameters, etc., requesting new textures from the TextureManager as needed
 
 ---
 
@@ -150,16 +150,16 @@ These descriptor structs are used for material creation, updates, and as the bas
 
 ```cpp
 // Create a new material for a scene
-MaterialHandle matHandle = materialSystem.createMaterial(scene, matDesc);
+MaterialHandle mat_handle = material_system.create_material(scene, mat_desc);
 
 // Update material resources (e.g., change textures or parameters)
-materialSystem.updateMaterialResources(scene, matHandle, updateDesc);
+material_system.update_material_resources(scene, mat_handle, update_desc);
 
 // Retrieve the minimal draw data for rendering
-const MaterialDrawData& drawData = materialSystem.getMaterial(scene, matHandle).drawData;
+const MaterialDrawData& draw_data = material_system.get_material(scene, mat_handle).draw_data;
 
 // Destroy a material when no longer needed
-materialSystem.destroyMaterial(scene, matHandle);
+material_system.destroy_material(scene, mat_handle);
 ```
 
 ---
@@ -170,14 +170,14 @@ To ensure robust synchronization between systems, the MaterialSystem, MeshSystem
 
 - **MaterialSystem** notifies observers when material resources change (e.g., material parameters, textures, or buffers are updated).
 - **MeshSystem** notifies observers when per-instance material assignments change (e.g., a mesh instance's material set is updated).
-- **Scene** notifies observers when node transforms change (e.g., after `propogateTransforms()`).
+- **Scene** notifies observers when node transforms change (e.g., after `propogate_transforms()`).
 
 Observers implement a common interface (e.g., `ISystemObserver`) and register with the relevant systems. When a change occurs, the notifying system calls the appropriate notification method, and all observers update their internal data accordingly. This decouples systems and ensures all interested parties are kept in sync.
 
 **Example Notification Flow:**
-- When a material resource changes, MaterialSystem calls `onMaterialResourceChanged(MaterialHandle)` on all observers.
-- When a mesh instance's material assignment changes, MeshSystem calls `onMaterialAssignmentChanged(NodeHandle)` on all observers.
-- When node transforms change, Scene calls `onTransformChanged(const std::vector<NodeHandle>&)` on all observers.
+- When a material resource changes, MaterialSystem calls `on_material_resource_changed(MaterialHandle)` on all observers.
+- When a mesh instance's material assignment changes, MeshSystem calls `on_material_assignment_changed(NodeHandle)` on all observers.
+- When node transforms change, Scene calls `on_transform_changed(const std::vector<NodeHandle>&)` on all observers.
 
 This pattern enables efficient, event-driven updates and simplifies the update flow for both per-frame and event-driven changes.
 

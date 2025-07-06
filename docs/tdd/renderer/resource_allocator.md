@@ -25,7 +25,7 @@ The Resource Allocator is responsible for low-level GPU resource allocation and 
 struct BufferCreateInfo {
     VkDeviceSize size;
     VkBufferUsageFlags usage;
-    VmaMemoryUsage memoryUsage;
+    VmaMemoryUsage memory_usage;
     // ... other Vulkan/VMA options ...
 };
 
@@ -35,15 +35,15 @@ struct GPUBuffer {
     VkDeviceSize size;
 };
 
-GPUBuffer createBuffer(const BufferCreateInfo& info);
-void destroyBuffer(const GPUBuffer& buffer);
+GPUBuffer create_buffer(const BufferCreateInfo& info);
+void destroy_buffer(const GPUBuffer& buffer);
 
 // Image allocation
 struct ImageCreateInfo {
     VkExtent3D extent;
     VkFormat format;
     VkImageUsageFlags usage;
-    VmaMemoryUsage memoryUsage;
+    VmaMemoryUsage memory_usage;
     // ... other Vulkan/VMA options ...
 };
 
@@ -54,16 +54,16 @@ struct GPUImage {
     VkFormat format;
 };
 
-GPUImage createImage(const ImageCreateInfo& info);
-void destroyImage(const GPUImage& image);
+GPUImage create_image(const ImageCreateInfo& info);
+void destroy_image(const GPUImage& image);
 
 // (Optional) Map/unmap memory
-void* mapMemory(const GPUBuffer& buffer);
-void unmapMemory(const GPUBuffer& buffer);
+void* map_memory(const GPUBuffer& buffer);
+void unmap_memory(const GPUBuffer& buffer);
 ```
 
 - All returned handles are plain structs; the allocator does not retain ownership or track them.
-- Callers must call `destroyBuffer`/`destroyImage` when the resource is no longer needed.
+- Callers must call `destroy_buffer`/`destroy_image` when the resource is no longer needed.
 
 ---
 
@@ -90,15 +90,15 @@ void unmapMemory(const GPUBuffer& buffer);
 ```cpp
 // MeshSystem allocates a vertex buffer for a mesh:
 BufferCreateInfo info = { ... };
-GPUBuffer vertexBuffer = resourceAllocator.createBuffer(info);
+GPUBuffer vertex_buffer = resource_allocator.create_buffer(info);
 // ...
-resourceAllocator.destroyBuffer(vertexBuffer);
+resource_allocator.destroy_buffer(vertex_buffer);
 
 // MaterialSystem allocates a texture image:
-ImageCreateInfo imgInfo = { ... };
-GPUImage albedoImage = resourceAllocator.createImage(imgInfo);
+ImageCreateInfo img_info = { ... };
+GPUImage albedo_image = resource_allocator.create_image(img_info);
 // ...
-resourceAllocator.destroyImage(albedoImage);
+resource_allocator.destroy_image(albedo_image);
 ```
 
 ---

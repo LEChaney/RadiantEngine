@@ -31,10 +31,10 @@ The GLTF Scene Loader imports 3D scenes and assets from GLTF/GLB files into the 
 ## 4. Key Classes & Public API
 
 ### GLTFSceneLoader
-- `bool loadSceneFromGLTF(const std::string& path, SceneHandle scene)`
+- `bool load_scene_from_gltf(const std::string& path, SceneHandle scene)`
   - Loads a GLTF/GLB file and populates the given scene, registering all resources with the appropriate per-scene systems.
-- `std::vector<std::string> getLoadWarnings() const`
-- `std::vector<std::string> getLoadErrors() const`
+- `std::vector<std::string> get_load_warnings() const`
+- `std::vector<std::string> get_load_errors() const`
 
 ### Internal Helpers
 - GLTFNodeImporter: Converts GLTF nodes to engine nodes and registers them with the scene.

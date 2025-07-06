@@ -10,10 +10,10 @@ The CullingSystem provides high-performance algorithms for visibility determinat
 
 ```cpp
 // Returns indices of visible mesh draws given the camera and per-draw culling data.
-std::vector<uint32_t> cull(const Camera& camera, const std::vector<MeshDrawCullData>& meshDrawCullData);
+std::vector<uint32_t> cull(const Camera& camera, const std::vector<MeshDrawCullData>& mesh_draw_cull_data);
 ```
 - `camera`: The current camera, providing view/projection matrices and frustum planes.
-- `meshDrawCullData`: Array of per-draw OBBs in world space (one per mesh draw).
+- `mesh_draw_cull_data`: Array of per-draw OBBs in world space (one per mesh draw).
 
 ---
 
@@ -28,20 +28,20 @@ For each mesh draw, compute a conservative view-space AABB from its OBB using th
 
 ```cpp
 // Inputs:
-// - boundsToWorld: 4x4 OBB matrix (see geometry.md)
+// - bounds_to_world: 4x4 OBB matrix (see geometry.md)
 // - view: 4x4 view matrix
 
 // 1. Combine transforms to get bounds-to-view matrix
-boundsToView = view * boundsToWorld;
+bounds_to_view = view * bounds_to_world;
 
 // 2. Transform the AABB center to view space
-center_vs = boundsToView[3].xyz; // translation component
+center_vs = bounds_to_view[3].xyz; // translation component
 
 // 3. Compute conservative view-space extents
 //    - Take the absolute value of the upper 3x3 part of the matrix (rotation, scale, shear)
 //    - Multiply each column by the corresponding bounds-space extent
-absRotScale = Abs3x3(boundsToView); // Each element is abs(matrix[i][j])
-extents_vs = absRotScale * vec3(1, 1, 1);
+abs_rot_scale = Abs3x3(bounds_to_view); // Each element is abs(matrix[i][j])
+extents_vs = abs_rot_scale * vec3(1, 1, 1);
 
 // 4. The view-space AABB is defined by center_vs and extents_vs
 ```
@@ -54,7 +54,7 @@ extents_vs = absRotScale * vec3(1, 1, 1);
 For more details, see [Converting OBB to AABB in Target Space](https://madmann91.github.io/2024/02/10/converting-oriented-bounding-boxes-to-axis-aligned-ones.html) and the geometry.md documentation.
 
 **2. Frustum Plane Extraction**
-Obtain the camera's six frustum planes in view space (left, right, top, bottom, near, far), typically via `camera.getFrustumPlanes()`. Because these planes are defined in view space, their orientation and position are fixed relative to the camera axes, simplifying intersection tests and allowing them to be efficiently reused or cached on the camera.
+Obtain the camera's six frustum planes in view space (left, right, top, bottom, near, far), typically via `camera.get_frustum_planes()`. Because these planes are defined in view space, their orientation and position are fixed relative to the camera axes, simplifying intersection tests and allowing them to be efficiently reused or cached on the camera.
 
 **3. AABB-Frustum Plane Testing**
 For each transformed AABB, test it against all frustum planes using the following method:
@@ -94,16 +94,16 @@ This approach is efficient and SIMD-friendly, and is commonly known as the "slab
 ## Usage Example
 
 ```cpp
-// Assume drawDataManager is up to date for the current frame
-const auto& meshDrawCullData = drawDataManager.getMeshDrawCullData();
+// Assume draw_data_manager is up to date for the current frame
+const auto& mesh_draw_cull_data = draw_data_manager.get_mesh_draw_cull_data();
 
 // Perform culling for the current camera
-std::vector<uint32_t> visibleDraws = cullingSystem.cull(camera, meshDrawCullData);
+std::vector<uint32_t> visible_draws = culling_system.cull(camera, mesh_draw_cull_data);
 
 // Iterate over visible draws for rendering
-for (uint32_t drawIdx : visibleDraws) {
-    const auto& drawData = drawDataManager.getMeshDrawData()[drawIdx];
-    // ... issue draw call using drawData ...
+for (uint32_t draw_idx : visible_draws) {
+    const auto& draw_data = draw_data_manager.get_mesh_draw_data()[draw_idx];
+    // ... issue draw call using draw_data ...
 }
 ```
 

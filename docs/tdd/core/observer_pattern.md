@@ -24,7 +24,7 @@ This document describes the observer pattern as applied to system update notific
 
 ## 3. Recommended Implementation
 
-- Use explicit observer registration APIs (e.g., `addObserver`, `removeObserver`) on each subject system.
+- Use explicit observer registration APIs (e.g., `add_observer`, `remove_observer`) on each subject system.
 - Observers implement a well-defined interface (e.g., `onMaterialChanged`, `onMeshInstanceAdded`, `onNodeTransformChanged`).
 - Subjects call the appropriate observer methods when changes occur.
 - Prefer direct function calls or lightweight delegate/event systems for performance-critical notifications; avoid heavy-weight signal/slot or reflection-based systems.
@@ -45,8 +45,8 @@ public:
     virtual void onMaterialChanged(MaterialHandle handle) = 0;
 };
 
-void addObserver(IMaterialObserver* observer);
-void removeObserver(IMaterialObserver* observer);
+void add_observer(IMaterialObserver* observer);
+void remove_observer(IMaterialObserver* observer);
 
 // When a material is updated:
 for (auto* observer : observers) {
@@ -87,9 +87,9 @@ class DrawDataManager : public IMaterialObserver {
       ```cpp
       // In test setup:
       MockMaterialSystem mockMaterialSystem;
-      DrawDataManager drawDataManager;
-      mockMaterialSystem.addObserver(&drawDataManager); // Register observer with mock
-      // Now, mockMaterialSystem can trigger notifications and drawDataManager's responses can be asserted.
+      DrawDataManager draw_data_manager;
+      mockMaterialSystem.add_observer(&draw_data_manager); // Register observer with mock
+      // Now, mockMaterialSystem can trigger notifications and draw_data_manager's responses can be asserted.
       ```
 
 ---

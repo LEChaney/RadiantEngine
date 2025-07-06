@@ -27,27 +27,27 @@ The camera module is responsible for representing and manipulating the view and 
 
 ### Camera
 - Fields:
-  - position, orientation (quaternion or Euler), FOV, aspect, near, far, targetPosition, targetOrientation
-  - Optional: attached Scene* and NodeHandle, and local offset transform if attached
-  - Cached frustum planes in camera view space, updated whenever the projection matrix changes
+  - position, orientation (quaternion or Euler), fov, aspect, near, far, target_position, target_orientation
+  - Optional: attached Scene* and node_handle, and local_offset transform if attached
+  - Cached frustum_planes in camera view space, updated whenever the projection matrix changes
 - Methods:
   - set/get position & orientation
   - set/get projection parameters
-  - setViewportSize(width, height) (called on window resize)
-  - getViewMatrix()
-  - getProjectionMatrix()
-  - update(deltaTime):
-    - If attached to a node, queries the node's world transform from the scene and applies the local offset to compute position/orientation
+  - set_viewport_size(width, height) (called on window resize)
+  - get_view_matrix()
+  - get_projection_matrix()
+  - update(delta_time):
+    - If attached to a node, queries the node's world transform from the scene and applies the local_offset to compute position/orientation
     - Otherwise, smoothly interpolates position/orientation toward target values
     - Recalculates view and projection matrices as needed
-    - If the projection matrix has changed, recalculates and caches the frustum planes in camera view space
-  - getFrustumPlanes() const: Returns the cached frustum planes in camera view space.
-  - processSDLEvent(SDL_Event&): Handles input events directly (movement, mouse, etc.)
-  - attachToNode(Scene* scene, NodeHandle node, const glm::mat4& localOffset = glm::mat4(1.0f)): Attaches the camera to a scene node, with optional local offset
-  - detachFromNode(): Detaches the camera from any node, resuming independent control
-  - isAttached() const: Returns true if the camera is currently attached to a node
-  - getAttachedNode() const: Returns the currently attached node handle (or INVALID_HANDLE if not attached)
-  - getLocalOffset() const: Returns the local offset transform used when attached
+    - If the projection matrix has changed, recalculates and caches the frustum_planes in camera view space
+  - get_frustum_planes() const: Returns the cached frustum_planes in camera view space.
+  - process_sdl_event(SDL_Event&): Handles input events directly (movement, mouse, etc.)
+  - attach_to_node(Scene* scene, node_handle node, const glm::mat4& local_offset = glm::mat4(1.0f)): Attaches the camera to a scene node, with optional local_offset
+  - detach_from_node(): Detaches the camera from any node, resuming independent control
+  - is_attached() const: Returns true if the camera is currently attached to a node
+  - get_attached_node() const: Returns the currently attached node_handle (or INVALID_HANDLE if not attached)
+  - get_local_offset() const: Returns the local_offset transform used when attached
 
 ---
 
@@ -63,7 +63,7 @@ The camera module is responsible for representing and manipulating the view and 
 ## 6. Handling Viewport Size Changes
 
 - The camera's projection matrix depends on the viewport's aspect ratio.
-- On window resize, the renderer or main loop should call `camera.setViewportSize(newWidth, newHeight)`.
+ - On window resize, the renderer or main loop should call `camera.set_viewport_size(new_width, new_height)`.
 - This updates the aspect ratio and triggers a recalculation of the projection matrix.
 - The camera should mark its projection as dirty and update it on the next `update()` or immediately.
 - All dependent systems should use the updated projection matrix after resize.
@@ -74,24 +74,24 @@ The camera module is responsible for representing and manipulating the view and 
 
 ```cpp
 // Attach camera to a node (e.g., for third-person or cutscene)
-camera.attachToNode(&scene, playerNode, glm::translate(glm::vec3(0, 2, -5)));
+camera.attach_to_node(&scene, player_node, glm::translate(glm::vec3(0, 2, -5)));
 
 // In main loop or scene update:
-camera.processSDLEvent(event); // handles input and updates camera state
-camera.update(deltaTime); // Camera follows node's world transform if attached, or interpolates otherwise
+camera.process_sdl_event(event); // handles input and updates camera state
+camera.update(delta_time); // Camera follows node's world transform if attached, or interpolates otherwise
 
 // Access frustum planes for culling or other purposes:
-auto frustumPlanes = camera.getFrustumPlanes();
+auto frustum_planes = camera.get_frustum_planes();
 
 // Detach camera for free movement
-camera.detachFromNode();
+camera.detach_from_node();
 
 // On window resize:
-camera.setViewportSize(newWidth, newHeight);
+camera.set_viewport_size(new_width, new_height);
 
 // For rendering:
-mat4 view = camera.getViewMatrix();
-mat4 proj = camera.getProjectionMatrix();
+mat4 view = camera.get_view_matrix();
+mat4 proj = camera.get_projection_matrix();
 ```
 
 ---
@@ -109,37 +109,37 @@ mat4 proj = camera.getProjectionMatrix();
 ### Unit Tests
 
 - **View Matrix Calculation**
-  - Use GLM's lookAt or equivalent as a reference implementation. Given a known position and orientation, verify that `getViewMatrix()` returns a matrix matching GLM's output within a small epsilon.
+  - Use GLM's lookAt or equivalent as a reference implementation. Given a known position and orientation, verify that `get_view_matrix()` returns a matrix matching GLM's output within a small epsilon.
   - Test edge cases (e.g., identity orientation, 90-degree rotations).
   - Property-based: Confirm that the view matrix inverts the camera's transform (i.e., transforming a point to camera space and back yields the original point).
 
 - **Projection Matrix Calculation**
-  - Use GLM's perspective/ortho as a reference. Given known FOV, aspect, near, and far values, verify that `getProjectionMatrix()` matches GLM's output within a small epsilon.
+  - Use GLM's perspective/ortho as a reference. Given known fov, aspect, near, and far values, verify that `get_projection_matrix()` matches GLM's output within a small epsilon.
   - Test for both perspective and orthographic projections (if supported).
   - Property-based: Check that the projection matrix maps the frustum center to the expected clip space coordinate.
 
 - **Viewport Resize Handling**
-  - After calling `setViewportSize` with new dimensions, verify that the aspect ratio and projection matrix are updated correctly.
+  - After calling `set_viewport_size` with new dimensions, verify that the aspect ratio and projection matrix are updated correctly.
 
 - **Camera Movement and Smoothing**
-  - Set a target position/orientation, call `update(deltaTime)`, and verify that the camera interpolates toward the target as expected.
-  - Test with different `deltaTime` values for stability.
+  - Set a target position/orientation, call `update(delta_time)`, and verify that the camera interpolates toward the target as expected.
+  - Test with different `delta_time` values for stability.
 
 - **Parameter Setters/Getters**
-  - Verify that set/get methods for position, orientation, FOV, etc., work as intended and maintain internal consistency.
+  - Verify that set/get methods for position, orientation, fov, etc., work as intended and maintain internal consistency.
 
 - **Node Attachment and Following**
-  - Attach the camera to a scene node with a known world transform and local offset. After calling `update()`, verify that the camera's computed position and orientation match the expected result (node's world transform combined with the local offset).
+  - Attach the camera to a scene node with a known world transform and local_offset. After calling `update()`, verify that the camera's computed position and orientation match the expected result (node's world transform combined with the local_offset).
   - Move or animate the node, call `update()`, and verify that the camera continues to follow the node correctly.
   - Detach the camera and ensure it retains its last computed world transform and resumes independent movement.
   - Attach and detach repeatedly to different nodes, verifying correct behavior each time.
-  - Test with various local offsets (identity, translation, rotation) to ensure correct application.
-  - If input is allowed while attached, verify that input affects the local offset (if supported/configured).
+  - Test with various local_offsets (identity, translation, rotation) to ensure correct application.
+  - If input is allowed while attached, verify that input affects the local_offset (if supported/configured).
 
 - **Frustum Plane Calculation and Caching**
-  - After changing the projection matrix (e.g., via setViewportSize or set/get projection parameters), verify that the frustum planes are recalculated and cached correctly in camera view space.
-  - Call `getFrustumPlanes()` and verify the returned planes match the expected frustum for the current projection.
-  - Test that the frustum planes remain unchanged if the projection matrix does not change between updates.
+  - After changing the projection matrix (e.g., via set_viewport_size or set/get projection parameters), verify that the frustum_planes are recalculated and cached correctly in camera view space.
+  - Call `get_frustum_planes()` and verify the returned planes match the expected frustum for the current projection.
+  - Test that the frustum_planes remain unchanged if the projection matrix does not change between updates.
 
 ### Integration Tests
 
@@ -158,7 +158,7 @@ mat4 proj = camera.getProjectionMatrix();
 ### Edge Cases
 
 - **Extreme FOV/Aspect Ratios**
-  - Test with very small or large FOV and aspect ratios to ensure the projection matrix does not produce invalid results.
+  - Test with very small or large fov and aspect ratios to ensure the projection matrix does not produce invalid results.
 
 - **Zero/Negative Near and Far Planes**
   - Ensure the system handles or rejects invalid near/far plane values gracefully.

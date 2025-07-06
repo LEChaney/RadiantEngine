@@ -32,19 +32,19 @@ Draw data structs serve as the bridge between the CPU-side scene representation 
 - **Does not reference high-level material parameters, textures, or buffers directly.**
 - Fields:
   - `VkPipeline pipeline`
-  - `VkPipelineLayout pipelineLayout`
-  - `VkDescriptorSet descriptorSet`
+  - `VkPipelineLayout pipeline_layout`
+  - `VkDescriptorSet descriptor_set`
 
 ### MeshDrawData
 - Represents a single draw call group for a mesh section/material combination (instanced draw call).
 - **Does not store per-instance data directly; instead, holds handles/indices into a global instance slot map.**
 - Fields:
-  - `uint32 indexCount`
-  - `uint32 firstIndex`
-  - `VkBuffer indexBuffer`
-  - `VkDeviceAddress vertexBufferAddress`
-  - `MaterialDrawData materialDrawData` // Inline struct, see above
-  - `std::vector<InstanceHandle> instanceHandles` // Indices/handles into DrawDataManager's instance slot map
+  - `uint32 index_count`
+  - `uint32 first_index`
+  - `VkBuffer index_buffer`
+  - `VkDeviceAddress vertex_buffer_address`
+  - `MaterialDrawData material_draw_data` // Inline struct, see above
+  - `std::vector<InstanceHandle> instance_handles` // Indices/handles into DrawDataManager's instance slot map
   - (Optional: mesh/section/surface ID for tracking)
 
 ### LightDrawData
@@ -57,31 +57,31 @@ Draw data structs serve as the bridge between the CPU-side scene representation 
 ### MeshDrawCullData
 - Stores the oriented bounding box (OBB) for a mesh section in world space, used for culling.
 - Fields:
-  - `glm::mat4 boundsToWorld` // OBB transform in world space (updated when node/world transform changes)
+  - `glm::mat4 bounds_to_world` // OBB transform in world space (updated when node/world transform changes)
 
 ### MeshDrawBoundsData
 - Stores the OBB for a mesh section in mesh local space (static, only needed for resync or mesh deformation).
 - Fields:
-  - `glm::mat4 boundsToMesh` // OBB transform in mesh local space
+  - `glm::mat4 bounds_to_mesh` // OBB transform in mesh local space
 
 ### DrawDataManager
 Owns and manages all per-draw arrays required for rendering and culling, using slot maps for all dynamic data:
-  - `SlotMap<MeshDrawData> meshDrawData;` // Per mesh section/material group (draw call group)
-  - `SlotMap<InstanceData> instanceSlotMap;` // Flat, global storage for all instance data (transforms, material overrides, etc.)
-  - `SlotMap<MeshDrawCullData> meshDrawCullData;` // Per mesh section, for culling
-  - `SlotMap<MeshDrawBoundsData> meshDrawBoundsData;` // Per mesh section, for culling
-  - `SlotMap<LightDrawData> lightDrawData;`
-  - `std::unordered_map<NodeHandle, std::vector<InstanceHandle>> nodeToInstanceHandles;` // Maps scene nodes to their instance handles in the slot map
-  - `std::unordered_map<InstanceHandle, MeshDrawDataHandle> instanceToDrawDataHandle;` // Reverse lookup: maps each instance to its parent MeshDrawData
+  - `SlotMap<MeshDrawData> mesh_draw_data;` // Per mesh section/material group (draw call group)
+  - `SlotMap<InstanceData> instance_slot_map;` // Flat, global storage for all instance data (transforms, material overrides, etc.)
+  - `SlotMap<MeshDrawCullData> mesh_draw_cull_data;` // Per mesh section, for culling
+  - `SlotMap<MeshDrawBoundsData> mesh_draw_bounds_data;` // Per mesh section, for culling
+  - `SlotMap<LightDrawData> light_draw_data;`
+  - `std::unordered_map<NodeHandle, std::vector<InstanceHandle>> node_to_instance_handles;` // Maps scene nodes to their instance handles in the slot map
+  - `std::unordered_map<InstanceHandle, MeshDrawDataHandle> instance_to_draw_data_handle;` // Reverse lookup: maps each instance to its parent MeshDrawData
 Methods:
-  - `void clearAllData();` // Clears all draw/culling/instance data and mappings.
-  - `void populateFromScene(Scene* scene);` // Populates all draw/culling/instance data and mappings from the given scene.
-  - `const SlotMap<MeshDrawData>& getMeshDrawData() const`
-  - `const SlotMap<InstanceData>& getInstanceSlotMap() const`
-  - `const SlotMap<MeshDrawCullData>& getMeshDrawCullData() const`
-  - `const SlotMap<MeshDrawBoundsData>& getMeshDrawBoundsData() const`
-  - `void createDrawDataForMeshInstance(const MeshInstance& meshInstance);` // Allocates instance data in slot map, updates MeshDrawData
-  - `void onTransformsFinalized(const std::vector<NodeHandle>& changedNodes);` // Observer pattern callback: updates instance data for changed nodes
+  - `void clear_all_data();` // Clears all draw/culling/instance data and mappings.
+  - `void populate_from_scene(Scene* scene);` // Populates all draw/culling/instance data and mappings from the given scene.
+  - `const SlotMap<MeshDrawData>& get_mesh_draw_data() const`
+  - `const SlotMap<InstanceData>& get_instance_slot_map() const`
+  - `const SlotMap<MeshDrawCullData>& get_mesh_draw_cull_data() const`
+  - `const SlotMap<MeshDrawBoundsData>& get_mesh_draw_bounds_data() const`
+  - `void create_draw_data_for_mesh_instance(const MeshInstance& mesh_instance);` // Allocates instance data in slot map, updates MeshDrawData
+  - `void on_transforms_finalized(const std::vector<NodeHandle>& changed_nodes);` // Observer pattern callback: updates instance data for changed nodes
 
 ---
 
@@ -91,14 +91,14 @@ Methods:
 - **MeshDrawData Creation:**
     - When a mesh instance is added, DrawDataManager determines the draw group (mesh section + material combination) it belongs to.
     - If a MeshDrawData for that group does not exist, a new MeshDrawData is created and registered.
-    - The new instance's handle is added to the `instanceHandles` of the appropriate MeshDrawData.
+    - The new instance's handle is added to the `instance_handles` of the appropriate MeshDrawData.
 - **MeshDrawData Removal:**
-    - When a mesh instance is removed, its handle is removed from the corresponding MeshDrawData's `instanceHandles`.
-    - If a MeshDrawData's `instanceHandles` becomes empty (no instances left for that group), the MeshDrawData is removed and destroyed.
+    - When a mesh instance is removed, its handle is removed from the corresponding MeshDrawData's `instance_handles`.
+    - If a MeshDrawData's `instance_handles` becomes empty (no instances left for that group), the MeshDrawData is removed and destroyed.
 - **MeshDrawData Lifetime:**
     - MeshDrawData objects are created on-demand as new unique (mesh section, material) groups appear, and destroyed when no instances remain for that group.
 - When a node's transform or material changes, DrawDataManager uses the node-to-instance-handle mapping to update only the relevant InstanceData entries.
-- Before rendering, `syncGpuBuffers()` linearly copies all valid instance slot map entries to a GPU buffer for instanced rendering.
+- Before rendering, `sync_gpu_buffers()` linearly copies all valid instance slot map entries to a GPU buffer for instanced rendering.
 - The renderer issues instanced draw calls using MeshDrawData and the global instance buffer.
 - When switching scenes, DrawDataManager clears all data and repopulates from the new scene.
 - **Observer Pattern:** DrawDataManager acts as an observer to MeshSystem and MaterialSystem, updating instance data and draw groupings in response to notifications about mesh instance or material changes. See [Observer Pattern](../core/observer_pattern.md) for details.
@@ -125,13 +125,13 @@ DrawDataManager maintains a mapping from scene nodes to their associated instanc
 
 **Example:**
 ```cpp
-for (NodeHandle node : changedNodes) {
-    for (InstanceHandle inst : drawDataManager.getInstanceHandlesForNode(node)) {
-        drawDataManager.instanceSlotMap[inst].worldTransform = newWorldTransform;
+for (NodeHandle node : changed_nodes) {
+    for (InstanceHandle inst : draw_data_manager.get_instance_handles_for_node(node)) {
+        draw_data_manager.instance_slot_map[inst].world_transform = new_world_transform;
         // To update culling data, use the reverse lookup:
-        MeshDrawDataHandle drawHandle = drawDataManager.instanceToDrawDataHandle[inst];
-        glm::mat4 boundsToMesh = drawDataManager.meshDrawBoundsData[drawHandle].boundsToMesh;
-        drawDataManager.meshDrawCullData[inst].boundsToWorld = newWorldTransform * boundsToMesh;
+        MeshDrawDataHandle draw_handle = draw_data_manager.instance_to_draw_data_handle[inst];
+        glm::mat4 bounds_to_mesh = draw_data_manager.mesh_draw_bounds_data[draw_handle].bounds_to_mesh;
+        draw_data_manager.mesh_draw_cull_data[inst].bounds_to_world = new_world_transform * bounds_to_mesh;
     }
 }
 ```
@@ -147,54 +147,54 @@ Note: We are using the same handles to look up multiple slotmaps here. While the
 
 When a node's transform changes (e.g., due to animation, movement, or scene graph updates), the DrawDataManager is notified (typically via the observer pattern from the Scene or another system). The DrawDataManager is responsible for updating all per-instance data that depends on transforms, including:
 
-- `InstanceData.worldTransform`: Updated to reflect the new world transform for each instance attached to the node.
-- `MeshDrawCullData.boundsToWorld`: Updated for each instance, using the formula:
+- `InstanceData.world_transform`: Updated to reflect the new world transform for each instance attached to the node.
+- `MeshDrawCullData.bounds_to_world`: Updated for each instance, using the formula:
   ```cpp
-  boundsToWorld = worldTransform * boundsToMesh;
+  bounds_to_world = world_transform * bounds_to_mesh;
   ```
-  where `worldTransform` is the instance's new world transform, and `boundsToMesh` is the static OBB in mesh local space from `MeshDrawBoundsData`.
+  where `world_transform` is the instance's new world transform, and `bounds_to_mesh` is the static OBB in mesh local space from `MeshDrawBoundsData`.
 
 **Example:**
 ```cpp
-for (NodeHandle node : changedNodes) {
-    glm::mat4 worldTransform = ...; // new world transform for node
-    for (InstanceHandle inst : drawDataManager.getInstanceHandlesForNode(node)) {
-        drawDataManager.instanceSlotMap[inst].worldTransform = worldTransform;
+for (NodeHandle node : changed_nodes) {
+    glm::mat4 world_transform = ...; // new world transform for node
+    for (InstanceHandle inst : draw_data_manager.get_instance_handles_for_node(node)) {
+        draw_data_manager.instance_slot_map[inst].world_transform = world_transform;
         // Optionally update culling data:
-        glm::mat4 boundsToMesh = ...; // from mesh section
-        drawDataManager.meshDrawCullData[inst].boundsToWorld = worldTransform * boundsToMesh;
+        glm::mat4 bounds_to_mesh = ...; // from mesh section
+        draw_data_manager.mesh_draw_cull_data[inst].bounds_to_world = world_transform * bounds_to_mesh;
     }
 }
 ```
 
-- If a mesh section's bounds change (e.g., mesh deformation), update the corresponding `boundsToMesh` in `MeshDrawBoundsData` and resync transforms as needed.
+- If a mesh section's bounds change (e.g., mesh deformation), update the corresponding `bounds_to_mesh` in `MeshDrawBoundsData` and resync transforms as needed.
 - This design ensures all per-instance data is kept in sync and ready for culling and rendering after any transform or mesh update.
 
 ## 6. Example Usage
 
 ```cpp
 // When switching scenes:
-drawDataManager.clearAllData();
-drawDataManager.populateFromScene(newScene); // Repopulates all draw data from the new scene
+draw_data_manager.clear_all_data();
+draw_data_manager.populate_from_scene(new_scene); // Repopulates all draw data from the new scene
 
 // When a node's transform or mesh/material assignment changes:
-node->setLocalTransform(newTransform); // updates local transform
-scene.propogateTransforms(); // propagates to children
-scene.finalizeForRendering(); // Notifies observers of changed nodes and clears the changed set
+node->set_local_transform(new_transform); // updates local transform
+scene.propogate_transforms(); // propagates to children
+scene.finalize_for_rendering(); // Notifies observers of changed nodes and clears the changed set
 
 // When dynamically adding a mesh instance to the active scene:
-MeshInstance& meshInstance = meshSystem.addMeshInstance(activeScene, node, mesh, matSet); // Automatically creates draw data for the new mesh instance if the scene is active
-// (Internally, this will call drawDataManager.createDrawDataForMeshInstance(meshInstance);)
+MeshInstance& mesh_instance = mesh_system.add_mesh_instance(active_scene, node, mesh, mat_set); // Automatically creates draw data for the new mesh instance if the scene is active
+// (Internally, this will call draw_data_manager.create_draw_data_for_mesh_instance(mesh_instance);)
 
 // At the start of the frame (before rendering):
-drawDataManager.syncGpuBuffers(); // updates all dirty draw data GPU buffers, clears dirty flags
+draw_data_manager.sync_gpu_buffers(); // updates all dirty draw data GPU buffers, clears dirty flags
 
 // Rendering (per mesh section/material group):
-for (const auto& drawData : drawDataManager.getMeshDrawData()) {
-    // Upload instance data for drawData.instanceHandles to GPU buffer
-    // vkCmdBindPipeline(..., drawData.pipeline, ...);
-    // vkCmdBindDescriptorSets(..., drawData.pipelineLayout, drawData.materialDescriptorSet, ...);
-    // vkCmdDrawIndexed(..., drawData.indexCount, drawData.instanceHandles.size(), drawData.firstIndex, ...);
+for (const auto& draw_data : draw_data_manager.get_mesh_draw_data()) {
+    // Upload instance data for draw_data.instance_handles to GPU buffer
+    // vkCmdBindPipeline(..., draw_data.pipeline, ...);
+    // vkCmdBindDescriptorSets(..., draw_data.pipeline_layout, draw_data.material_descriptor_set, ...);
+    // vkCmdDrawIndexed(..., draw_data.index_count, draw_data.instance_handles.size(), draw_data.first_index, ...);
 }
 ```
 
@@ -228,8 +228,8 @@ The DrawDataManager depends on several systems for correct operation. All depend
 
 #### Example (C++)
 ```cpp
-DrawDataManager(RHIBase& rhi, MeshSystem* meshSys, MaterialSystem* materialSys);
-void registerWithScene(Scene* scene) { scene->addObserver(this); }
+DrawDataManager(RHIBase& rhi, MeshSystem* mesh_sys, MaterialSystem* material_sys);
+void register_with_scene(Scene* scene) { scene->add_observer(this); }
 ```
 
 - All dependencies, including the RHI, can be replaced with mocks or test doubles for unit testing.
@@ -246,7 +246,7 @@ void registerWithScene(Scene* scene) { scene->addObserver(this); }
 - MeshDrawData only stores handles/indices into the slot map, not the instance data itself.
 - Adding/removing instances or draw groups is O(1) and does not invalidate unrelated handles.
 - Node-to-instance-handle mapping enables fast per-node updates.
-- The reverse lookup map (`instanceToDrawDataHandle`) allows O(1) access from an instance to its parent draw group, enabling efficient lookup of mesh section indices and bounds data for culling and transform updates.
+- The reverse lookup map (`instance_to_draw_data_handle`) allows O(1) access from an instance to its parent draw group, enabling efficient lookup of mesh section indices and bounds data for culling and transform updates.
 - This approach is suitable for both rasterization (instanced draw calls) and ray tracing (TLAS instance data, SBT offset per instance).
 - The slot maps can be compacted or defragmented as needed for optimal memory usage.
 

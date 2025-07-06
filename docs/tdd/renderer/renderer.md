@@ -75,16 +75,16 @@ The renderer module consists of the following main files and folders:
 #### Example Initialization Flow
 ```cpp
 // During renderer startup:
-vulkanContext.initialize(windowHandle);
-swapchainManager.createSwapchain(vulkanContext, windowExtent);
+vulkan_context.initialize(window_handle);
+swapchain_manager.create_swapchain(vulkan_context, window_extent);
 
 // Per frame:
-swapchainManager.acquireNextImage();
+swapchain_manager.acquire_next_image();
 // ...record and submit draw commands...
-swapchainManager.presentImage();
+swapchain_manager.present_image();
 
 // On window resize:
-swapchainManager.recreateSwapchain(newExtent);
+swapchain_manager.recreate_swapchain(new_extent);
 ```
 
 ---
@@ -94,18 +94,18 @@ swapchainManager.recreateSwapchain(newExtent);
 ## 4. Key Classes & Public API
 
 ### Renderer (Public API)
-- setCamera(Camera*) ([see camera design document](camera.md))
-- renderFrame()
+- set_camera(Camera*) ([see camera design document](camera.md))
+- render_frame()
   - Renders the current scene(s) from the perspective of the current camera ([see camera design document](camera.md)).
   - Handles all internal steps (frame begin/end, culling, draw call recording, presentation, etc.)
-- onActiveScenesChanged(const std::vector<SceneHandle>& newActiveScenes)
+- on_active_scenes_changed(const std::vector<SceneHandle>& new_active_scenes)
   - Observer callback, called by the SceneManager when the set of active scenes changes. The Renderer must clear and repopulate all draw and culling data from the new active scenes.
 
 #### Scene Switching and Data Repopulation
-- The renderer registers as an observer with the SceneManager and responds to `onActiveScenesChanged` notifications.
+- The renderer registers as an observer with the SceneManager and responds to `on_active_scenes_changed` notifications.
 - When notified, the Renderer:
-  - Clears all mesh draw data and culling/bounds data by calling `clearAllData()` on both the DrawDataManager and CullingSystem.
-  - Repopulates these systems by calling `populateFromScene(Scene*)` for each new active scene.
+  - Clears all mesh draw data and culling/bounds data by calling `clear_all_data()` on both the DrawDataManager and CullingSystem.
+  - Repopulates these systems by calling `populate_from_scene(Scene*)` for each new active scene.
   - Ensures that only the current active scene(s)' data is used for culling and rendering.
 
 ---
@@ -131,7 +131,7 @@ swapchainManager.recreateSwapchain(newExtent);
 
 - **DrawDataManager**
   - Owns and manages all draw data and related arrays.
-  - Provides APIs for clearing all draw data (`clearAllData()`) and repopulating from a scene (`populateFromScene(Scene*)`).
+  - Provides APIs for clearing all draw data (`clear_all_data()`) and repopulating from a scene (`populate_from_scene(Scene*)`).
   - The Renderer is responsible for invoking these methods when the scene changes.
   - Provides APIs for synchronizing transforms, updating GPU buffers, and querying draw data.
 
@@ -152,23 +152,23 @@ swapchainManager.recreateSwapchain(newExtent);
 
 ## 6. Internal Structure & Workflow (For Maintainers)
 
-- **Scene Activation:** The Renderer registers as an observer of the SceneManager. When the set of active scenes changes, the Renderer is notified via `onActiveScenesChanged`, and it clears and repopulates all draw and culling data from the new active scenes.
-- **beginFrame()**: Prepares the renderer for a new frame (acquire swapchain image, reset command buffers, etc.)
-- **endFrame()**: Finalizes and submits the frame (submit command buffers, handle synchronization, and prepare for presentation)
-- **performCulling()**: Uses the CullingSystem to determine visible mesh draws for the current frame. The CullingSystem maintains its own per-draw culling data, and uses the camera's cached frustum planes and view matrix. Frustum planes are only updated when the camera's projection matrix changes.
-- **performSorting()**: Sorts visible draw calls for efficiency (e.g., to minimize state changes or for correct transparency rendering).
-- **recordDrawCommands()**: Records Vulkan draw commands for the current frame (uses ResourceManager, PipelineManager, DescriptorManager)
-- **presentFrame()**: Presents the rendered image to the screen (submits the present request to the swapchain)
+- **Scene Activation:** The Renderer registers as an observer of the SceneManager. When the set of active scenes changes, the Renderer is notified via `on_active_scenes_changed`, and it clears and repopulates all draw and culling data from the new active scenes.
+- **begin_frame()**: Prepares the renderer for a new frame (acquire swapchain image, reset command buffers, etc.)
+- **end_frame()**: Finalizes and submits the frame (submit command buffers, handle synchronization, and prepare for presentation)
+- **perform_culling()**: Uses the CullingSystem to determine visible mesh draws for the current frame. The CullingSystem maintains its own per-draw culling data, and uses the camera's cached frustum planes and view matrix. Frustum planes are only updated when the camera's projection matrix changes.
+- **perform_sorting()**: Sorts visible draw calls for efficiency (e.g., to minimize state changes or for correct transparency rendering).
+- **record_draw_commands()**: Records Vulkan draw commands for the current frame (uses ResourceManager, PipelineManager, DescriptorManager)
+- **present_frame()**: Presents the rendered image to the screen (submits the present request to the swapchain)
 - **Resource Ownership**: Scenes (or SceneManager) are responsible for tracking and releasing all GPU resources (images, buffers, samplers, descriptor sets) they use. ResourceManager and DescriptorManager only allocate and destroy resources on request.
-- **Scene Switching and Data Repopulation:** When notified of active scene changes, the renderer calls `clearAllData()` and then `populateFromScene(newScene)` on both the DrawDataManager and CullingSystem for each active scene. This ensures that only the current scene(s)' data is used for culling and rendering, and that all per-draw and per-cull data is up to date.
+- **Scene Switching and Data Repopulation:** When notified of active scene changes, the renderer calls `clear_all_data()` and then `populate_from_scene(new_scene)` on both the DrawDataManager and CullingSystem for each active scene. This ensures that only the current scene(s)' data is used for culling and rendering, and that all per-draw and per-cull data is up to date.
 
 ---
 
 ## 7. Handling Culling
 
 - Renderer owns the CullingSystem.
-- After scene transforms are updated and synchronized, the renderer calls `cullingSystem.cull(camera)` to determine the set of visible mesh draws for the current frame.
-- The CullingSystem maintains its own tightly-packed per-draw culling data, which is synchronized with the scene after transform changes via `syncTransforms`.
+- After scene transforms are updated and synchronized, the renderer calls `culling_system.cull(camera)` to determine the set of visible mesh draws for the current frame.
+- The CullingSystem maintains its own tightly-packed per-draw culling data, which is synchronized with the scene after transform changes via `sync_transforms`.
 - The CullingSystem uses the camera's cached frustum planes and view matrix. Frustum planes are only recalculated if the camera's projection matrix has changed since the last frame.
 - The renderer uses the list of visible draw indices returned by the CullingSystem to issue draw calls for only visible objects.
 - See [Culling System Design](renderer/culling_system.md) for further details and API.
@@ -181,15 +181,15 @@ swapchainManager.recreateSwapchain(newExtent);
 
 ```cpp
 // Application code:
-sceneManager.addObserver(&renderer);
-sceneManager.setActiveScene(sceneHandle);
-renderer.setCamera(&camera); // [see camera design document](camera.md)
+scene_manager.add_observer(&renderer);
+scene_manager.set_active_scene(scene_handle);
+renderer.set_camera(&camera); // [see camera design document](camera.md)
 
 // Per frame:
-renderer.renderFrame();
+renderer.render_frame();
 
 // On window resize:
-renderer.resizeSwapchain(newWidth, newHeight);
+renderer.resize_swapchain(new_width, new_height);
 // (renderer handles frustum culler update internally)
 ```
 
@@ -199,29 +199,29 @@ renderer.resizeSwapchain(newWidth, newHeight);
 
 ```cpp
 // Internal renderer workflow (simplified):
-void Renderer::onActiveScenesChanged(const std::vector<SceneHandle>& newActiveScenes) {
-    drawDataManager.clearAllData();
-    cullingSystem.clearAllData();
-    for (SceneHandle handle : newActiveScenes) {
-        Scene* scene = sceneManager.getScene(handle);
-        drawDataManager.populateFromScene(scene);
-        cullingSystem.populateFromScene(scene);
+void Renderer::on_active_scenes_changed(const std::vector<SceneHandle>& new_active_scenes) {
+    draw_data_manager.clear_all_data();
+    culling_system.clear_all_data();
+    for (SceneHandle handle : new_active_scenes) {
+        Scene* scene = scene_manager.get_scene(handle);
+        draw_data_manager.populate_from_scene(scene);
+        culling_system.populate_from_scene(scene);
     }
 }
 
-void Renderer::renderFrame() {
-    beginFrame();
-    auto visibleDraws = cullingSystem.cull(camera); // Uses camera's cached frustum planes and view matrix
-    performSorting(visibleDraws); // Sorts visible objects for batching/state changes
-    recordDrawCommands(visibleDraws); // Uses ResourceManager, PipelineManager, DescriptorManager
-    endFrame();
-    presentFrame();
+void Renderer::render_frame() {
+    begin_frame();
+    auto visible_draws = culling_system.cull(camera); // Uses camera's cached frustum planes and view matrix
+    perform_sorting(visible_draws); // Sorts visible objects for batching/state changes
+    record_draw_commands(visible_draws); // Uses ResourceManager, PipelineManager, DescriptorManager
+    end_frame();
+    present_frame();
 }
 
 // Example of culling and resource usage:
-void Renderer::performCulling() {
-    auto visibleDraws = cullingSystem.cull(camera);
-    // visibleDraws contains indices of visible mesh draws for this frame
+void Renderer::perform_culling() {
+    auto visible_draws = culling_system.cull(camera);
+    // visible_draws contains indices of visible mesh draws for this frame
 }
 ```
 
@@ -237,7 +237,7 @@ void Renderer::performCulling() {
 
 ## 11. References
 - [Vulkan specification](https://www.khronos.org/registry/vulkan/)
-- [GLM documentation](https://github.com/g-truc/glm)
+- [GLM documentation](https://github.com/g-truc/glm/)
 
 ---
 
@@ -272,19 +272,19 @@ The Renderer depends on several core systems, which should be injected or regist
 - **TextureManager**: Injected via constructor or setter. Used for texture resource management.
 - **MaterialSystem**: Injected via constructor or setter. Used for material descriptor sets.
 - **SceneManager**: Registered as an observer to receive active scene changes.
-- **Camera**: Set via `setCamera()`.
+- **Camera**: Set via `set_camera()`.
 
 #### Example (C++)
 ```cpp
 Renderer(RHIBase& rhi,
-         DrawDataManager* drawDataMgr,
-         CullingSystem* cullingSys,
-         PipelineManager* pipelineMgr,
-         TextureManager* textureMgr,
-         MaterialSystem* materialSys,
-         SceneManager* sceneMgr);
+         DrawDataManager* draw_data_mgr,
+         CullingSystem* culling_sys,
+         PipelineManager* pipeline_mgr,
+         TextureManager* texture_mgr,
+         MaterialSystem* material_sys,
+         SceneManager* scene_mgr);
 
-void setCamera(Camera* camera);
+void set_camera(Camera* camera);
 ```
 
 - All dependencies, including the RHI, can be replaced with mocks or test doubles for unit testing.

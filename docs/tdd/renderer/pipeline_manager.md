@@ -70,14 +70,14 @@ These descriptor structs are used as keys for deduplication and as the source of
 
 ## 3. API Overview
 
-- `PipelineHandle requestPipeline(const PipelineDesc& desc);` // Returns a handle to a pipeline, creating or returning an existing one
-- `PipelineLayoutHandle requestPipelineLayout(const PipelineLayoutDesc& desc);`
-- `const Pipeline& getPipeline(PipelineHandle handle) const;`
-- `const PipelineLayout& getPipelineLayout(PipelineLayoutHandle handle) const;`
-- `VkPipeline getVkPipeline(PipelineHandle handle) const;`
-- `VkPipelineLayout getVkPipelineLayout(PipelineLayoutHandle handle) const;`
-- `void releasePipeline(PipelineHandle handle);` // Optional, for explicit cleanup
-- `void releasePipelineLayout(PipelineLayoutHandle handle);`
+- `PipelineHandle request_pipeline(const PipelineDesc& desc);` // Returns a handle to a pipeline, creating or returning an existing one
+- `PipelineLayoutHandle request_pipeline_layout(const PipelineLayoutDesc& desc);`
+- `const Pipeline& get_pipeline(PipelineHandle handle) const;`
+- `const PipelineLayout& get_pipeline_layout(PipelineLayoutHandle handle) const;`
+- `VkPipeline get_vk_pipeline(PipelineHandle handle) const;`
+- `VkPipelineLayout get_vk_pipeline_layout(PipelineLayoutHandle handle) const;`
+- `void release_pipeline(PipelineHandle handle);` // Optional, for explicit cleanup
+- `void release_pipeline_layout(PipelineLayoutHandle handle);`
 
 ---
 
@@ -113,16 +113,16 @@ These descriptor structs are used as keys for deduplication and as the source of
 
 ```cpp
 // Request a graphics pipeline for a material
-PipelineHandle pipelineHandle = pipelineManager.requestPipeline(pipelineDesc);
-PipelineLayoutHandle layoutHandle = pipelineManager.requestPipelineLayout(layoutDesc);
+PipelineHandle pipeline_handle = pipeline_manager.request_pipeline(pipeline_desc);
+PipelineLayoutHandle layout_handle = pipeline_manager.request_pipeline_layout(layout_desc);
 
 // Retrieve Vulkan handles for binding
-VkPipeline pipeline = pipelineManager.getVkPipeline(pipelineHandle);
-VkPipelineLayout layout = pipelineManager.getVkPipelineLayout(layoutHandle);
+VkPipeline pipeline = pipeline_manager.get_vk_pipeline(pipeline_handle);
+VkPipelineLayout layout = pipeline_manager.get_vk_pipeline_layout(layout_handle);
 
 // Release when no longer needed (optional, usually at shutdown)
-pipelineManager.releasePipeline(pipelineHandle);
-pipelineManager.releasePipelineLayout(layoutHandle);
+pipeline_manager.release_pipeline(pipeline_handle);
+pipeline_manager.release_pipeline_layout(layout_handle);
 ```
 
 ---

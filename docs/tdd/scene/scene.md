@@ -10,7 +10,7 @@ The scene module is responsible for representing and managing the logical struct
 
 - **Minimalism:** The scene graph only manages hierarchy and transforms. No node types, no polymorphism, no component system.
 - **Slot Map Storage:** All nodes are stored in a slot map, referenced by a `NodeHandle` (a slot map key). Scenes themselves are also managed in a slot map, referenced by a `SceneHandle`.
-- **Single Scene Root Node:** Each scene contains a single, always-present root node (`NodeHandle sceneRoot`). All user nodes are descendants of this root. The scene root can be used to move, scale, or rotate the entire scene as a unit, and simplifies global transforms and scene instancing.
+- **Single Scene Root Node:** Each scene contains a single, always-present root node (`NodeHandle scene_root`). All user nodes are descendants of this root. The scene root can be used to move, scale, or rotate the entire scene as a unit, and simplifies global transforms and scene instancing.
 - **Separation of Data:** All system-specific data (meshes, lights, physics, etc.) is stored externally, associated to nodes via `NodeHandle`.
 - **Explicit Association:** Systems maintain their own data arrays, each entry referencing a node. The scene graph is agnostic to what data is attached to each node.
 - **Cache-Friendly:** Slot map storage and separation of data enable efficient traversal, stable handles, and system updates.
@@ -19,46 +19,48 @@ The scene module is responsible for representing and managing the logical struct
 
 ## 3. Scene Graph Structure
 
+
 ### Node (internal structure)
 - `NodeHandle parent` (slot map key)
 - `std::vector<NodeHandle> children` (slot map keys)
-- `glm::mat4 localTransform`
-- `glm::mat4 worldTransform`
+- `glm::mat4 local_transform`
+- `glm::mat4 world_tansform`
 - `std::string name`
 - `bool dirty` // **True if this node (or its ancestors) need world transform update**
 
 All nodes are stored in a slot map, indexed by `NodeHandle` (a slot map key, see [Slot Map Container](../utils/containers/slotmap.md)).
 
 #### Scene Root Node
-- Each scene contains a single root node, accessible via `scene.getRootNode()` or `scene.sceneRoot`.
+- Each scene contains a single root node, accessible via `scene.get_root_node()` or `scene.scene_root`.
 - The root node is always present and cannot be removed.
 - All user nodes are added as children (directly or indirectly) of the root node.
 - Modifying the root node's transform moves, rotates, or scales the entire scene as a unit.
-- The root node's parent is always `INVALID_HANDLE`.
+- The root node's parent is always `NULL_HANDLE`.
 
 ---
 
 ## 4. Public API
 
+
 ### Scene
-- `NodeHandle getRootNode() const` – Returns the handle to the scene's root node.
-- `NodeHandle addNode(NodeHandle parent = INVALID_HANDLE)` – Create a new node, optionally as a child of `parent`. If `parent` is `INVALID_HANDLE`, the node is added as a child of the scene root. Returns a slot map key.
-- `void removeNode(NodeHandle)` – Remove a node and its descendants.
-- `NodeHandle getParent(NodeHandle)` / `std::vector<NodeHandle> getChildren(NodeHandle)` – Query parent/children.
-- `void traverse(std::function<void(NodeHandle)>, NodeHandle start = INVALID_HANDLE)` – Traverse the hierarchy, visiting each node by handle, starting at `start` (default: all roots).
-- `NodeHandle findNodeByName(const std::string&)` – Find a node by name.
-- `glm::mat4 getLocalTransform(NodeHandle)` – Get local transform for a node.
-- `glm::mat4 getWorldTransform(NodeHandle node, bool updateIfDirty = true)` – Returns the world transform for a node. If `updateIfDirty` is true (default), will immediately propagate transforms for the node (and its ancestors) if dirty, ensuring the returned transform is always up to date. If false, returns the cached world transform (may be stale if not synchronized).
-- `void setLocalTransform(NodeHandle, const glm::mat4&)` – Set local transform for a node. **Marks the node and all descendants as dirty for transform propagation.**
-- `void setWorldTransform(NodeHandle node, const glm::mat4& world)` – Sets the node's world transform by computing and setting the appropriate local transform such that `parentWorld * local = world`. This function always propagates transforms up to the parent (if dirty) before computing the local transform, ensuring correctness. The node and its descendants are then marked dirty for propagation.
-- `void propagateTransformsTo(NodeHandle target)` – Propagates transforms from the nearest dirty ancestor (or itself) down to the specified target node, updating only the necessary chain. Stops as soon as the target node is up to date and no longer dirty. The minimal dirty set is updated accordingly to remove any nodes that are no longer dirty as a result of this targeted propagation. This enables efficient, granular updates for on-demand queries or partial scene updates.
-- `void propogateTransforms()` – Propagate local-to-world transforms for all dirty nodes and their descendants. **Clears the dirty set and updates the changed nodes set.**
-  - **Note:** As of the latest architecture, you should not call `propogateTransforms()` independently per frame. Instead, call `finalizeForRendering()`, which performs both transform propagation and observer notification in a single step.
-- `void finalizeForRendering()` – Performs final transform propagation (calls `propogateTransforms()` internally if needed), notifies all registered observers (e.g., CullingSystem, DrawDataManager) of node transform changes via the observer pattern, passing the set of changed nodes, and then clears the changed nodes set. This should be called once per frame, after all transform updates and before rendering, to ensure all systems are synchronized efficiently.
-- `const std::unordered_set<NodeHandle>& getChangedNodes() const` – Returns a const reference to the set of nodes whose world transforms changed during all propagations since the last explicit clear. **This set is only cleared by the user.**
-- `void clearChangedNodes()` – Clears the set of changed nodes.
-- `bool isNodeDirty(NodeHandle node) const` – Returns true if the node is dirty. This is useful for checking whether a node's world transform is up to date.
-- `void loadFromFile(path)` / `void saveToFile(path)` – Load/save scene graph and associations.
+- `NodeHandle get_root_node() const` – Returns the handle to the scene's root node.
+- `NodeHandle add_node(NodeHandle parent = NULL_HANDLE)` – Create a new node, optionally as a child of `parent`. If `parent` is `NULL_HANDLE`, the node is added as a child of the scene root. Returns a slot map key.
+- `void remove_node(NodeHandle)` – Remove a node and its descendants.
+- `NodeHandle get_parent(NodeHandle)` / `std::vector<NodeHandle> get_children(NodeHandle)` – Query parent/children.
+- `void traverse(std::function<void(NodeHandle)>, NodeHandle start = NULL_HANDLE)` – Traverse the hierarchy, visiting each node by handle, starting at `start` (default: all roots).
+- `NodeHandle find_node_by_name(const std::string&)` – Find a node by name.
+- `glm::mat4 get_local_transform(NodeHandle)` – Get local transform for a node.
+- `glm::mat4 get_world_transform(NodeHandle node, bool update_if_dirty = true)` – Returns the world transform for a node. If `update_if_dirty` is true (default), will immediately propagate transforms for the node (and its ancestors) if dirty, ensuring the returned transform is always up to date. If false, returns the cached world transform (may be stale if not synchronized).
+- `void set_local_transform(NodeHandle, const glm::mat4&)` – Set local transform for a node. **Marks the node and all descendants as dirty for transform propagation.**
+- `void set_world_transform(NodeHandle node, const glm::mat4& world)` – Sets the node's world transform by computing and setting the appropriate local transform such that `parent_world * local = world`. This function always propagates transforms up to the parent (if dirty) before computing the local transform, ensuring correctness. The node and its descendants are then marked dirty for propagation.
+- `void propagate_transforms_to(NodeHandle target)` – Propagates transforms from the nearest dirty ancestor (or itself) down to the specified target node, updating only the necessary chain. Stops as soon as the target node is up to date and no longer dirty. The minimal dirty set is updated accordingly to remove any nodes that are no longer dirty as a result of this targeted propagation. This enables efficient, granular updates for on-demand queries or partial scene updates.
+- `void propagate_transforms()` – Propagate local-to-world transforms for all dirty nodes and their descendants. **Clears the dirty set and updates the changed nodes set.**
+  - **Note:** As of the latest architecture, you should not call `propagate_transforms()` independently per frame. Instead, call `finalize_for_rendering()`, which performs both transform propagation and observer notification in a single step.
+- `void finalize_for_rendering()` – Performs final transform propagation (calls `propagate_transforms()` internally if needed), notifies all registered observers (e.g., CullingSystem, DrawDataManager) of node transform changes via the observer pattern, passing the set of changed nodes, and then clears the changed nodes set. This should be called once per frame, after all transform updates and before rendering, to ensure all systems are synchronized efficiently.
+- `const std::unordered_set<NodeHandle>& get_changed_nodes() const` – Returns a const reference to the set of nodes whose world transforms changed during all propagations since the last explicit clear. **This set is only cleared by the user.**
+- `void clear_changed_nodes()` – Clears the set of changed nodes.
+- `bool is_node_dirty(NodeHandle node) const` – Returns true if the node is dirty. This is useful for checking whether a node's world transform is up to date.
+- `void load_from_file(path)` / `void save_to_file(path)` – Load/save scene graph and associations.
   - *Note: These functions will select an appropriate loader or saver implementation under the hood (e.g., the GLTF scene loader for `.gltf`/`.glb` files). Initially, only the GLTF loader will be implemented. Saving is not planned for the initial release.*
 
 ---
@@ -72,11 +74,11 @@ Each system (rendering, lighting, physics, etc.) is responsible for managing its
     ```cpp
     struct MeshInstance {
             NodeHandle node;    // The node this mesh instance is attached to
-            Mesh* meshAsset;    // Pointer or handle to mesh asset
+            Mesh* mesh;         // Pointer or handle to mesh
             Material* material; // Pointer or handle to material
             // ...other per-instance data...
     };
-    std::vector<MeshInstance> meshInstances;
+    std::vector<MeshInstance> mesh_instances;
     ```
 - Similarly, the lighting system might use:
     ```cpp
@@ -85,15 +87,15 @@ Each system (rendering, lighting, physics, etc.) is responsible for managing its
             LightParams params; // Light parameters (color, intensity, etc.)
             // ...other per-light data...
     };
-    std::vector<LightInstance> lightInstances;
+    std::vector<LightInstance> light_instances;
     ```
 
 **Lookup and Synchronization:**
-- To find all mesh instances for rendering, iterate the `meshInstances` array and use each entry's `node` to query the node's world transform from the scene.
-- To find all lights, iterate the `lightInstances` array in the same way.
+- To find all mesh instances for rendering, iterate the `mesh_instances` array and use each entry's `node` to query the node's world transform from the scene.
+- To find all lights, iterate the `light_instances` array in the same way.
 - If fast lookup from `NodeHandle` to system data is needed (e.g., for removal or updates), systems may maintain an auxiliary map:
     ```cpp
-    std::unordered_map<NodeHandle, size_t> nodeToMeshInstanceIndex;
+    std::unordered_map<NodeHandle, size_t> node_to_mesh_instance_index;
     ```
 - When a node is removed from the scene, each system is responsible for removing or updating any associated data entries.
 
@@ -110,7 +112,7 @@ Each system (rendering, lighting, physics, etc.) is responsible for managing its
 - Systems are responsible for associating their data to nodes and updating as needed.
 - To find all mesh data, iterate the mesh data array; to find all lights, iterate the light data array, etc.
 - To find the node for a given data entry, use the stored `NodeHandle` (slot map key).
-- **Transform Synchronization:** After all transform updates, call `finalizeForRendering()` to perform final transform propagation and notify registered observers (such as CullingSystem, DrawDataManager, etc.) via the observer pattern, passing the set of changed nodes for synchronization. This ensures all systems are updated exactly once per frame, just before rendering. See [Observer Pattern](../core/observer_pattern.md) for details.
+- **Transform Synchronization:** After all transform updates, call `finalize_for_rendering()` to perform final transform propagation and notify registered observers (such as CullingSystem, DrawDataManager, etc.) via the observer pattern, passing the set of changed nodes for synchronization. This ensures all systems are updated exactly once per frame, just before rendering. See [Observer Pattern](../core/observer_pattern.md) for details.
 
 ---
 
@@ -120,27 +122,29 @@ Each system (rendering, lighting, physics, etc.) is responsible for managing its
 - Systems such as the Renderer, DrawDataManager, and CullingSystem should register as observers to the SceneManager to be notified when the set of active scenes changes. This enables them to repopulate or clear their data as needed.
 - The SceneManager enforces invariants (e.g., only one active scene, or a set of active scenes for multi-viewport/multi-world support) and decouples scene activation from rendering logic.
 
+
 ### API
-- `SceneHandle addScene()` – Adds a new scene to the manager, returns a slot map key.
-- `void removeScene(SceneHandle)` – Removes a scene by handle.
-- `Scene* getScene(SceneHandle)` – Retrieves a scene by handle.
-- `Scene* getActiveScene() const` – Returns the currently active scene (if only one is supported).
-- `std::vector<SceneHandle> getActiveScenes() const` – Returns all currently active scenes (for multi-scene support).
-- `void setActiveScene(SceneHandle)` – Sets the active scene by handle.
-- `void setActiveScenes(const std::vector<SceneHandle>& scenes)` – Sets the set of active scenes (for multi-scene support).
-- `void addObserver(ISceneManagerObserver* observer)` – Register an observer to be notified when the active scene(s) change.
-- `void removeObserver(ISceneManagerObserver* observer)` – Unregister an observer.
+- `SceneHandle add_scene()` – Adds a new scene to the manager, returns a slot map key.
+- `void remove_scene(SceneHandle)` – Removes a scene by handle.
+- `Scene* get_scene(SceneHandle)` – Retrieves a scene by handle.
+- `Scene* get_active_scene() const` – Returns the currently active scene (if only one is supported).
+- `std::vector<SceneHandle> get_active_scenes() const` – Returns all currently active scenes (for multi-scene support).
+- `void set_active_scene(SceneHandle)` – Sets the active scene by handle.
+- `void set_active_scenes(const std::vector<SceneHandle>& scenes)` – Sets the set of active scenes (for multi-scene support).
+- `void add_observer(ISceneManagerObserver* observer)` – Register an observer to be notified when the active scene(s) change.
+- `void remove_observer(ISceneManagerObserver* observer)` – Unregister an observer.
 
 #### Observer Interface Example
 ```cpp
+
 class ISceneManagerObserver {
 public:
-    virtual void onActiveScenesChanged(const std::vector<SceneHandle>& newActiveScenes) = 0;
+    virtual void on_active_scenes_changed(const std::vector<SceneHandle>& new_active_scenes) = 0;
 };
 ```
 
 #### Workflow
-- When the active scene(s) change, the SceneManager notifies all registered observers via `onActiveScenesChanged`.
+- When the active scene(s) change, the SceneManager notifies all registered observers via `on_active_scenes_changed`.
 - Observers (Renderer, DrawDataManager, etc.) then clear and repopulate their data from the new active scene(s).
 - This pattern supports both single-scene and multi-scene rendering, and enables robust, decoupled system updates.
 
@@ -152,37 +156,37 @@ Scenes are stored in a slot map, indexed by `SceneHandle` (a slot map key).
 
 ### 8.1 Dirty Flag Propagation and Minimal Dirty Set
 
-- When a node's local transform is changed via `setLocalTransform`, that node **and all of its descendants** have their `dirty` flag immediately set to true. This ensures that checking whether a node's world transform is up to date is a simple matter of checking its own `dirty` flag.
+- When a node's local transform is changed via `set_local_transform`, that node **and all of its descendants** have their `dirty` flag immediately set to true. This ensures that checking whether a node's world transform is up to date is a simple matter of checking its own `dirty` flag.
 - To ensure efficient propagation, the minimal dirty set algorithm is used to maintain only the minimal set of dirty roots. When marking a node dirty, if its parent is already dirty, no further action is needed (the parent's propagation will cover this node). Otherwise, the node is added to the dirty set, and all descendants are removed from the dirty set (since they will be covered by this node's propagation).
 
 ### 8.2 World Transform Propagation
 
-- The method `propogateTransforms()` traverses the scene graph, propagating world transforms from parents to children for all dirty roots and their descendants. It updates the world transform for each affected node and clears their `dirty` flag.
-- The method `propagateTransformsTo(NodeHandle target)` propagates transforms from the nearest dirty ancestor (or itself) down to the specified target node, updating only the necessary chain. This is useful for on-demand updates of a single node or subtree, and is used internally by methods like `getWorldTransform(node, true)` and `setWorldTransform`.
+- The method `propogate_transforms()` traverses the scene graph, propagating world transforms from parents to children for all dirty roots and their descendants. It updates the world transform for each affected node and clears their `dirty` flag.
+- The method `propagate_transforms_to(NodeHandle target)` propagates transforms from the nearest dirty ancestor (or itself) down to the specified target node, updating only the necessary chain. This is useful for on-demand updates of a single node or subtree, and is used internally by methods like `get_world_transform(node, true)` and `setWorldTransform`.
 - After propagation, the minimal dirty set is updated to remove any nodes that are no longer dirty as a result of this targeted update.
-- After `propogateTransforms()` completes, all nodes are removed from the dirty set and their `dirty` flags are cleared. The dirty state is now clear, and the scene is considered up to date until the next call to `setLocalTransform`.
-- **Note:** `finalizeForRendering()` should be used to perform final transform propogation and notify observers once per frame. This ensures all systems are synchronized efficiently before rendering.
+- After `propogate_transforms()` completes, all nodes are removed from the dirty set and their `dirty` flags are cleared. The dirty state is now clear, and the scene is considered up to date until the next call to `set_local_transform`.
+- **Note:** `finalize_for_rendering()` should be used to perform final transform propogation and notify observers once per frame. This ensures all systems are synchronized efficiently before rendering.
 
 ### 8.3 Changed Nodes Tracking
 
-- As each node's world transform is updated, its handle is added to a `changedNodes` set. This set records all nodes whose world transforms were modified during the last propagation(s). The set is only cleared when the user explicitly calls `clearChangedNodes()`.
-- The set persists and accumulates across multiple calls to `propogateTransforms()` until the user explicitly clears it. This allows for multiple transform propagations within a frame if needed (e.g., for dependency updates), without losing track of which nodes have changed.
+- As each node's world transform is updated, its handle is added to a `changed_nodes` set. This set records all nodes whose world transforms were modified during the last propagation(s). The set is only cleared when the user explicitly calls `clear_changed_nodes()`.
+- The set persists and accumulates across multiple calls to `propogate_transforms()` until the user explicitly clears it. This allows for multiple transform propagations within a frame if needed (e.g., for dependency updates), without losing track of which nodes have changed.
 
 ### 8.4 Rationale
 
-By immediately setting the `dirty` flag on a node and all its descendants when `setLocalTransform` is called, checking whether a node's world transform is up to date is a simple, fast operation: just check the node's own `dirty` flag. The minimal dirty set ensures that each affected transform chain is only updated once, regardless of the order or number of `setLocalTransform` calls, and avoids redundant updates even in complex scenarios.
+By immediately setting the `dirty` flag on a node and all its descendants when `set_local_transform` is called, checking whether a node's world transform is up to date is a simple, fast operation: just check the node's own `dirty` flag. The minimal dirty set ensures that each affected transform chain is only updated once, regardless of the order or number of `set_local_transform` calls, and avoids redundant updates even in complex scenarios.
 
 ### 8.5 Implementation Pseudocode
 
 ```cpp
-void setLocalTransform(NodeHandle node, const glm::mat4& local) {
-    node.localTransform = local;
-    markDirty(node);
+void set_local_transform(NodeHandle node, const glm::mat4& local) {
+    node.local_transform = local;
+    mark_dirty(node);
 }
 
-void markDirty(NodeHandle node) {
+void mark_dirty(NodeHandle node) {
     // 1. If parent is dirty, do nothing
-    if (node.parent != INVALID_HANDLE && nodes[node.parent].dirty) {
+    if (node.parent != NULL_HANDLE && nodes[node.parent].dirty) {
         return;
     }
     // 2. Add node to dirty set
@@ -192,45 +196,45 @@ void markDirty(NodeHandle node) {
         dirtySet.erase(desc);
     }
     // 4. Set dirty flag on node and all descendants
-    setDirtyFlagRecursive(node);
+    set_dirty_flag_recursive(node);
 }
 
-void setDirtyFlagRecursive(NodeHandle node) {
+void set_dirty_flag_recursive(NodeHandle node) {
     nodes[node].dirty = true;
     for (NodeHandle child : nodes[node].children) {
-        setDirtyFlagRecursive(child);
+        set_dirty_flag_recursive(child);
     }
 }
 
-void propogateTransforms() {
+void propogate_transforms() {
     for (NodeHandle root : dirtySet) {
-        propagateWorldTransform(root);
+        propagate_world_transform(root);
     }
     dirtySet.clear();
     // ...clear all node.dirty flags...
 }
 
-void propagateWorldTransform(NodeHandle node) {
+void propagate_world_transform(NodeHandle node) {
     // Always update world transform for all nodes in the subtree
-    node.worldTransform = (node.parent != INVALID_HANDLE)
-        ? nodes[node.parent].worldTransform * node.localTransform
-        : node.localTransform;
+    node.world_transform = (node.parent != NULL_HANDLE)
+        ? nodes[node.parent].world_transform * node.local_transform
+        : node.local_transform;
     node.dirty = false;
-    changedNodes.insert(node); // Use a set to avoid duplicates
+    changed_nodes.insert(node); // Use a set to avoid duplicates
     for (NodeHandle child : node.children) {
-        propagateWorldTransform(child);
+        propagate_world_transform(child);
     }
 }
 
-const std::unordered_set<NodeHandle>& getChangedNodes() const {
-    return changedNodes;
+const std::unordered_set<NodeHandle>& get_changed_nodes() const {
+    return changed_nodes;
 }
 
-void clearChangedNodes() {
-    changedNodes.clear();
+void clear_changed_nodes() {
+    changed_nodes.clear();
 }
 
-bool isNodeDirty(NodeHandle node) const {
+bool is_node_dirty(NodeHandle node) const {
     nodes[node].dirty;
 }
 ```
@@ -247,36 +251,37 @@ bool isNodeDirty(NodeHandle node) const {
 ## 10. Example Usage
 
 ```cpp
+
 // Create a node and attach mesh data
-NodeHandle node = scene.addNode();
-meshSystem.addMesh({ node, meshAsset });
+NodeHandle node = scene.add_node();
+mesh_system.add_mesh({ node, mesh_asset });
 
 // Update transforms and synchronize with systems
-scene.setLocalTransform(node, newLocalTransform);
-scene.finalizeForRendering(); // Performs transform propagation and notifies observers of changed nodes, then clears the changed set
+scene.set_local_transform(node, new_local_transform);
+scene.finalize_for_rendering(); // Performs transform propagation and notifies observers of changed nodes, then clears the changed set
 
 // Propagate transforms only down to a specific node (and its ancestors if needed):
-scene.propagateTransformsTo(targetNode); // Only updates the chain needed for targetNode to be up to date
+scene.propagate_transforms_to(target_node); // Only updates the chain needed for targetNode to be up to date
 
 // Query a node's world transform, always up to date (will propagate down to node if dirty):
-glm::mat4 world = scene.getWorldTransform(node); // Default: updateIfDirty = true
+glm::mat4 world = scene.get_world_transform(node); // Default: update_if_dirty = true
 
 // Query a node's world transform, without forcing propagation (may be stale):
-glm::mat4 cachedWorld = scene.getWorldTransform(node, false);
+glm::mat4 cachedWorld = scene.get_world_transform(node, false);
 
 // Set a node's world transform, computing the correct local transform automatically:
-glm::mat4 desiredWorld = ...;
-scene.setWorldTransform(node, desiredWorld); // Will update world and local transform to match. Will always propagate to parent if dirty
+glm::mat4 desired_world = ...;
+scene.set_world_transform(node, desired_world); // Will update world and local transform to match. Will always propagate to parent if dirty
 
 // Traverse the scene graph
 scene.traverse([&](NodeHandle n) {
-    glm::mat4 world = scene.getWorldTransform(n); // Always up to date
+    glm::mat4 world = scene.get_world_transform(n); // Always up to date
     // ...
 });
 
 // Find all mesh data for rendering
-for (const auto& mesh : meshSystem.meshes) {
-    glm::mat4 world = scene.getWorldTransform(mesh.node);
+for (const auto& mesh : mesh_system.meshes) {
+    glm::mat4 world = scene.get_world_transform(mesh.node);
     // ...
 }
 ```
@@ -296,36 +301,37 @@ for (const auto& mesh : meshSystem.meshes) {
 - **Transform Propagation:**
   - Set up a scene with a hierarchy (e.g., root → child → grandchild).
   - Set a local transform on a node (e.g., the root or an intermediate node).
-  - Call `finalizeForRendering()` on the scene (which will perform transform propagation internally).
+  - Call `finalize_for_rendering()` on the scene (which will perform transform propagation internally).
   - Verify that all descendants have correct world transforms (compare to expected matrices).
   - Verify that the set of changed nodes includes the node and all affected descendants.
 
 #### Example (Pseudocode)
 ```cpp
+
 Scene scene;
-auto root = scene.addNode();
-auto child = scene.addNode(root);
-auto grandchild = scene.addNode(child);
+auto root = scene.add_node();
+auto child = scene.add_node(root);
+auto grandchild = scene.add_node(child);
 
-scene.setLocalTransform(root, initialRootTransform);
-scene.setLocalTransform(child, initialChildTransform);
-scene.setLocalTransform(grandchild, initialGrandchildTransform);
+scene.set_local_transform(root, initial_root_transform);
+scene.set_local_transform(child, initial_child_transform);
+scene.set_local_transform(grandchild, initial_grandchild_transform);
 
-scene.setLocalTransform(root, newRootTransform);
-scene.finalizeForRendering();
+scene.set_local_transform(root, newRootTransform);
+scene.finalize_for_rendering();
 
-assert(scene.getLocalTransform(child) == expectedChildWorldTransform);
-assert(scene.getLocalTransform(grandchild) == expectedGrandchildWorldTransform);
-assert(changedNodes.contains(child));
-assert(changedNodes.contains(grandchild));
+assert(scene.get_local_transform(child) == expected_child_world_transform);
+assert(scene.get_local_transform(grandchild) == expected_grandchild_world_transform);
+assert(changed_nodes.contains(child));
+assert(changed_nodes.contains(grandchild));
 ```
 
 ### 11.4 System Synchronization Tests
 - **Transform Propagation and System Sync:**
   - Set up a scene with a hierarchy (e.g., root → child → grandchild).
-  - Attach mock or test versions of systems (e.g., MockCullingSystem, MockDrawDataManager) that record when their observer callbacks (e.g., `onTransformsFinalized`) are called and what data they receive.
+  - Attach mock or test versions of systems (e.g., MockCullingSystem, MockDrawDataManager) that record when their observer callbacks (e.g., `on_transforms_finalized`) are called and what data they receive.
   - Set a local transform on a node in the scene.
-  - Call `finalizeForRendering()` on the scene (which will perform transform propagation and notify observers).
+  - Call `finalize_for_rendering()` on the scene (which will perform transform propagation and notify observers).
   - Verify that:
     - All descendants have correct world transforms (compare to expected matrices).
     - The set of changed nodes includes the node and all affected descendants.
@@ -335,28 +341,29 @@ assert(changedNodes.contains(grandchild));
 
 #### Example (Pseudocode)
 ```cpp
+
 Scene scene;
-auto root = scene.addNode();
-auto child = scene.addNode(root);
-auto grandchild = scene.addNode(child);
+auto root = scene.add_node();
+auto child = scene.add_node(root);
+auto grandchild = scene.add_node(child);
 
-MockCullingSystem cullingSystem;
-MockDrawDataManager drawDataManager;
+MockCullingSystem culling_system;
+MockDrawDataManager draw_data_manager;
 
-scene.setLocalTransform(root, initialRootTransform);
-scene.setLocalTransform(child, initialChildTransform);
-scene.setLocalTransform(grandchild, initialGrandchildTransform);
+scene.set_local_transform(root, initial_root_transform);
+scene.set_local_transform(child, initial_child_transform);
+scene.set_local_transform(grandchild, initial_grandchild_transform);
 
-scene.setLocalTransform(root, newRootTransform);
-scene.finalizeForRendering(); // Performs final transform propagation and notifies observers
+scene.set_local_transform(root, newRootTransform);
+scene.finalize_for_rendering(); // Performs final transform propagation and notifies observers
 
 // Assertions
-assert(scene.getLocalTransform(child) == expectedChildWorldTransform);
-assert(scene.getLocalTransform(grandchild) == expectedGrandchildWorldTransform);
-assert(cullingSystem.lastSyncedNodes == /* expected changed nodes */);
-assert(drawDataManager.lastSyncedNodes == /* expected changed nodes */);
-assert(cullingSystem.transformsInSyncWithScene(scene));
-assert(drawDataManager.transformsInSyncWithScene(scene));
+assert(scene.get_local_transform(child) == expected_child_world_transform);
+assert(scene.get_local_transform(grandchild) == expected_grandchild_world_transform);
+assert(culling_system.last_synced_nodes == /* expected changed nodes */);
+assert(draw_data_manager.last_synced_nodes == /* expected changed nodes */);
+assert(culling_system.transforms_in_sync_with_scene(scene));
+assert(draw_data_manager.transforms_in_sync_with_scene(scene));
 ```
 
 ### 11.5 Serialization/Deserialization Tests
@@ -374,7 +381,7 @@ assert(drawDataManager.transformsInSyncWithScene(scene));
 The workflow for transform propagation, system synchronization, and integration with the main renderer loop is now fully specified in [Core System Coordination](../core/core_system_coordination.md). Please refer to that document for the latest and most accurate process.
 
 - The scene module handles transform propagation, dirty tracking, and changed node collection.
-- After all transform updates, `finalizeForRendering()` must be called to propagate transforms and notify observers.
+- After all transform updates, `finalize_for_rendering()` must be called to propagate transforms and notify observers.
 - All dependent systems (rendering, culling, physics, etc.) must synchronize their data in response to these notifications, before rendering begins.
 - This ensures all systems operate on up-to-date transforms and remain in sync with the scene state.
 
@@ -387,14 +394,14 @@ This section is intentionally concise; always consult the core coordination docu
 The Scene module is designed to be agnostic to all system-specific data and logic. It does not depend on any external systems for its core functionality (hierarchy, transforms, node management). However, it acts as a subject in the observer pattern, allowing systems such as DrawDataManager, CullingSystem, and others to register as observers for transform change notifications.
 
 ### Scene Dependencies
-- **Observers (e.g., DrawDataManager, CullingSystem, Allocator, etc.)**: Registered via explicit observer registration APIs (e.g., `addObserver`, `removeObserver`).
+- **Observers (e.g., DrawDataManager, CullingSystem, Allocator, etc.)**: Registered via explicit observer registration APIs (e.g., `add_observer`, `remove_observer`).
 - **No direct dependencies**: The Scene module does not require any other system to function and can be instantiated and tested in isolation.
 - **Note:** Systems that interact with GPU resources (such as allocators or resource managers) should receive the RHI as a dependency for testability and decoupling, following the same pattern as the Renderer.
 
 #### Example (C++)
 ```cpp
-scene.addObserver(&drawDataManager);
-scene.addObserver(&cullingSystem);
+scene.add_observer(&draw_data_manager);
+scene.add_observer(&culling_system);
 // Allocator or resource manager would be constructed with an RHI reference
 ```
 

@@ -11,7 +11,7 @@ The Render Hardware Interface (RHI) provides a minimal, testable, and dependency
 
 ## 2. API Abstraction Pattern
 
-The RHI exposes a minimal set of API-agnostic methods (e.g., `CmdBindPipeline`, `CreateBuffer`, etc.) that are implemented by each backend (Vulkan, Metal, Mock, etc.).
+The RHI exposes a minimal set of API-agnostic methods (e.g., `cmd_bind_pipeline`, `create_buffer`, etc.) that are implemented by each backend (Vulkan, Metal, Mock, etc.).
 
 ### Example API (C++)
 ```cpp
@@ -19,21 +19,21 @@ The RHI exposes a minimal set of API-agnostic methods (e.g., `CmdBindPipeline`, 
 class IRHI {
 public:
     virtual ~IRHI() = default;
-    virtual void CmdBindPipeline(void* cmd, int bindPoint, void* pipeline) = 0;
+    virtual void cmd_bind_pipeline(void* cmd, int bind_point, void* pipeline) = 0;
     // ...other RHI methods...
 };
 
 // Vulkan implementation
 class VulkanAPI RHI_BASE /* : public IRHI if virtual */ {
 public:
-    void CmdBindPipeline(void* cmd, int bindPoint, void* pipeline) RHI_OVERRIDE /* override if virtual */;
+    void cmd_bind_pipeline(void* cmd, int bind_point, void* pipeline) RHI_OVERRIDE /* override if virtual */;
     // ...
 };
 
 // DX12 implementation
 class DX12API RHI_BASE /* : public IRHI if virtual */ {
 public:
-    void CmdBindPipeline(void* cmd, int bindPoint, void* pipeline) RHI_OVERRIDE /* override if virtual */;
+    void cmd_bind_pipeline(void* cmd, int bind_point, void* pipeline) RHI_OVERRIDE /* override if virtual */;
     // ...
 };
 
@@ -41,14 +41,14 @@ public:
 // Metal implementation
 class MetalAPI RHI_BASE /* : public IRHI if virtual */ {
 public:
-    void CmdBindPipeline(void* cmd, int bindPoint, void* pipeline) RHI_OVERRIDE /* override if virtual */;
+    void cmd_bind_pipeline(void* cmd, int bind_point, void* pipeline) RHI_OVERRIDE /* override if virtual */;
     // ...
 };
 
 // Mock implementation for testing
 class MockRHI RHI_BASE /* : public IRHI if virtual */ {
 public:
-    void CmdBindPipeline(void* cmd, int bindPoint, void* pipeline) RHI_OVERRIDE /* override if virtual */;
+    void cmd_bind_pipeline(void* cmd, int bind_point, void* pipeline) RHI_OVERRIDE /* override if virtual */;
     // ...
 };
 ```
@@ -92,8 +92,8 @@ public:
 class Renderer {
 public:
     Renderer(RHIBase& rhi) : rhi(rhi) {}
-    void recordDrawCommands(void* cmd, void* pipeline) {
-        rhi.CmdBindPipeline(cmd, 0, pipeline);
+    void record_draw_commands(void* cmd, void* pipeline) {
+        rhi.cmd_bind_pipeline(cmd, 0, pipeline);
     }
 private:
     RHIBase& rhi;

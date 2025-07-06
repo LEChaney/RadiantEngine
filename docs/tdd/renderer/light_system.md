@@ -28,11 +28,11 @@ The Light System manages all light data within a scene. It provides APIs for add
 
 ## API Overview
 
-- `LightHandle addLight(SceneHandle scene, NodeHandle node, const LightDesc& desc);`
-- `void removeLight(SceneHandle scene, LightHandle handle);`
-- `void updateLight(SceneHandle scene, LightHandle handle, const LightDesc& desc);`
-- `const Light& getLight(SceneHandle scene, LightHandle handle);`
-- `std::vector<LightHandle> getLightsForNode(SceneHandle scene, NodeHandle node);`
+- `LightHandle add_light(SceneHandle scene, NodeHandle node, const LightDesc& desc);`
+- `void remove_light(SceneHandle scene, LightHandle handle);`
+- `void update_light(SceneHandle scene, LightHandle handle, const LightDesc& desc);`
+- `const Light& get_light(SceneHandle scene, LightHandle handle);`
+- `std::vector<LightHandle> get_lights_for_node(SceneHandle scene, NodeHandle node);`
 
 ## Renderer Interface
 

@@ -27,7 +27,7 @@ The MeshSystem is responsible for managing mesh resources within each loaded sce
 - The MeshSystem maintains an explicit mapping from `Scene*` (or scene ID) to all mesh resources owned by that scene.
 - Meshes are loaded/created only when a scene is loaded, and destroyed only when the scene is unloaded.
 - When a node is removed, the MeshSystem detaches any mesh/section association, but the mesh resource remains alive until the scene is unloaded.
-- When a mesh instance is added to a scene that is currently active in the renderer, the MeshSystem will automatically create the corresponding draw data by calling `drawDataManager.createDrawDataForMeshInstance(meshInstance)`. This ensures that new mesh instances are immediately available for rendering. If the scene is not active, draw data will be created when the scene is later set active and the draw data is repopulated.
+- When a mesh instance is added to a scene that is currently active in the renderer, the MeshSystem will automatically create the corresponding draw data by calling `draw_data_manager.create_draw_data_for_mesh_instance(mesh_instance)`. This ensures that new mesh instances are immediately available for rendering. If the scene is not active, draw data will be created when the scene is later set active and the draw data is repopulated.
 - The active scene is set on the renderer, which determines which scene is currently being rendered and which mesh instances will have draw data created immediately.
 
 ---
@@ -36,16 +36,16 @@ The MeshSystem is responsible for managing mesh resources within each loaded sce
 
 ```cpp
 struct MeshSection {
-    uint32_t firstIndex;
-    uint32_t indexCount;
-    mat4 boundsToMesh;
+    uint32_t first_index;
+    uint32_t index_count;
+    mat4 bounds_to_mesh;
     std::string name;
     // (Optional: user data, etc.)
 };
 
 struct Mesh {
-    GPUBuffer vertexBuffer;
-    GPUBuffer indexBuffer;
+    GPUBuffer vertex_buffer;
+    GPUBuffer index_buffer;
     std::vector<MeshSection> sections; // Each section has its own bounds
     std::string name;
     // ...
@@ -62,9 +62,9 @@ struct MeshInstance {
 };
 
 // Per-scene mesh registry
-std::unordered_map<Scene*, std::vector<Mesh>> sceneMeshes;
-std::unordered_map<Scene*, std::vector<MeshInstance>> sceneMeshInstances;
-std::unordered_map<Scene*, std::unordered_map<NodeHandle, uint32_t>> nodeToMeshInstanceIndex;
+std::unordered_map<Scene*, std::vector<Mesh>> scene_meshes;
+std::unordered_map<Scene*, std::vector<MeshInstance>> scene_mesh_instances;
+std::unordered_map<Scene*, std::unordered_map<NodeHandle, uint32_t>> node_to_mesh_instance_index;
 ```
 
 ---
@@ -79,23 +79,23 @@ std::unordered_map<Scene*, std::unordered_map<NodeHandle, uint32_t>> nodeToMeshI
 
 ```cpp
 // Mesh loading/unloading
-Mesh* loadMesh(Scene* scene, const MeshSource& src); // Loads mesh for a scene (src contains raw vertex and index data)
-void unloadAllMeshes(Scene* scene); // Unloads all meshes for a scene
+Mesh* load_mesh(Scene* scene, const MeshSource& src); // Loads mesh for a scene (src contains raw vertex and index data)
+void unload_all_meshes(Scene* scene); // Unloads all meshes for a scene
 
 // Node/section association and material assignment
-MeshInstance& addMeshInstance(Scene* scene, NodeHandle node, Mesh* mesh, const MaterialSet& materials); // Assigns mesh and material set to node
-void removeMeshInstance(Scene* scene, NodeHandle node);
+MeshInstance& add_mesh_instance(Scene* scene, NodeHandle node, Mesh* mesh, const MaterialSet& materials); // Assigns mesh and material set to node
+void remove_mesh_instance(Scene* scene, NodeHandle node);
 
 // Querying
-const std::vector<Mesh>& getMeshes(Scene* scene) const;
-const std::vector<MeshInstance>& getMeshInstances(Scene* scene) const;
-MeshInstance* getMeshInstanceForNode(Scene* scene, NodeHandle node) const;
-const std::vector<MeshSection>& getSections(const Mesh* mesh) const;
+const std::vector<Mesh>& get_meshes(Scene* scene) const;
+const std::vector<MeshInstance>& get_mesh_instances(Scene* scene) const;
+MeshInstance* get_mesh_instance_for_node(Scene* scene, NodeHandle node) const;
+const std::vector<MeshSection>& get_sections(const Mesh* mesh) const;
 
 // GPU resource management (internal, used during load and unload)
-GPUBuffer createVertexBuffer(const Vertex* vertices, size_t count);
-GPUBuffer createIndexBuffer(const uint32_t* indices, size_t count);
-void destroyBuffer(GPUBuffer buffer);
+GPUBuffer create_vertex_buffer(const Vertex* vertices, size_t count);
+GPUBuffer create_index_buffer(const uint32_t* indices, size_t count);
+void destroy_buffer(GPUBuffer buffer);
 ```
 
 ---
@@ -103,7 +103,7 @@ void destroyBuffer(GPUBuffer buffer);
 ## 5. Resource Management Flow
 
 1. **Scene Load:**
-    - For each mesh asset referenced in the scene, `loadMesh` is called.
+    - For each mesh asset referenced in the scene, `load_mesh` is called.
     - The MeshSystem allocates GPU buffers via the Resource Allocator.
     - Meshes are registered in the per-scene mesh registry.
     - For each node that references a mesh, a `MeshInstance` is created and associated, along with its material set (one per mesh section).
@@ -112,7 +112,7 @@ void destroyBuffer(GPUBuffer buffer);
     - MeshSystem maintains all mesh and instance data for the scene.
     - Provides mesh and section data to the DrawDataManager for draw data generation.
     - Materials for each draw are taken from the instance's material set.
-    - When a mesh instance is added to the active scene, MeshSystem will automatically call `drawDataManager.createDrawDataForMeshInstance(meshInstance)` to create the necessary instance data and update draw groupings for rendering. DrawDataManager uses a slot map to store all instance data flatly, and MeshDrawData only stores handles/indices into this slot map for instancing.
+    - When a mesh instance is added to the active scene, MeshSystem will automatically call `draw_data_manager.create_draw_data_for_mesh_instance(mesh_instance)` to create the necessary instance data and update draw groupings for rendering. DrawDataManager uses a slot map to store all instance data flatly, and MeshDrawData only stores handles/indices into this slot map for instancing.
 3. **Node Removal:**
     - When a node is removed, the MeshSystem removes the corresponding `MeshInstance`.
     - The mesh resource remains alive until the scene is unloaded. DrawDataManager erases the instance data from its slot map and updates draw groupings accordingly.
@@ -139,19 +139,19 @@ void destroyBuffer(GPUBuffer buffer);
 
 ```cpp
 // During scene loading:
-Mesh* mesh = meshSystem.loadMesh(scene, meshSource); // meshSource contains vertex and index data
-MaterialSet matSet = { matA, matB }; // One per mesh section
-meshSystem.addMeshInstance(scene, node, mesh, matSet); // Assign mesh and material set to node in scene graph
+Mesh* mesh = mesh_system.load_mesh(scene, mesh_source); // mesh_source contains vertex and index data
+MaterialSet mat_set = { mat_a, mat_b }; // One per mesh section
+mesh_system.add_mesh_instance(scene, node, mesh, mat_set); // Assign mesh and material set to node in scene graph
 
 // During node removal:
-meshSystem.removeMeshInstance(scene, node);
+mesh_system.remove_mesh_instance(scene, node);
 
 // On scene unload:
-meshSystem.unloadAllMeshes(scene);
+mesh_system.unload_all_meshes(scene);
 
 // When dynamically adding a mesh instance to the active scene:
-MeshInstance& meshInstance = meshSystem.addMeshInstance(activeScene, node, mesh, matSet); // Automatically creates draw data for the new mesh instance if the scene is active
-// (Internally, this will call drawDataManager.createDrawDataForMeshInstance(meshInstance);)
+MeshInstance& mesh_instance = mesh_system.add_mesh_instance(active_scene, node, mesh, mat_set); // Automatically creates draw data for the new mesh instance if the scene is active
+// (Internally, this will call draw_data_manager.create_draw_data_for_mesh_instance(mesh_instance);)
 ```
 
 ---
