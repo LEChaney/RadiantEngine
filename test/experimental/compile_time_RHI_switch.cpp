@@ -1,9 +1,7 @@
-
-
 #include <iostream>
+#include <gtest/gtest.h>
 #include <vector>
 #include <tuple>
-#include <cassert>
 
 #ifndef USE_VULKAN_RHI
 #   define USE_VULKAN_RHI 0
@@ -47,39 +45,42 @@ public:
      * (such as a graphics or compute pipeline) to the provided command buffer.
      *
      * @param cmd Pointer to the command buffer where the pipeline will be bound.
-     * @param bindPoint Integer specifying the bind point (e.g., graphics or compute).
+     * @param bind_point Integer specifying the bind point (e.g., graphics or compute).
      * @param pipeline Pointer to the pipeline object to be bound.
      */
-    virtual void CmdBindPipeline(void* cmd, int bindPoint, void* pipeline) = 0;
+    virtual void cmd_bind_pipeline(void* cmd, int bind_point, void* pipeline) = 0;
 };
 #endif
 
 // VulkanAPI definition
+
 class VulkanAPI RHI_BASE {
 public:
     ~VulkanAPI() RHI_OVERRIDE = default;
-    void CmdBindPipeline(void* cmd, int bindPoint, void* pipeline) RHI_OVERRIDE {
-        std::cout << "VulkanAPI::CmdBindPipeline called\n";
+    void cmd_bind_pipeline(void* cmd, int bind_point, void* pipeline) RHI_OVERRIDE {
+        std::cout << "VulkanAPI::cmd_bind_pipeline called\n";
     }
 };
 
 // MetalAPI definition
+
 class MetalAPI RHI_BASE {
 public:
     ~MetalAPI() RHI_OVERRIDE = default;
-    void CmdBindPipeline(void* cmd, int bindPoint, void* pipeline) RHI_OVERRIDE {
-        std::cout << "MetalAPI::CmdBindPipeline called\n";
+    void cmd_bind_pipeline(void* cmd, int bind_point, void* pipeline) RHI_OVERRIDE {
+        std::cout << "MetalAPI::cmd_bind_pipeline called\n";
     }
 };
 
 // Mock RHI for testing
+
 class MockRHI RHI_BASE {
 public:
     ~MockRHI() RHI_OVERRIDE = default;
-    std::vector<std::tuple<void*, int, void*>> bindCalls;
-    void CmdBindPipeline(void* cmd, int bindPoint, void* pipeline) RHI_OVERRIDE {
-        bindCalls.emplace_back(cmd, bindPoint, pipeline);
-        std::cout << "MockRHI::CmdBindPipeline called\n";
+    std::vector<std::tuple<void*, int, void*>> bind_calls;
+    void cmd_bind_pipeline(void* cmd, int bind_point, void* pipeline) RHI_OVERRIDE {
+        bind_calls.emplace_back(cmd, bind_point, pipeline);
+        std::cout << "MockRHI::cmd_bind_pipeline called\n";
     }
 };
 
@@ -97,57 +98,64 @@ using RHIBase = VulkanAPI; // Default to VulkanAPI if no specific RHI is defined
 #endif
 
 // Renderer using the Vulkan API abstraction
+
 class Renderer {
 public:
     // Always use RHIBase for the member type
     Renderer(RHIBase& api) : rhi(api) {}
 
-    void recordDrawCommands(void* cmd, void* pipeline) {
-        rhi.CmdBindPipeline(cmd, /*bindPoint=*/0, pipeline);
+    void record_draw_commands(void* cmd, void* pipeline) {
+        rhi.cmd_bind_pipeline(cmd, /*bind_point=*/0, pipeline);
     }
 
 private:
     RHIBase& rhi;
 };
 
-int main() {
+
 #if USE_VIRTUAL_RHI
-    // Use production VulkanAPI via interface
-    VulkanAPI prodApi;
-    Renderer prodRenderer(prodApi);
-    prodRenderer.recordDrawCommands((void*)0x1, (void*)0x2);
-
-    // Use MetalAPI via interface
-    MetalAPI metalApi;
-    Renderer metalRenderer(metalApi);
-    metalRenderer.recordDrawCommands((void*)0x5, (void*)0x6);
-
-    // Use mock for testing
-    MockRHI mockApi;
-    Renderer mockRenderer(mockApi);
-    mockRenderer.recordDrawCommands((void*)0x3, (void*)0x4);
-    assert(mockApi.bindCalls.size() == 1);
-    auto [cmd, bindPoint, pipeline] = mockApi.bindCalls[0];
-    assert(cmd == (void*)0x3);
-    assert(pipeline == (void*)0x4);
-    std::cout << "Test passed!\n";
-#elif USE_VULKAN_RHI
-    VulkanAPI prodApi;
-    Renderer prodRenderer(prodApi);
-    prodRenderer.recordDrawCommands((void*)0x1, (void*)0x2);
-#elif USE_METAL_RHI
-    MetalAPI metalApi;
-    Renderer metalRenderer(metalApi);
-    metalRenderer.recordDrawCommands((void*)0x5, (void*)0x6);
-#elif USE_MOCK_RHI
-    MockRHI mockApi;
-    Renderer mockRenderer(mockApi);
-    mockRenderer.recordDrawCommands((void*)0x3, (void*)0x4);
-    assert(mockApi.bindCalls.size() == 1);
-    auto [cmd, bindPoint, pipeline] = mockApi.bindCalls[0];
-    assert(cmd == (void*)0x3);
-    assert(pipeline == (void*)0x4);
-    std::cout << "Test passed!\n";
-#endif
-    return 0;
+TEST(rhi_virtual, vulkanapi_bind_pipeline) {
+    VulkanAPI prod_api;
+    Renderer prod_renderer(prod_api);
+    // Should not throw or crash
+    EXPECT_NO_THROW(prod_renderer.record_draw_commands((void*)0x1, (void*)0x2));
 }
+
+TEST(rhi_virtual, metalapi_bind_pipeline) {
+    MetalAPI metal_api;
+    Renderer metal_renderer(metal_api);
+    EXPECT_NO_THROW(metal_renderer.record_draw_commands((void*)0x5, (void*)0x6));
+}
+
+TEST(rhi_virtual, mockrhi_bind_pipeline_and_record) {
+    MockRHI mock_api;
+    Renderer mock_renderer(mock_api);
+    mock_renderer.record_draw_commands((void*)0x3, (void*)0x4);
+    ASSERT_EQ(mock_api.bind_calls.size(), 1u);
+    auto [cmd, bind_point, pipeline] = mock_api.bind_calls[0];
+    EXPECT_EQ(cmd, (void*)0x3);
+    EXPECT_EQ(pipeline, (void*)0x4);
+}
+#elif USE_VULKAN_RHI
+TEST(rhi_vulkan, vulkanapi_bind_pipeline) {
+    VulkanAPI prod_api;
+    Renderer prod_renderer(prod_api);
+    EXPECT_NO_THROW(prod_renderer.record_draw_commands((void*)0x1, (void*)0x2));
+}
+#elif USE_METAL_RHI
+TEST(rhi_metal, metalapi_bind_pipeline) {
+    MetalAPI metal_api;
+    Renderer metal_renderer(metal_api);
+    EXPECT_NO_THROW(metal_renderer.record_draw_commands((void*)0x5, (void*)0x6));
+}
+#elif USE_MOCK_RHI
+TEST(rhi_mock, mockrhi_bind_pipeline_and_record) {
+    MockRHI mock_api;
+    Renderer mock_renderer(mock_api);
+    mock_renderer.record_draw_commands((void*)0x3, (void*)0x4);
+    ASSERT_EQ(mock_api.bind_calls.size(), 1u);
+    auto [cmd, bind_point, pipeline] = mock_api.bind_calls[0];
+    EXPECT_EQ(cmd, (void*)0x3);
+    EXPECT_EQ(pipeline, (void*)0x4);
+}
+#endif

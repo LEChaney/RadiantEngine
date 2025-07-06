@@ -26,14 +26,14 @@ public:
 // Vulkan implementation
 class VulkanAPI RHI_BASE /* : public IRHI if virtual */ {
 public:
-    void cmd_bind_pipeline(void* cmd, int bind_point, void* pipeline) RHI_OVERRIDE /* override if virtual */;
+    void cmd_bind_pipeline(void* cmd, int bind_point, void* pipeline) RHI_OVERRIDE; /* override if virtual */;
     // ...
 };
 
 // DX12 implementation
 class DX12API RHI_BASE /* : public IRHI if virtual */ {
 public:
-    void cmd_bind_pipeline(void* cmd, int bind_point, void* pipeline) RHI_OVERRIDE /* override if virtual */;
+    void cmd_bind_pipeline(void* cmd, int bind_point, void* pipeline) RHI_OVERRIDE; /* override if virtual */;
     // ...
 };
 
@@ -41,14 +41,14 @@ public:
 // Metal implementation
 class MetalAPI RHI_BASE /* : public IRHI if virtual */ {
 public:
-    void cmd_bind_pipeline(void* cmd, int bind_point, void* pipeline) RHI_OVERRIDE /* override if virtual */;
+    void cmd_bind_pipeline(void* cmd, int bind_point, void* pipeline) RHI_OVERRIDE; /* override if virtual */;
     // ...
 };
 
 // Mock implementation for testing
 class MockRHI RHI_BASE /* : public IRHI if virtual */ {
 public:
-    void cmd_bind_pipeline(void* cmd, int bind_point, void* pipeline) RHI_OVERRIDE /* override if virtual */;
+    void cmd_bind_pipeline(void* cmd, int bind_point, void* pipeline) RHI_OVERRIDE; /* override if virtual */;
     // ...
 };
 ```
@@ -125,5 +125,14 @@ See `tests/compile_time_RHI_switch.cpp` for a full example of compile-time and r
 - [Mock Objects for Testing](https://martinfowler.com/articles/mocksArentStubs.html)
 
 ---
+
+## 8. Current Implementation Notes
+
+- **Supported Backends:**
+  - Only the Mock RHI and Vulkan RHI are currently implemented and supported.
+- **Data Types and Handles:**
+  - All RHI-related data types and handles currently use Vulkan types directly.
+  - This is a pragmatic choice for now, as abstracting Vulkan's POD/simple handle types into a more generic form (for use in a generic RHI function) is non-trivial and would require additional indirection or complexity.
+  - As a result, RHI methods and data structures are currently Vulkan-centric, and future work may revisit this if/when additional backends are implemented.
 
 This document should be updated as the RHI abstraction evolves or as new requirements arise.

@@ -13,7 +13,7 @@ The TextureManager is responsible for loading, deduplicating, and managing all t
 - Provide handles or references for materials and other systems to use textures without duplicating resources.
 - Track texture usage and manage lifetime, releasing GPU resources when textures are no longer needed.
 - Integrate with the Resource Allocator for GPU memory management.
-- Support querying texture metadata (dimensions, format, etc.) and GPU handles (RHIImage, RHIImageView, RHISampler).
+- Support querying texture metadata (dimensions, format, etc.) and GPU handles (VkImage, VkImageView, VkSampler).
 - Optionally support reference counting or explicit release APIs for global/shared textures.
 
 ---
@@ -21,12 +21,13 @@ The TextureManager is responsible for loading, deduplicating, and managing all t
 ## 2. Data Structures
 
 - `TextureHandle`: Opaque handle or index for referencing textures.
-- `Texture`: Struct containing all GPU resource handles (RHIImage, RHIImageView, RHISampler), metadata, and reference count (if global/shared).
+- `Texture`: Struct containing all GPU resource handles (VkImage, VkImageView, VkSampler), metadata, and reference count (if global/shared).
 - Per-scene or global texture registry: Maps texture identifiers (file path, asset ID, etc.) to TextureHandles and Texture data.
 
 ### Descriptor Structs
 
 - `TextureCreateDesc`: Describes all parameters required to create a texture. Fields typically include:
+  - Dimensions (width, height, depth, array layers)
   - Optional source data (already in memory, may be in various formats) to be uploaded to GPU memory
   - Source format (format of the input data, e.g., PNG, JPEG, raw, etc.)
   - Destination format (GPU format, e.g., sRGB, UNORM, compressed formats)
@@ -46,9 +47,9 @@ This struct is used to control how textures are created, deduplicated, and uploa
 - `TextureHandle create_texture(Scene* scene, const TextureCreateDesc create_desc&);` // creates a texture, as described by `create_desc`, optionally from source data in `create_desc`
 - `void release_texture(Scene* scene, TextureHandle handle);` // Releases a texture (decrements ref count or destroys if unused)
 - `const Texture& get_texture(Scene* scene, TextureHandle handle) const;` // Retrieves texture data
-- `RHIImage get_RHI_image(TextureHandle handle) const;`
-- `RHIImageView get_RHI_image_view(TextureHandle handle) const;`
-- `RHISampler get_RHI_sampler(TextureHandle handle) const;`
+- `VkImage get_vk_image(TextureHandle handle) const;`
+- `VkImageView get_vk_image_view(TextureHandle handle) const;`
+- `VkSampler get_vk_sampler(TextureHandle handle) const;`
 - `TextureHandle find_texture(Scene* scene, const std::string& path) const;` // Returns handle if already loaded, else invalid
 
 ---
@@ -88,12 +89,13 @@ This struct is used to control how textures are created, deduplicated, and uploa
 
 ```cpp
 // Load or retrieve a texture for a scene
-TextureHandle tex_handle = texture_manager.load_texture(scene, "albedo.png", load_desc);
+create_desc.src_data = ...; // Populated during gltf / usd scene loading
+TextureHandle tex_handle = texture_manager.create_texture(scene, create_desc);
 
 // Retrieve GPU handles for descriptor set creation
-RHIImage image = texture_manager.get_rhi_image(tex_handle);
-RHIImageView view = texture_manager.get_rhi_image_view(tex_handle);
-RHISampler sampler = texture_manager.get_rhi_sampler(tex_handle);
+VkImage image = texture_manager.get_vk_image(tex_handle);
+VkImageView view = texture_manager.get_vk_image_view(tex_handle);
+VkSampler sampler = texture_manager.get_vk_sampler(tex_handle);
 
 // Release the texture when no longer needed
 texture_manager.release_texture(scene, tex_handle);
