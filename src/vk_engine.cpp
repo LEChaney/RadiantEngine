@@ -251,19 +251,19 @@ GPUMeshBuffers VulkanEngine::upload_mesh(std::span<uint32> indices, std::span<Ve
     // copy buffers to final gpu only buffers
     // TODO: Make this background task instead of blocking
     immediate_submit([&](VkCommandBuffer cmd) {
-		VkBufferCopy vertexCopy{ 0 };
-		vertexCopy.dstOffset = 0;
-		vertexCopy.srcOffset = 0;
-		vertexCopy.size = vertexBufferSize;
+        VkBufferCopy vertexCopy{ 0 };
+        vertexCopy.dstOffset = 0;
+        vertexCopy.srcOffset = 0;
+        vertexCopy.size = vertexBufferSize;
 
-		vkCmdCopyBuffer(cmd, staging.buffer, newSurface.vertexBuffer.buffer, 1, &vertexCopy);
+        vkCmdCopyBuffer(cmd, staging.buffer, newSurface.vertexBuffer.buffer, 1, &vertexCopy);
 
-		VkBufferCopy indexCopy{ 0 };
-		indexCopy.dstOffset = 0;
-		indexCopy.srcOffset = vertexBufferSize;
-		indexCopy.size = indexBufferSize;
+        VkBufferCopy indexCopy{ 0 };
+        indexCopy.dstOffset = 0;
+        indexCopy.srcOffset = vertexBufferSize;
+        indexCopy.size = indexBufferSize;
 
-		vkCmdCopyBuffer(cmd, staging.buffer, newSurface.indexBuffer.buffer, 1, &indexCopy);
+        vkCmdCopyBuffer(cmd, staging.buffer, newSurface.indexBuffer.buffer, 1, &indexCopy);
     });
 
     // destroy intermediate staging buffer
@@ -282,6 +282,9 @@ void VulkanEngine::cleanup()
         // Free per-frame resources
         for (int i = 0; i < FRAME_OVERLAP; ++i)
         {
+            for (int j = 0; j < NUM_PARALLEL_GEOMETRY_CMDS; ++j) {
+                vkDestroyCommandPool(_device, _frames[i].geometryCommandPools[j], nullptr);
+            }
             vkDestroyCommandPool(_device, _frames[i].commandPool, nullptr);
 
             // Destroy synchronization objects
@@ -319,7 +322,7 @@ void VulkanEngine::draw()
     update_render_scene();
 
     // Wait until the gpu has finished rendering the previous frame. Timeout of 1
-	// second
+    // second
     FrameData& frame = get_current_frame();
     VK_CHECK(vkWaitForFences(_device, 1, &frame.renderFence, true, 1000000000));
     VK_CHECK(vkResetFences(_device, 1, &frame.renderFence));
@@ -352,7 +355,7 @@ void VulkanEngine::draw()
     VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
     // transition our main draw image into general layout so we can write into it
-	// we will overwrite it all so we dont care about what was the older layout
+    // we will overwrite it all so we dont care about what was the older layout
     vkutil::transition_image(
         cmd,
         _drawImage.image,
@@ -416,7 +419,7 @@ void VulkanEngine::draw()
 
     // prepare the wait and signal semaphores
     // we want to wait on the swapchainSemaphore, as that semaphore is signaled when the swapchain is ready
-	// we will signal the renderSemaphore, to signal that rendering has finished
+    // we will signal the renderSemaphore, to signal that rendering has finished
     VkSemaphoreSubmitInfo waitInfo = vkinit::semaphore_submit_info(
         VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
         frame.swapchainSemaphore);
@@ -431,10 +434,10 @@ void VulkanEngine::draw()
     VK_CHECK(vkQueueSubmit2(_graphicsQueue, 1, &submitInfo, frame.renderFence));
 
     //prepare present
-	// this will put the image we just rendered to into the visible window.
-	// we want to wait on the _renderSemaphore for that,
-	// as its necessary that drawing commands have finished before the image is displayed to the user
-	VkPresentInfoKHR presentInfo = {};
+    // this will put the image we just rendered to into the visible window.
+    // we want to wait on the _renderSemaphore for that,
+    // as its necessary that drawing commands have finished before the image is displayed to the user
+    VkPresentInfoKHR presentInfo = {};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.pNext = nullptr;
     presentInfo.pSwapchains = &_swapchain;
@@ -496,26 +499,12 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
         _drawExtent,
         &colorAttachment,
         &depthAttachment);
+    if (!singleThreadedGeometry) {
+        renderInfo.flags = VK_RENDERING_CONTENTS_SECONDARY_COMMAND_BUFFERS_BIT; // We will use secondary command buffers for rendering
+    }
 
     // Begin render pass
     vkCmdBeginRendering(cmd, &renderInfo);
-
-    // Set dynamic viewport
-    VkViewport viewport = {};
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = static_cast<float>(_drawExtent.width);
-    viewport.height = static_cast<float>(_drawExtent.height);
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-    // Set dynamic scissor
-    VkRect2D scissor = {};
-    scissor.offset = { 0, 0 };
-    scissor.extent.width = _drawExtent.width;
-    scissor.extent.height = _drawExtent.height;
-    vkCmdSetScissor(cmd, 0, 1, &scissor);
 
     // Dynamically allocate GPU Scene Data buffer (happens every frame)
     // TODO: Save and reuse the buffer instead of creating a new one every frame
@@ -545,52 +534,6 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
         0,
         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
     writer.update_set(_device, sceneDataDescriptorSet);
-
-    //defined outside of the draw function, this is the state we will try to skip
-    MaterialInstance* lastMaterial = nullptr;
-    VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
-
-    // Function for drawing a render object
-    auto draw = [&](const RenderObject& r) {
-        // Rebind pipelines and descriptor sets if needed
-        if (r.material != lastMaterial)
-        {
-            if (!lastMaterial || r.material->pipeline != lastMaterial->pipeline)
-            {
-                vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->pipeline);
-            }
-            if (!lastMaterial || r.material->pipeline->layout != lastMaterial->pipeline->layout)
-            {
-                // Need to rebind ALL descriptor sets if layout changes
-                vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 0, 1, &sceneDataDescriptorSet, 0, nullptr);
-                vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1, &r.material->descriptorSet, 0, nullptr);
-            }
-            else if (!lastMaterial || r.material->descriptorSet != lastMaterial->descriptorSet)
-            {
-                // Need to rebind the material descriptor set if it changes
-                vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1, &r.material->descriptorSet, 0, nullptr);
-            }
-            lastMaterial = r.material;
-        }
-
-        // rebind index buffer if needed
-        if (r.indexBuffer != lastIndexBuffer)
-        {
-            vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-            lastIndexBuffer = r.indexBuffer;
-        }
-
-        MeshDrawPushConstants pushConstants;
-        pushConstants.vertexBuffer = r.vertexBufferAddress;
-        pushConstants.worldMatrix = r.transform;
-        vkCmdPushConstants(cmd, r.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshDrawPushConstants), &pushConstants);
-
-        vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
-
-        //add counters for triangles and draws
-        _stats.drawcall_count++;
-        _stats.triangle_count += r.indexCount / 3;
-    };
 
     // Frustum cull and sort opaque draws to group render state
     std::vector<uint32_t> opaque_draws;
@@ -633,22 +576,132 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
                glm::length(glm::vec3(B.transform[3]) - _mainCamera.position);
     });
 
-    // Draw opaque surfaces first
-    for (auto& i : opaque_draws) {
-        draw(_mainDrawContext.OpaqueDrawData[i]);
+    // Combine all draws into a single list (opaque first, then transparent)
+    std::vector<std::pair<bool, uint32_t>> all_draws; // bool: true=opaque, false=transparent
+    all_draws.reserve(opaque_draws.size() + transparent_draws.size());
+    // Add all opaque draws first
+    for (auto i : opaque_draws) all_draws.emplace_back(true, i);
+    // Then add all transparent draws
+    for (auto i : transparent_draws) all_draws.emplace_back(false, i);
+
+    // Consolidated draw function for both single-threaded and parallel paths
+    auto draw_renderobjects = [&](VkCommandBuffer drawCmd, const std::vector<std::pair<bool, uint32_t>>& draws, MaterialInstance** pLastMaterial, VkBuffer* pLastIndexBuffer) {
+        for (const auto& drawinfo : draws) {
+            const RenderObject& r = drawinfo.first ? _mainDrawContext.OpaqueDrawData[drawinfo.second] : _mainDrawContext.TransparentDrawData[drawinfo.second];
+            if (r.material != *pLastMaterial) {
+                if (!*pLastMaterial || r.material->pipeline != (*pLastMaterial)->pipeline) {
+                    vkCmdBindPipeline(drawCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->pipeline);
+                }
+                if (!*pLastMaterial || r.material->pipeline->layout != (*pLastMaterial)->pipeline->layout) {
+                    vkCmdBindDescriptorSets(drawCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 0, 1, &sceneDataDescriptorSet, 0, nullptr);
+                    vkCmdBindDescriptorSets(drawCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1, &r.material->descriptorSet, 0, nullptr);
+                } else if (!*pLastMaterial || r.material->descriptorSet != (*pLastMaterial)->descriptorSet) {
+                    vkCmdBindDescriptorSets(drawCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1, &r.material->descriptorSet, 0, nullptr);
+                }
+                *pLastMaterial = r.material;
+            }
+            if (r.indexBuffer != *pLastIndexBuffer) {
+                vkCmdBindIndexBuffer(drawCmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+                *pLastIndexBuffer = r.indexBuffer;
+            }
+            MeshDrawPushConstants pushConstants;
+            pushConstants.vertexBuffer = r.vertexBufferAddress;
+            pushConstants.worldMatrix = r.transform;
+            vkCmdPushConstants(drawCmd, r.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshDrawPushConstants), &pushConstants);
+            vkCmdDrawIndexed(drawCmd, r.indexCount, 1, r.firstIndex, 0, 0);
+        }
+    };
+
+    if (singleThreadedGeometry) {
+        // Single-threaded: record all draws directly to main command buffer
+        MaterialInstance* lastMaterial = nullptr;
+        VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
+        draw_renderobjects(cmd, all_draws, &lastMaterial, &lastIndexBuffer);
+        // End render pass
+        vkCmdEndRendering(cmd);
+        _mainDrawContext.OpaqueDrawData.clear();
+        _mainDrawContext.TransparentDrawData.clear();
+        auto end = std::chrono::system_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+        _stats.mesh_CPU_draw_time = elapsed.count() / 1000.f;
+        return;
     }
 
-    // Draw transparent surfaces
-    for (auto& i : transparent_draws) {
-        draw(_mainDrawContext.TransparentDrawData[i]);
-    }
+    // Partition draws for parallel recording
+    size_t total_draws = all_draws.size();
+    size_t chunk = (total_draws + NUM_PARALLEL_GEOMETRY_CMDS - 1) / NUM_PARALLEL_GEOMETRY_CMDS;
+    std::vector<parallel::ParallelTask> tasks;
+    for (unsigned int t = 0; t < NUM_PARALLEL_GEOMETRY_CMDS; ++t) {
+        size_t begin = t * chunk;
+        size_t end = std::min(begin + chunk, total_draws);
+        if (begin >= end) break;
+        tasks.push_back(parallel::ParallelTask{
+            [this, &all_draws, begin, end, &sceneDataDescriptorSet, &frame, &draw_renderobjects](VkCommandBuffer subcmd) {
+                // Begin secondary command buffer
+                VkCommandBufferInheritanceRenderingInfo inheritanceRenderingInfo{};
+                inheritanceRenderingInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_RENDERING_INFO;
+                inheritanceRenderingInfo.colorAttachmentCount = 1;
+                inheritanceRenderingInfo.pColorAttachmentFormats = &_drawImage.format;
+                inheritanceRenderingInfo.depthAttachmentFormat = _depthImage.format;
+                inheritanceRenderingInfo.stencilAttachmentFormat = VK_FORMAT_UNDEFINED; // No stencil attachment
+                inheritanceRenderingInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+                
+                VkCommandBufferInheritanceInfo inheritInfo{};
+                inheritInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+                inheritInfo.pNext = &inheritanceRenderingInfo;
+                
+                // No framebuffer, dynamic rendering
+                VkCommandBufferBeginInfo beginInfo{};
+                beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+                beginInfo.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT | VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+                beginInfo.pInheritanceInfo = &inheritInfo;
+                VK_CHECK(vkResetCommandBuffer(subcmd, 0));
+                VK_CHECK(vkBeginCommandBuffer(subcmd, &beginInfo));
 
-    // we delete the draw commands now that we processed them
-    _mainDrawContext.OpaqueDrawData.clear();
-    _mainDrawContext.TransparentDrawData.clear();
+                // Set dynamic viewport
+                VkViewport viewport = {};
+                viewport.x = 0.0f;
+                viewport.y = 0.0f;
+                viewport.width = static_cast<float>(_drawExtent.width);
+                viewport.height = static_cast<float>(_drawExtent.height);
+                viewport.minDepth = 0.0f;
+                viewport.maxDepth = 1.0f;
+                vkCmdSetViewport(subcmd, 0, 1, &viewport);
+
+                // Set dynamic scissor
+                VkRect2D scissor = {};
+                scissor.offset = { 0, 0 };
+                scissor.extent.width = _drawExtent.width;
+                scissor.extent.height = _drawExtent.height;
+                vkCmdSetScissor(subcmd, 0, 1, &scissor);
+
+                MaterialInstance* lastMaterial = nullptr;
+                VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
+                // Only draw the subrange for this task
+                std::vector<std::pair<bool, uint32_t>> sub_draws(all_draws.begin() + begin, all_draws.begin() + end);
+                draw_renderobjects(subcmd, sub_draws, &lastMaterial, &lastIndexBuffer);
+                
+                VK_CHECK(vkEndCommandBuffer(subcmd));
+            }
+        });
+    }
+    // Record in parallel
+    parallel::record_parallel(tasks, std::vector<VkCommandBuffer>(frame.geometryCommandBuffers, frame.geometryCommandBuffers + tasks.size()));
+
+    // Execute all secondary command buffers from the main command buffer
+    std::vector<VkCommandBuffer> secondary_cmds(tasks.size());
+    for (size_t i = 0; i < tasks.size(); ++i) {
+        secondary_cmds[i] = frame.geometryCommandBuffers[i];
+    }
+    if (!secondary_cmds.empty()) {
+        vkCmdExecuteCommands(cmd, static_cast<uint32_t>(secondary_cmds.size()), secondary_cmds.data());
+    }
 
     // End render pass
     vkCmdEndRendering(cmd);
+    
+    _mainDrawContext.OpaqueDrawData.clear();
+    _mainDrawContext.TransparentDrawData.clear();
 
     auto end = std::chrono::system_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -1138,6 +1191,14 @@ void VulkanEngine::init_commands()
         VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(_frames[i].commandPool, 1);
 
         VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_frames[i].mainCommandBuffer));
+
+        // Create geometry command pools and buffers
+        for (unsigned int j = 0; j < NUM_PARALLEL_GEOMETRY_CMDS; ++j) {
+            VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &_frames[i].geometryCommandPools[j]));
+            VkCommandBufferAllocateInfo geomCmdAllocInfo = vkinit::command_buffer_allocate_info(_frames[i].geometryCommandPools[j], 1);
+            geomCmdAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+            VK_CHECK(vkAllocateCommandBuffers(_device, &geomCmdAllocInfo, &_frames[i].geometryCommandBuffers[j]));
+        }
     }
 
     // Create a command pool for the immediate command buffer
@@ -1155,10 +1216,10 @@ void VulkanEngine::init_commands()
 void VulkanEngine::init_sync_structures()
 {
     //create syncronization structures
-	//one fence to control when the gpu has finished rendering the frame,
-	//and 2 semaphores to syncronize rendering with swapchain
-	//we want the fence to start signalled so we can wait on it on the first frame
-	VkFenceCreateInfo fenceCreateInfo = vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
+    //one fence to control when the gpu has finished rendering the frame,
+    //and 2 semaphores to syncronize rendering with swapchain
+    //we want the fence to start signalled so we can wait on it on the first frame
+    VkFenceCreateInfo fenceCreateInfo = vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
     VkSemaphoreCreateInfo semaphoreCreateInfo = vkinit::semaphore_create_info();
 
     for (int i = 0; i < FRAME_OVERLAP; ++i)
@@ -1379,8 +1440,8 @@ void VulkanEngine::init_background_pipelines()
 void VulkanEngine::init_imgui()
 {
     // 1: create descriptor pool for IMGUI
-	//  the size of the pool is very oversize, but it's copied from imgui demo
-	//  itself.
+    //  the size of the pool is very oversize, but it's copied from imgui demo
+    //  itself.
     VkDescriptorPoolSize poolSizes[] = {
         {VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
         {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},

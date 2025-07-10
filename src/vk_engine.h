@@ -7,12 +7,14 @@
 #include "vk_descriptors.h"
 #include "vk_loader.h"
 #include "camera.h"
+#include "core/parallel/parallel_task.h"
 
 #include <vulkan/vulkan_core.h>
 
 #include <cstdint>
 
 constexpr unsigned int FRAME_OVERLAP = 2;
+constexpr unsigned int NUM_PARALLEL_GEOMETRY_CMDS = 24;
 
 struct DeletionQueue
 {
@@ -34,6 +36,8 @@ struct DeletionQueue
 struct FrameData {
 	VkCommandPool commandPool;
 	VkCommandBuffer mainCommandBuffer;
+	VkCommandPool geometryCommandPools[NUM_PARALLEL_GEOMETRY_CMDS];
+	VkCommandBuffer geometryCommandBuffers[NUM_PARALLEL_GEOMETRY_CMDS];
 	VkSemaphore swapchainSemaphore;
 	VkSemaphore renderSemaphore;
 	VkFence renderFence;
@@ -214,4 +218,7 @@ private:
 	void init_imgui();
 
 	void init_default_data();
+
+	// If true, disables parallel geometry recording and records all draws to the main command buffer
+	bool singleThreadedGeometry = false;
 };
