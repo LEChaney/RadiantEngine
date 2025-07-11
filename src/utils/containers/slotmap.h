@@ -12,16 +12,20 @@ class SlotMap {
 public:
     SlotMap() = default;
 
-    struct Handle {
+    struct Key {
         uint32_t slot_index = 0xFFFFFFFF;
         uint32_t generation = 0xFFFFFFFF;
 
-        bool operator==(const Handle &other) const {
+        bool operator==(const Key& other) const {
             return slot_index == other.slot_index && generation == other.generation;
         }
 
-        bool operator!=(const Handle &other) const {
+        bool operator!=(const Key& other) const {
             return !(*this == other);
+        }
+
+        bool operator<(const Key& other) const {
+            return std::tie(slot_index, generation) < std::tie(other.slot_index, other.generation);
         }
 
         bool is_null() const {
@@ -32,8 +36,8 @@ public:
             return !is_null();
         }
 
-        static constexpr Handle null() noexcept {
-            return Handle{0xFFFFFFFF, 0xFFFFFFFF};
+        static constexpr Key null() noexcept {
+            return Key{0xFFFFFFFF, 0xFFFFFFFF};
         }
     };
 
@@ -43,7 +47,7 @@ public:
     };
 
     template <typename... Args>
-    Handle add(Args &&...args) {
+    Key add(Args &&...args) {
         static_assert(sizeof...(Components) == sizeof...(Args), "Number of arguments must match number of components");
 
         uint32_t slot_index;
@@ -61,15 +65,15 @@ public:
 
         slots[slot_index].packed_index = packed_index;
         packed_to_slot.push_back(slot_index);
-        return Handle{slot_index, slots[slot_index].generation};
+        return Key{slot_index, slots[slot_index].generation};
     }
 
-    void remove(const Handle &handle) {
-        if (!valid(handle)) {
-            return; // No-op if handle is invalid
+    void remove(const Key& key) {
+        if (!is_valid(key)) {
+            return; // No-op if key is invalid
         }
 
-        uint32_t slot_index   = handle.slot_index;
+        uint32_t slot_index   = key.slot_index;
         uint32_t packed_index = slots[slot_index].packed_index;
         uint32_t last_index   = (uint32_t)std::get<0>(component_arrays).size() - 1;
 
@@ -87,24 +91,29 @@ public:
         free_slots.push_back(slot_index);
     }
 
-    bool valid(const Handle &handle) const {
-        return handle.slot_index < slots.size() && slots[handle.slot_index].generation == handle.generation;
+    bool is_valid(const Key& key) const {
+        return key.slot_index < slots.size() && slots[key.slot_index].generation == key.generation;
     }
 
     template <typename Component>
-    Component *get(const Handle &handle) {
+    const Component* get(const Key& key) const {
         static_assert(contains_type<Component, Components...>(), "Component type not found in SlotMap");
 
-        if (!valid(handle)) {
+        if (!is_valid(key)) {
             return nullptr;
         }
-        uint32_t packed_index = slots[handle.slot_index].packed_index;
-        auto    &array        = std::get<std::vector<Component>>(component_arrays);
+        uint32_t packed_index = slots[key.slot_index].packed_index;
+        const auto& array     = std::get<std::vector<Component>>(component_arrays);
         return &array[packed_index];
     }
 
     template <typename Component>
-    const std::vector<Component> &raw_data() const {
+    Component* get(const Key& key) {
+        return const_cast<Component*>(static_cast<const SlotMap*>(this)->get<Component>(key));
+    }
+
+    template <typename Component>
+    const std::vector<Component>& raw_data() const {
         static_assert(contains_type<Component, Components...>(), "Component type not found in SlotMap");
         return std::get<std::vector<Component>>(component_arrays);
     }
@@ -156,4 +165,12 @@ private:
     void pop_components() {
         pop_components_impl(std::index_sequence_for<Components...>{});
     }
+};
+
+#define DEFINE_SLOTMAP_KEY_HASH(KeyType) \
+template <> \
+struct std::hash<KeyType> { \
+    size_t operator()(const KeyType& h) const noexcept { \
+        return std::hash<uint64_t>{}((uint64_t(h.slot_index) << 32) | h.generation); \
+    } \
 };

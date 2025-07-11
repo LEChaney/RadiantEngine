@@ -56,3 +56,13 @@ target_include_directories(slotmap_test PRIVATE "${CMAKE_SOURCE_DIR}/src")
 target_link_libraries(slotmap_test PRIVATE GTest::gtest GTest::gtest_main)
 add_dependencies(build_tests slotmap_test)
 add_test(NAME slotmap_test COMMAND slotmap_test)
+
+# Scene unit test
+add_executable(scene_test scene_test.cpp ${CMAKE_SOURCE_DIR}/src/scene/scene.cpp)
+set_property(TARGET scene_test PROPERTY CXX_STANDARD 20)
+set_target_properties(scene_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${TEST_OUTPUT_DIRECTORY}")
+target_include_directories(scene_test PRIVATE "${CMAKE_SOURCE_DIR}/src")
+target_link_libraries(scene_test PRIVATE GTest::gtest GTest::gtest_main glm)
+add_dependencies(build_tests scene_test)
+add_test(NAME scene_test COMMAND scene_test)
+# Add test executable(s)

@@ -9,7 +9,7 @@ struct Velocity { float dx, dy; };
 TEST(SlotMapTest, AddAndGetSingleComponent) {
     SlotMap<Position> sm;
     auto h = sm.add(Position{1.0f, 2.0f});
-    ASSERT_TRUE(sm.valid(h));
+    ASSERT_TRUE(sm.is_valid(h));
     auto* pos = sm.get<Position>(h);
     ASSERT_NE(pos, nullptr);
     EXPECT_FLOAT_EQ(pos->x, 1.0f);
@@ -19,7 +19,7 @@ TEST(SlotMapTest, AddAndGetSingleComponent) {
 TEST(SlotMapTest, AddAndGetMultipleComponents) {
     SlotMap<Position, Velocity> sm;
     auto h = sm.add(Position{1.0f, 2.0f}, Velocity{0.5f, 0.6f});
-    ASSERT_TRUE(sm.valid(h));
+    ASSERT_TRUE(sm.is_valid(h));
     auto* pos = sm.get<Position>(h);
     auto* vel = sm.get<Velocity>(h);
     ASSERT_NE(pos, nullptr);
@@ -28,11 +28,11 @@ TEST(SlotMapTest, AddAndGetMultipleComponents) {
     EXPECT_FLOAT_EQ(vel->dx, 0.5f);
 }
 
-TEST(SlotMapTest, RemoveInvalidatesHandle) {
+TEST(SlotMapTest, RemoveInvalidatesKey) {
     SlotMap<Position> sm;
     auto h = sm.add(Position{1.0f, 2.0f});
     sm.remove(h);
-    EXPECT_FALSE(sm.valid(h));
+    EXPECT_FALSE(sm.is_valid(h));
     EXPECT_EQ(sm.get<Position>(h), nullptr);
 }
 
@@ -41,12 +41,12 @@ TEST(SlotMapTest, ReuseSlotAfterRemove) {
     auto h1 = sm.add(Position{1.0f, 2.0f});
     sm.remove(h1);
     auto h2 = sm.add(Position{3.0f, 4.0f});
-    ASSERT_TRUE(sm.valid(h2));
+    ASSERT_TRUE(sm.is_valid(h2));
     auto* pos = sm.get<Position>(h2);
     ASSERT_NE(pos, nullptr);
     EXPECT_FLOAT_EQ(pos->x, 3.0f);
     EXPECT_FLOAT_EQ(pos->y, 4.0f);
-    EXPECT_FALSE(sm.valid(h1));
+    EXPECT_FALSE(sm.is_valid(h1));
 }
 
 TEST(SlotMapTest, RawDataAccess) {
@@ -61,20 +61,20 @@ TEST(SlotMapTest, RawDataAccess) {
     EXPECT_EQ(velocities[1].dy, 8);
 }
 
-TEST(SlotMapTest, HandleValidityAfterMultipleAddRemove) {
+TEST(SlotMapTest, KeyValidityAfterMultipleAddRemove) {
     SlotMap<Position, Velocity> sm;
     auto h1 = sm.add(Position{1, 2}, Velocity{3, 4});
     auto h2 = sm.add(Position{5, 6}, Velocity{7, 8});
     auto h3 = sm.add(Position{9, 10}, Velocity{11, 12});
 
-    // All handles should be valid
-    ASSERT_TRUE(sm.valid(h1));
-    ASSERT_TRUE(sm.valid(h2));
-    ASSERT_TRUE(sm.valid(h3));
+    // All keys should be valid
+    ASSERT_TRUE(sm.is_valid(h1));
+    ASSERT_TRUE(sm.is_valid(h2));
+    ASSERT_TRUE(sm.is_valid(h3));
 
-    // Remove the second handle
+    // Remove the second key
     sm.remove(h2);
-    EXPECT_FALSE(sm.valid(h2));
+    EXPECT_FALSE(sm.is_valid(h2));
     EXPECT_EQ(sm.get<Position>(h2), nullptr);
     EXPECT_EQ(sm.get<Velocity>(h2), nullptr);
 
@@ -99,12 +99,12 @@ TEST(SlotMapTest, HandleValidityAfterMultipleAddRemove) {
 
     // Remove h1, check validity
     sm.remove(h1);
-    EXPECT_FALSE(sm.valid(h1));
+    EXPECT_FALSE(sm.is_valid(h1));
     EXPECT_EQ(sm.get<Position>(h1), nullptr);
     EXPECT_EQ(sm.get<Velocity>(h1), nullptr);
 
     // h3 should still be valid
-    ASSERT_TRUE(sm.valid(h3));
+    ASSERT_TRUE(sm.is_valid(h3));
     pos3 = sm.get<Position>(h3);
     vel3 = sm.get<Velocity>(h3);
     ASSERT_NE(pos3, nullptr);
@@ -115,17 +115,17 @@ TEST(SlotMapTest, HandleValidityAfterMultipleAddRemove) {
     EXPECT_EQ(vel3->dy, 12);
 }
 
-TEST(SlotMapTest, RemoveInvalidHandleIsNoOp) {
+TEST(SlotMapTest, RemoveInvalidKeyIsNoOp) {
     SlotMap<Position, Velocity> sm;
     auto h1 = sm.add(Position{1, 2}, Velocity{3, 4});
     auto h2 = sm.add(Position{5, 6}, Velocity{7, 8});
     sm.remove(h1);
     // h1 is now invalid
-    EXPECT_FALSE(sm.valid(h1));
+    EXPECT_FALSE(sm.is_valid(h1));
     // Removing again should not throw or assert (should be a no-op)
     sm.remove(h1);
     // h2 should still be valid
-    EXPECT_TRUE(sm.valid(h2));
+    EXPECT_TRUE(sm.is_valid(h2));
     auto* pos2 = sm.get<Position>(h2);
     auto* vel2 = sm.get<Velocity>(h2);
     ASSERT_NE(pos2, nullptr);
@@ -136,22 +136,22 @@ TEST(SlotMapTest, RemoveInvalidHandleIsNoOp) {
     EXPECT_EQ(vel2->dy, 8);
 }
 
-TEST(SlotMapTest, NullHandleProperties) {
-    using Handle = SlotMap<Position>::Handle;
-    // Null handle should be equal to itself
-    EXPECT_EQ(Handle::null(), Handle::null());
-    // Null handle should not be valid in any slotmap
+TEST(SlotMapTest, NullKeyProperties) {
+    using Key = SlotMap<Position>::Key;
+    // Null key should be equal to itself
+    EXPECT_EQ(Key::null(), Key::null());
+    // Null key should not be valid in any slotmap
     SlotMap<Position> sm;
     auto h = sm.add(Position{1, 2});
-    EXPECT_FALSE(sm.valid(Handle::null()));
-    // Null handle should be detected by is_null()
-    EXPECT_TRUE(Handle::null().is_null());
-    // Null handle should convert to false in boolean context
-    EXPECT_FALSE(static_cast<bool>(Handle::null()));
-    // Null handle should not be equal to a valid handle
-    EXPECT_NE(h, Handle::null());
-    // Null handle should be trivially copyable and constexpr
-    static_assert(std::is_trivially_copyable<Handle>::value, "Handle should be trivially copyable");
-    constexpr Handle nh = Handle::null();
+    EXPECT_FALSE(sm.is_valid(Key::null()));
+    // Null key should be detected by is_null()
+    EXPECT_TRUE(Key::null().is_null());
+    // Null key should convert to false in boolean context
+    EXPECT_FALSE(static_cast<bool>(Key::null()));
+    // Null key should not be equal to a valid key
+    EXPECT_NE(h, Key::null());
+    // Null key should be trivially copyable and constexpr
+    static_assert(std::is_trivially_copyable<Key>::value, "Key should be trivially copyable");
+    constexpr Key nh = Key::null();
     (void)nh;
 }
