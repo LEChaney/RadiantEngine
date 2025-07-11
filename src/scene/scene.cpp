@@ -7,12 +7,13 @@
 Scene::Scene() {
     // Create root node
     root_key = nodes.add(SceneNode{
-        SceneNodeKey::null(),   // parent_key
-        {},                     // children_keys
-        glm::mat4(1.0f),        // local_transform
-        glm::mat4(1.0f),        // world_tansform
-        true                    // dirty
-    }, SceneNodeDebug{"root"}); // root node debug info
+        SceneNodeKey::null(), // parent_key
+        {},                   // children_keys
+        glm::mat4(1.0f),      // local_transform
+        glm::mat4(1.0f),      // world_tansform
+        true,                 // dirty
+        "root"                // name
+    });
 }
 
 Scene::~Scene() = default;
@@ -22,12 +23,13 @@ SceneNodeKey Scene::add_node(SceneNodeKey parent_key, const std::string& name) {
         parent_key = root_key;
     }
     SceneNodeKey new_node_key = nodes.add(SceneNode{
-        parent_key,           // parent_key
-        {},                   // children_keys
-        glm::mat4(1.0f),      // local_transform
-        glm::mat4(1.0f),      // world_tansform
-        true                  // dirty
-    }, SceneNodeDebug{name}); // debug info with name
+        parent_key,      // parent_key
+        {},              // children_keys
+        glm::mat4(1.0f), // local_transform
+        glm::mat4(1.0f), // world_tansform
+        true,            // dirty
+        name             // name
+    });
     SceneNode* parent_node = nodes.get<SceneNode>(parent_key);
     parent_node->children_keys.push_back(new_node_key);
     return new_node_key;

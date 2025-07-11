@@ -11,11 +11,10 @@
 
 // Forward declarations
 struct SceneNode;
-struct SceneNodeDebug;
 class Scene;
 class SceneManager;
 
-using SceneNodeKey = SlotMap<SceneNode, SceneNodeDebug>::Key;
+using SceneNodeKey = SlotMap<SceneNode>::Key;
 using SceneKey = SlotMap<Scene>::Key;
 
 DEFINE_SLOTMAP_KEY_HASH(SceneNodeKey)
@@ -27,9 +26,6 @@ struct SceneNode {
     glm::mat4 local_transform{1.0f};
     glm::mat4 world_tansform{1.0f};
     bool dirty = true;
-};
-
-struct SceneNodeDebug {
     std::string name;
 };
 
@@ -50,11 +46,6 @@ public:
     SceneNodeKey find_node_by_name(const std::string& name) const;
     const SceneNode* get_node(SceneNodeKey node_key) const;
     SceneNode* get_node(SceneNodeKey node_key);
-    
-    void traverse(
-        const std::function<void(SceneNode)>& visitor,
-        SceneNodeKey start_key = SceneNodeKey::null()
-    ) const;
 
     glm::mat4 get_local_transform(SceneNodeKey node_key) const;
     glm::mat4 get_world_transform(SceneNodeKey node_key, bool update_if_dirty = true);
@@ -69,7 +60,7 @@ public:
     bool is_node_dirty(SceneNodeKey node_key) const;
     
 private:
-    SlotMap<SceneNode, SceneNodeDebug> nodes;
+    SlotMap<SceneNode> nodes;
     SceneNodeKey root_key;
     std::unordered_set<SceneNodeKey> dirty_set;
     std::unordered_set<SceneNodeKey> changed_nodes;
