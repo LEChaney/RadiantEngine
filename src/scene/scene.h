@@ -46,14 +46,65 @@ public:
     const SceneNode* get_node(SceneNodeKey node_key) const;
     SceneNode* get_node(SceneNodeKey node_key);
 
+    /**
+     * Returns the local transform of the specified node.
+     * Does not update or propagate transforms; returns the stored value.
+     */
     glm::mat4 get_local_transform(SceneNodeKey node_key) const;
+
+    /**
+     * Returns the world transform of the specified node.
+     * If update_if_dirty is true (default), propagates transforms for the node 
+     * and its ancestors if dirty, ensuring the returned transform is up to date.
+     * If false, returns the cached world transform (may be stale).
+     */
     glm::mat4 get_world_transform(SceneNodeKey node_key, bool update_if_dirty = true);
+
+    /**
+     * Const version: Returns the cached world transform of the specified node.
+     * If update_if_dirty is true and the node is dirty, triggers an assert (cannot
+     * update in const context).
+     */
+    glm::mat4 get_world_transform(SceneNodeKey node_key, bool update_if_dirty = true) const;
+
+    /**
+     * Sets the local transform of the specified node.
+     * Marks the node and all descendants as dirty for transform propagation.
+     * Updates the minimal dirty set accordingly.
+     */
     void set_local_transform(SceneNodeKey node_key, const glm::mat4& local);
+
+    /**
+     * Sets both the world transform and the local transform of the node.
+     * Computes and sets the local transform so that parent_world * local = world.
+     * Propagates transforms up to the parent if dirty before computing.
+     * Clears the dirty flag on the node itself (since its world transform is set).
+     * Marks all descendants as dirty for propagation.
+     */
     void set_world_transform(SceneNodeKey node_key, const glm::mat4& world);
 
-    void propagate_transforms_to(SceneNodeKey target);
+    /**
+     * Propagates transforms from the nearest dirty ancestor (or itself) down to the
+     * specified target node, updating only the necessary chain. Stops as soon as the
+     * target node is up to date and no longer dirty. Updates the minimal dirty set
+     * accordingly.
+     */
+    void propagate_transforms_to(SceneNodeKey target_key);
+
+    /**
+     * Propagates local-to-world transforms for all dirty nodes and their descendants.
+     * Clears the minimal dirty set and updates the changed nodes set.
+     */
     void propagate_transforms();
-    void finalize_for_rendering();
+
+    /**
+     * Performs final transform propagation (calls propagate_transforms internally if
+     * needed), notifies all registered observers of node transform changes via the
+     * observer pattern, passing the set of changed nodes, and then clears the changed
+     * nodes set. Should be called once per frame, after all transform updates and
+     * before rendering.
+     */
+    void finalize_and_notify();
 
     const SceneNodeKeySet& get_changed_nodes() const;
     bool is_node_dirty(SceneNodeKey node_key) const;
@@ -64,20 +115,34 @@ public:
 private:
     SlotMap<SceneNode> nodes;
     SceneNodeKey root_key;
+
+    // Set of top-most dirty nodes that need transform propagation.
     SceneNodeKeySet minimal_dirty_set;
+
+    // Set of nodes that have changed since the last frame. Used for observer
+    // notifications.
     SceneNodeKeySet changed_nodes;
 
-    void clear_changed_nodes();
+    // Marks the node and all its descendants as dirty. Also updates the minimal
+    // dirty set such that only the top-most dirty ancestor is kept.
     void mark_dirty(SceneNodeKey node_key);
-    // Recursively marks nodes as dirty and optionally removes them from minimal_dirty_set
+
+    // Recursively marks nodes as dirty and optionally removes them from
+    // minimal_dirty_set.
     void mark_dirty_recursive(
-        SceneNodeKey node_key, 
-        bool dirty_this_node = true, 
+        SceneNodeKey node_key,
+        bool dirty_this_node = true,
         bool remove_from_minimal_dirty_set = true);
     bool is_covered_by_dirty_set(SceneNodeKey node_key) const;
 
-    // Helper: propagate transforms down a subtree
-    void propagate_subtree(SceneNodeKey node_key, const glm::mat4& parent_world, SceneNodeKeySet& changed_nodes);
+    // Helper: propagate transforms down a subtree.
+    void propagate_subtree(
+        SceneNodeKey node_key,
+        const glm::mat4& parent_world,
+        SceneNodeKeySet& changed_nodes);
+
+    // Should be called after all observers have been notified of changes.
+    void clear_changed_nodes();
 };
 
 class ISceneManagerObserver {

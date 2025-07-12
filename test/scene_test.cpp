@@ -256,8 +256,8 @@ TEST(SceneTest, FinalizeForRendering_ClearsChangedNodes) {
     minimal_dirty_set.clear();
     minimal_dirty_set.insert(child);
 
-    // After finalize_for_rendering, changed_nodes should be cleared
-    scene.finalize_for_rendering();
+    // After finalize_and_notify, changed_nodes should be cleared
+    scene.finalize_and_notify();
     EXPECT_TRUE(scene.get_changed_nodes().empty());
     // Child should be not dirty
     EXPECT_FALSE(scene.get_node(child)->dirty);
