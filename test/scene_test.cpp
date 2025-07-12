@@ -114,7 +114,7 @@ TEST(SceneTest, DirtyFlagAndMinimalDirtySetSingleNode) {
     scene.get_node(root)->dirty = false;
     scene.get_node(child)->dirty = false;
     scene.get_node(grandchild)->dirty = false;
-    const_cast<std::unordered_set<SceneNodeKey>&>(scene.get_minimal_dirty_set()).clear();
+    const_cast<SceneNodeKeySet&>(scene.get_minimal_dirty_set()).clear();
 
     // Set local transform on child, should dirty child and grandchild
     scene.set_local_transform(child, glm::mat4(2.0f));
@@ -137,7 +137,7 @@ TEST(SceneTest, DirtyFlagCoveredByParent) {
     scene.get_node(root)->dirty = false;
     scene.get_node(child)->dirty = false;
     scene.get_node(grandchild)->dirty = false;
-    const_cast<std::unordered_set<SceneNodeKey>&>(scene.get_minimal_dirty_set()).clear();
+    const_cast<SceneNodeKeySet&>(scene.get_minimal_dirty_set()).clear();
 
     // Set local transform on root, should dirty all
     scene.set_local_transform(root, glm::mat4(2.0f));
@@ -160,7 +160,7 @@ TEST(SceneTest, AddNodeMarksDirtyAndMinimalDirtySet) {
     Scene scene{};
     SceneNodeKey root = scene.get_root_key();
     scene.get_node(root)->dirty = false;
-    const_cast<std::unordered_set<SceneNodeKey>&>(scene.get_minimal_dirty_set()).clear();
+    const_cast<SceneNodeKeySet&>(scene.get_minimal_dirty_set()).clear();
 
     SceneNodeKey child = scene.add_node(root, "child");
     EXPECT_TRUE(scene.get_node(child)->dirty);

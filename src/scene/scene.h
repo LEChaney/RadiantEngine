@@ -1,13 +1,14 @@
 #pragma once
 
+#include "utils/containers/slotmap.h"
+
+#include "ankerl/unordered_dense.h"
+#include "glm/mat4x4.hpp"
+
 #include <vector>
 #include <string>
-#include <unordered_set>
 #include <functional>
-#include <glm/mat4x4.hpp>
 #include <cstdint>
-
-#include "utils/containers/slotmap.h"
 
 // Forward declarations
 struct SceneNode;
@@ -16,6 +17,7 @@ class SceneManager;
 
 using SceneNodeKey = SlotMap<SceneNode>::Key;
 using SceneKey = SlotMap<Scene>::Key;
+using SceneNodeKeySet = ankerl::unordered_dense::set<SceneNodeKey>;
 
 DEFINE_SLOTMAP_KEY_HASH(SceneNodeKey)
 DEFINE_SLOTMAP_KEY_HASH(SceneKey)
@@ -56,16 +58,17 @@ public:
     void propagate_transforms();
     void finalize_for_rendering();
 
-    const std::unordered_set<SceneNodeKey>& get_changed_nodes() const;
+    const SceneNodeKeySet& get_changed_nodes() const;
+    bool is_node_dirty(SceneNodeKey node_key) const;
 
 public:
     // For testing and debugging: expose minimal_dirty_set
-    const std::unordered_set<SceneNodeKey>& get_minimal_dirty_set() const { return minimal_dirty_set; }
+    const SceneNodeKeySet& get_minimal_dirty_set() const { return minimal_dirty_set; }
 private:
     SlotMap<SceneNode> nodes;
     SceneNodeKey root_key;
-    std::unordered_set<SceneNodeKey> minimal_dirty_set;
-    std::unordered_set<SceneNodeKey> changed_nodes;
+    SceneNodeKeySet minimal_dirty_set;
+    SceneNodeKeySet changed_nodes;
 
     void clear_changed_nodes();
     void mark_dirty(SceneNodeKey node_key);

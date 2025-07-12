@@ -229,8 +229,9 @@ private:
 
 #define DEFINE_SLOTMAP_KEY_HASH(KeyType) \
 template <> \
-struct std::hash<KeyType> { \
-    size_t operator()(const KeyType& h) const noexcept { \
-        return std::hash<uint64_t>{}((uint64_t(h.slot_index) << 32) | h.generation); \
+struct ankerl::unordered_dense::hash<KeyType> { \
+    using is_avalanching = void; \
+    [[nodiscard]] auto operator()(const KeyType& h) const noexcept -> uint64_t { \
+        return (static_cast<uint64_t>(h.slot_index) << 32) | h.generation; \
     } \
 };
