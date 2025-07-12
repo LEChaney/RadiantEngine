@@ -98,3 +98,72 @@ TEST(SceneTest, MultipleChildren) {
     EXPECT_EQ(child1_node->name, "child1");
     EXPECT_EQ(child2_node->name, "child2");
 }
+
+TEST(SceneTest, DirtyFlagAndMinimalDirtySetSingleNode) {
+    Scene scene{};
+    SceneNodeKey root = scene.get_root_key();
+    SceneNodeKey child = scene.add_node(root, "child");
+    SceneNodeKey grandchild = scene.add_node(child, "grandchild");
+
+    // Initially, all nodes except root should be dirty (from add_node)
+    EXPECT_TRUE(scene.get_node(child)->dirty);
+    EXPECT_TRUE(scene.get_node(grandchild)->dirty);
+    EXPECT_TRUE(scene.get_node(root)->dirty);
+
+    // Clear dirty flags manually for test
+    scene.get_node(root)->dirty = false;
+    scene.get_node(child)->dirty = false;
+    scene.get_node(grandchild)->dirty = false;
+    const_cast<std::unordered_set<SceneNodeKey>&>(scene.get_minimal_dirty_set()).clear();
+
+    // Set local transform on child, should dirty child and grandchild
+    scene.set_local_transform(child, glm::mat4(2.0f));
+    EXPECT_TRUE(scene.get_node(child)->dirty);
+    EXPECT_TRUE(scene.get_node(grandchild)->dirty);
+    EXPECT_FALSE(scene.get_node(root)->dirty);
+
+    // Minimal dirty set should contain only child
+    EXPECT_EQ(scene.get_minimal_dirty_set().size(), 1u);
+    EXPECT_TRUE(scene.get_minimal_dirty_set().count(child));
+}
+
+TEST(SceneTest, DirtyFlagCoveredByParent) {
+    Scene scene{};
+    SceneNodeKey root = scene.get_root_key();
+    SceneNodeKey child = scene.add_node(root, "child");
+    SceneNodeKey grandchild = scene.add_node(child, "grandchild");
+
+    // Clear dirty flags manually for test
+    scene.get_node(root)->dirty = false;
+    scene.get_node(child)->dirty = false;
+    scene.get_node(grandchild)->dirty = false;
+    const_cast<std::unordered_set<SceneNodeKey>&>(scene.get_minimal_dirty_set()).clear();
+
+    // Set local transform on root, should dirty all
+    scene.set_local_transform(root, glm::mat4(2.0f));
+    EXPECT_TRUE(scene.get_node(root)->dirty);
+    EXPECT_TRUE(scene.get_node(child)->dirty);
+    EXPECT_TRUE(scene.get_node(grandchild)->dirty);
+
+    // Minimal dirty set should contain only root
+    EXPECT_EQ(scene.get_minimal_dirty_set().size(), 1u);
+    EXPECT_TRUE(scene.get_minimal_dirty_set().count(root));
+
+    // Now set local transform on grandchild, should not add grandchild to minimal dirty set
+    scene.set_local_transform(grandchild, glm::mat4(3.0f));
+    EXPECT_TRUE(scene.get_node(grandchild)->dirty);
+    EXPECT_EQ(scene.get_minimal_dirty_set().size(), 1u);
+    EXPECT_TRUE(scene.get_minimal_dirty_set().count(root));
+}
+
+TEST(SceneTest, AddNodeMarksDirtyAndMinimalDirtySet) {
+    Scene scene{};
+    SceneNodeKey root = scene.get_root_key();
+    scene.get_node(root)->dirty = false;
+    const_cast<std::unordered_set<SceneNodeKey>&>(scene.get_minimal_dirty_set()).clear();
+
+    SceneNodeKey child = scene.add_node(root, "child");
+    EXPECT_TRUE(scene.get_node(child)->dirty);
+    EXPECT_EQ(scene.get_minimal_dirty_set().size(), 1u);
+    EXPECT_TRUE(scene.get_minimal_dirty_set().count(child));
+}

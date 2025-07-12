@@ -35,11 +35,11 @@ public:
     ~Scene();
 
     SceneNodeKey add_node(
-        SceneNodeKey parent_key = SceneNodeKey::null(), 
+        SceneNodeKey parent_key = SceneNodeKey::null(),
         const std::string& name = ""
     );
     void remove_node(SceneNodeKey node_key);
-    
+
     SceneNodeKey get_root_key() const;
     SceneNodeKey get_parent_key(SceneNodeKey node_key) const;
     const std::vector<SceneNodeKey>& get_children_keys(SceneNodeKey node_key) const;
@@ -51,21 +51,30 @@ public:
     glm::mat4 get_world_transform(SceneNodeKey node_key, bool update_if_dirty = true);
     void set_local_transform(SceneNodeKey node_key, const glm::mat4& local);
     void set_world_transform(SceneNodeKey node_key, const glm::mat4& world);
-    
+
     void propagate_transforms_to(SceneNodeKey target);
     void propagate_transforms();
     void finalize_for_rendering();
-    
+
     const std::unordered_set<SceneNodeKey>& get_changed_nodes() const;
-    bool is_node_dirty(SceneNodeKey node_key) const;
-    
+
+public:
+    // For testing and debugging: expose minimal_dirty_set
+    const std::unordered_set<SceneNodeKey>& get_minimal_dirty_set() const { return minimal_dirty_set; }
 private:
     SlotMap<SceneNode> nodes;
     SceneNodeKey root_key;
-    std::unordered_set<SceneNodeKey> dirty_set;
+    std::unordered_set<SceneNodeKey> minimal_dirty_set;
     std::unordered_set<SceneNodeKey> changed_nodes;
-    
+
     void clear_changed_nodes();
+    void mark_dirty(SceneNodeKey node_key);
+    // Recursively marks nodes as dirty and optionally removes them from minimal_dirty_set
+    void mark_dirty_recursive(
+        SceneNodeKey node_key, 
+        bool dirty_this_node = true, 
+        bool remove_from_minimal_dirty_set = true);
+    bool is_covered_by_dirty_set(SceneNodeKey node_key) const;
 };
 
 class ISceneManagerObserver {
