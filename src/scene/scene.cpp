@@ -11,7 +11,7 @@ Scene::Scene() {
         {},                   // children_keys
         glm::mat4(1.0f),      // local_transform
         glm::mat4(1.0f),      // world_tansform
-        true,                 // dirty
+        false,                // dirty
         "root"                // name
     });
 }
@@ -85,6 +85,9 @@ glm::mat4 Scene::get_world_transform(SceneNodeKey node_key, bool update_if_dirty
 
 void Scene::set_local_transform(SceneNodeKey node_key, const glm::mat4& local) {
     SceneNode& node = nodes[node_key];
+    if (node.local_transform == local) {
+        return; // No change, no need to dirty
+    }
     node.local_transform = local;
     mark_dirty(node_key);
 }
@@ -144,11 +147,6 @@ void Scene::propagate_subtree(SceneNodeKey node_key, const glm::mat4& parent_wor
     for (const auto& child_key : node.children_keys) {
         propagate_subtree(child_key, node.world_tansform, changed_nodes);
     }
-}
-
-void Scene::clear_changed_nodes()
-{
-    changed_nodes.clear();
 }
 
 void Scene::propagate_transforms_to(SceneNodeKey target_key) {
@@ -212,8 +210,26 @@ void Scene::propagate_transforms() {
 
 void Scene::finalize_and_notify() {
     propagate_transforms();
-    // Observer notification would go here (not implemented)
+    // Notify observers of changed nodes
+    for (auto* observer : observers) {
+        assert(observer && "Observer should not be null");
+        observer->on_scene_nodes_changed(changed_nodes);
+    }
     changed_nodes.clear();
+}
+
+// Observer registration implementations
+void Scene::add_observer(ISceneObserver* observer) {
+    if (observer && std::find(observers.begin(), observers.end(), observer) == observers.end()) {
+        observers.push_back(observer);
+    }
+}
+
+void Scene::remove_observer(ISceneObserver* observer) {
+    auto it = std::remove(observers.begin(), observers.end(), observer);
+    if (it != observers.end()) {
+        observers.erase(it, observers.end());
+    }
 }
 
 const SceneNodeKeySet& Scene::get_changed_nodes() const {

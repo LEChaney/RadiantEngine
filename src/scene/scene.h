@@ -24,8 +24,14 @@ struct SceneNode {
     std::vector<SceneNodeKey> children_keys;
     glm::mat4 local_transform{1.0f};
     glm::mat4 world_tansform{1.0f};
-    bool dirty = true;
+    bool dirty = false;
     std::string name;
+};
+
+class ISceneObserver {
+public:
+    virtual ~ISceneObserver() = default;
+    virtual void on_scene_nodes_changed(const SceneNodeKeySet& changed_nodes) = 0;
 };
 
 class Scene {
@@ -106,6 +112,10 @@ public:
      */
     void finalize_and_notify();
 
+    // Observer registration
+    void add_observer(ISceneObserver* observer);
+    void remove_observer(ISceneObserver* observer);
+
     const SceneNodeKeySet& get_changed_nodes() const;
     bool is_node_dirty(SceneNodeKey node_key) const;
 
@@ -122,6 +132,9 @@ private:
     // Set of nodes that have changed since the last frame. Used for observer
     // notifications.
     SceneNodeKeySet changed_nodes;
+
+    // Observers for transform change notifications
+    std::vector<ISceneObserver*> observers;
 
     // Marks the node and all its descendants as dirty. Also updates the minimal
     // dirty set such that only the top-most dirty ancestor is kept.
@@ -140,9 +153,7 @@ private:
         SceneNodeKey node_key,
         const glm::mat4& parent_world,
         SceneNodeKeySet& changed_nodes);
-
-    // Should be called after all observers have been notified of changes.
-    void clear_changed_nodes();
+    // ...existing code...
 };
 
 class ISceneManagerObserver {
