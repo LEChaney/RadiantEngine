@@ -264,3 +264,38 @@ TEST(SceneTest, FinalizeForRendering_ClearsChangedNodes) {
     // Minimal dirty set should be cleared
     EXPECT_TRUE(scene.get_minimal_dirty_set().empty());
 }
+
+TEST(SceneTest, GetLocalTransformReturnsCorrectValue) {
+    Scene scene{};
+    SceneNodeKey root = scene.get_root_key();
+    glm::mat4 custom = glm::mat4(2.0f);
+    scene.set_local_transform(root, custom);
+    EXPECT_EQ(scene.get_local_transform(root), custom);
+}
+
+TEST(SceneTest, GetWorldTransformReturnsCorrectValueAndUpdatesIfDirty) {
+    Scene scene{};
+    SceneNodeKey root = scene.get_root_key();
+    SceneNodeKey child = scene.add_node(root, "child");
+    glm::mat4 root_local = glm::mat4(2.0f);
+    glm::mat4 child_local = glm::mat4(3.0f);
+    scene.set_local_transform(root, root_local);
+    scene.set_local_transform(child, child_local);
+    // Both should be dirty
+    EXPECT_TRUE(scene.is_node_dirty(root));
+    EXPECT_TRUE(scene.is_node_dirty(child));
+    // get_world_transform should update and return correct value
+    glm::mat4 expected_child_world = root_local * child_local;
+    EXPECT_EQ(scene.get_world_transform(child, true), expected_child_world);
+    // After call, dirty flags should be cleared
+    EXPECT_FALSE(scene.is_node_dirty(root));
+    EXPECT_FALSE(scene.is_node_dirty(child));
+}
+
+TEST(SceneTest, IsNodeDirtyReturnsCorrectState) {
+    Scene scene{};
+    SceneNodeKey root = scene.get_root_key();
+    EXPECT_TRUE(scene.is_node_dirty(root));
+    scene.get_node(root)->dirty = false;
+    EXPECT_FALSE(scene.is_node_dirty(root));
+}

@@ -58,6 +58,20 @@ SceneNode *Scene::get_node(SceneNodeKey node_key)
     return const_cast<SceneNode*>(static_cast<const Scene*>(this)->get_node(node_key));
 }
 
+glm::mat4 Scene::get_local_transform(SceneNodeKey node_key) const
+{
+    return nodes[node_key].local_transform;
+}
+
+glm::mat4 Scene::get_world_transform(SceneNodeKey node_key, bool update_if_dirty)
+{
+    SceneNode& node = nodes[node_key];
+    if (update_if_dirty && node.dirty) {
+        propagate_transforms_to(node_key);
+    }
+    return node.world_tansform;
+}
+
 void Scene::set_local_transform(SceneNodeKey node_key, const glm::mat4& local) {
     SceneNode& node = nodes[node_key];
     node.local_transform = local;
@@ -188,6 +202,11 @@ void Scene::finalize_for_rendering() {
 
 const SceneNodeKeySet& Scene::get_changed_nodes() const {
     return changed_nodes;
+}
+
+bool Scene::is_node_dirty(SceneNodeKey node_key) const
+{
+    return nodes[node_key].dirty;
 }
 
 const SceneNodeKeySet &Scene::get_minimal_dirty_set() const
