@@ -167,3 +167,100 @@ TEST(SceneTest, AddNodeMarksDirtyAndMinimalDirtySet) {
     EXPECT_EQ(scene.get_minimal_dirty_set().size(), 1u);
     EXPECT_TRUE(scene.get_minimal_dirty_set().count(child));
 }
+
+TEST(SceneTest, PropagateTransformsTo_RemovesMinimalDirtySetIfSingleChild) {
+    Scene scene{};
+    SceneNodeKey root = scene.get_root_key();
+    scene.get_node(root)->dirty = false;
+    const_cast<SceneNodeKeySet&>(scene.get_minimal_dirty_set()).clear();
+
+    SceneNodeKey child = scene.add_node(root, "child");
+    SceneNodeKey grandchild = scene.add_node(child, "grandchild");
+
+    // Dirty only child and grandchild
+    scene.get_node(child)->dirty = true;
+    scene.get_node(grandchild)->dirty = true;
+    scene.get_node(root)->dirty = false;
+    SceneNodeKeySet& minimal_dirty_set = const_cast<SceneNodeKeySet&>(
+        scene.get_minimal_dirty_set());
+    minimal_dirty_set.clear();
+    minimal_dirty_set.insert(child);
+
+    // Propagate transforms to grandchild
+    scene.propagate_transforms_to(grandchild);
+
+    // After propagation, minimal_dirty_set should be empty (child had only one child)
+    EXPECT_TRUE(scene.get_minimal_dirty_set().empty());
+}
+
+TEST(SceneTest, PropagateTransformsTo_KeepsMinimalDirtySetIfMultipleChildren) {
+    Scene scene{};
+    SceneNodeKey root = scene.get_root_key();
+    scene.get_node(root)->dirty = false;
+    const_cast<SceneNodeKeySet&>(scene.get_minimal_dirty_set()).clear();
+
+    SceneNodeKey child1 = scene.add_node(root, "child1");
+    SceneNodeKey child2 = scene.add_node(root, "child2");
+
+    // Dirty both children
+    scene.get_node(child1)->dirty = true;
+    scene.get_node(child2)->dirty = true;
+    scene.get_node(root)->dirty = false;
+    SceneNodeKeySet& minimal_dirty_set = const_cast<SceneNodeKeySet&>(
+        scene.get_minimal_dirty_set());
+    minimal_dirty_set.clear();
+    minimal_dirty_set.insert(root);
+
+    // Propagate transforms to child1
+    scene.propagate_transforms_to(child1);
+
+    // After propagation, minimal_dirty_set should still contain root (since root has multiple children)
+    EXPECT_EQ(scene.get_minimal_dirty_set().size(), 1u);
+    EXPECT_TRUE(scene.get_minimal_dirty_set().count(root));
+}
+
+TEST(SceneTest, PropagateTransforms_ClearsDirtyFlagsAndMinimalDirtySet) {
+    Scene scene{};
+    SceneNodeKey root = scene.get_root_key();
+    SceneNodeKey child = scene.add_node(root, "child");
+    SceneNodeKey grandchild = scene.add_node(child, "grandchild");
+
+    // Set all nodes dirty and add to minimal_dirty_set
+    scene.get_node(root)->dirty = true;
+    scene.get_node(child)->dirty = true;
+    scene.get_node(grandchild)->dirty = true;
+    SceneNodeKeySet& minimal_dirty_set = const_cast<SceneNodeKeySet&>(
+        scene.get_minimal_dirty_set());
+    minimal_dirty_set.clear();
+    minimal_dirty_set.insert(root);
+
+    scene.propagate_transforms();
+
+    // All nodes should be not dirty
+    EXPECT_FALSE(scene.get_node(root)->dirty);
+    EXPECT_FALSE(scene.get_node(child)->dirty);
+    EXPECT_FALSE(scene.get_node(grandchild)->dirty);
+    // Minimal dirty set should be cleared
+    EXPECT_TRUE(scene.get_minimal_dirty_set().empty());
+}
+
+TEST(SceneTest, FinalizeForRendering_ClearsChangedNodes) {
+    Scene scene{};
+    SceneNodeKey root = scene.get_root_key();
+    SceneNodeKey child = scene.add_node(root, "child");
+
+    // Dirty child
+    scene.get_node(child)->dirty = true;
+    SceneNodeKeySet& minimal_dirty_set = const_cast<SceneNodeKeySet&>(
+        scene.get_minimal_dirty_set());
+    minimal_dirty_set.clear();
+    minimal_dirty_set.insert(child);
+
+    // After finalize_for_rendering, changed_nodes should be cleared
+    scene.finalize_for_rendering();
+    EXPECT_TRUE(scene.get_changed_nodes().empty());
+    // Child should be not dirty
+    EXPECT_FALSE(scene.get_node(child)->dirty);
+    // Minimal dirty set should be cleared
+    EXPECT_TRUE(scene.get_minimal_dirty_set().empty());
+}

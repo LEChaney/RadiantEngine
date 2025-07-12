@@ -111,3 +111,86 @@ bool Scene::is_covered_by_dirty_set(SceneNodeKey node_key) const
     }
     return false;
 }
+
+
+// Helper: propagate transforms down a subtree (now a member function)
+void Scene::propagate_subtree(SceneNodeKey node_key, const glm::mat4& parent_world, SceneNodeKeySet& changed_nodes) {
+    SceneNode& node = nodes[node_key];
+    glm::mat4 old_world = node.world_tansform;
+    node.world_tansform = parent_world * node.local_transform;
+    node.dirty = false;
+    if (old_world != node.world_tansform) {
+        changed_nodes.insert(node_key);
+    }
+    for (const auto& child_key : node.children_keys) {
+        propagate_subtree(child_key, node.world_tansform, changed_nodes);
+    }
+}
+
+void Scene::propagate_transforms_to(SceneNodeKey target) {
+    // Find the first ancestor (or itself) that is NOT dirty
+    std::vector<SceneNodeKey> chain;
+    SceneNodeKey cur = target;
+    while (cur != SceneNodeKey::null()) {
+        if (!nodes[cur].dirty) {
+            // If we hit a non-dirty node, we stop here
+            break;
+        }
+        chain.push_back(cur);
+        cur = nodes[cur].parent_key;
+    }
+    if (chain.empty()) {
+        return; // Nothing to propagate
+    }
+    // Propagate from ancestor down to target
+    glm::mat4 parent_world = glm::mat4(1.0f);
+    if (nodes[chain.back()].parent_key != SceneNodeKey::null()) {
+        parent_world = nodes[nodes[chain.back()].parent_key].world_tansform;
+    }
+    for (auto it = chain.rbegin(); it != chain.rend(); ++it) {
+        SceneNodeKey k = *it;
+        SceneNode& node = nodes[k];
+        glm::mat4 old_world = node.world_tansform;
+        node.world_tansform = parent_world * node.local_transform;
+        node.dirty = false;
+        if (old_world != node.world_tansform) {
+            changed_nodes.insert(k);
+        }
+        parent_world = node.world_tansform;
+        // Only consider the top-most ancestor in the chain for minimal_dirty_set update
+        if (it == chain.rbegin()) {
+            // If the top node has only one child, we can remove it from the minimal dirty set
+            if (nodes[k].children_keys.size() <= 1) {
+                minimal_dirty_set.erase(k);
+            }
+            // Otherwise, leave it in the minimal dirty set to cover other dirty children
+        }
+    }
+}
+
+void Scene::propagate_transforms() {
+    // Propagate transforms for all minimal dirty roots
+    for (const auto& root : minimal_dirty_set) {
+        glm::mat4 parent_world = glm::mat4(1.0f);
+        if (nodes[root].parent_key != SceneNodeKey::null()) {
+            parent_world = nodes[nodes[root].parent_key].world_tansform;
+        }
+        propagate_subtree(root, parent_world, changed_nodes);
+    }
+    minimal_dirty_set.clear();
+}
+
+void Scene::finalize_for_rendering() {
+    propagate_transforms();
+    // Observer notification would go here (not implemented)
+    changed_nodes.clear();
+}
+
+const SceneNodeKeySet& Scene::get_changed_nodes() const {
+    return changed_nodes;
+}
+
+const SceneNodeKeySet &Scene::get_minimal_dirty_set() const
+{
+    return minimal_dirty_set;
+}

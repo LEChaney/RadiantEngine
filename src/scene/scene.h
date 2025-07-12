@@ -61,9 +61,9 @@ public:
     const SceneNodeKeySet& get_changed_nodes() const;
     bool is_node_dirty(SceneNodeKey node_key) const;
 
-public:
     // For testing and debugging: expose minimal_dirty_set
-    const SceneNodeKeySet& get_minimal_dirty_set() const { return minimal_dirty_set; }
+    const SceneNodeKeySet& get_minimal_dirty_set() const;
+
 private:
     SlotMap<SceneNode> nodes;
     SceneNodeKey root_key;
@@ -78,6 +78,9 @@ private:
         bool dirty_this_node = true, 
         bool remove_from_minimal_dirty_set = true);
     bool is_covered_by_dirty_set(SceneNodeKey node_key) const;
+
+    // Helper: propagate transforms down a subtree
+    void propagate_subtree(SceneNodeKey node_key, const glm::mat4& parent_world, SceneNodeKeySet& changed_nodes);
 };
 
 class ISceneManagerObserver {
