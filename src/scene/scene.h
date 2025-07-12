@@ -19,9 +19,6 @@ using SceneNodeKey = SlotMap<SceneNode>::Key;
 using SceneKey = SlotMap<Scene>::Key;
 using SceneNodeKeySet = ankerl::unordered_dense::set<SceneNodeKey>;
 
-DEFINE_SLOTMAP_KEY_HASH(SceneNodeKey)
-DEFINE_SLOTMAP_KEY_HASH(SceneKey)
-
 struct SceneNode {
     SceneNodeKey parent_key;
     std::vector<SceneNodeKey> children_keys;

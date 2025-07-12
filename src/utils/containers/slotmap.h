@@ -1,11 +1,12 @@
 #pragma once
 
+#include "ankerl/unordered_dense.h"
+
 #include <vector>
 #include <tuple>
 #include <cassert>
 #include <utility>
 #include <cstdint>
-
 #include <type_traits>
 
 // Forward declaration
@@ -227,11 +228,10 @@ private:
     }
 };
 
-#define DEFINE_SLOTMAP_KEY_HASH(KeyType) \
-template <> \
-struct ankerl::unordered_dense::hash<KeyType> { \
-    using is_avalanching = void; \
-    [[nodiscard]] auto operator()(const KeyType& h) const noexcept -> uint64_t { \
-        return (static_cast<uint64_t>(h.slot_index) << 32) | h.generation; \
-    } \
+template <typename KeyType>
+struct ankerl::unordered_dense::hash<KeyType> {
+    using is_avalanching = void;
+    auto operator()(const KeyType& h) const noexcept -> uint64_t {
+        return ankerl::unordered_dense::hash<uint64_t>()(static_cast<uint64_t>(h.generation) << 32 | h.slot_index);
+    }
 };
