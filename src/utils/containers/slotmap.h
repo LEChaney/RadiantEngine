@@ -5,12 +5,59 @@
 #include <cassert>
 #include <utility>
 #include <cstdint>
+
 #include <type_traits>
+
+// Forward declaration
+template <typename... Components>
+class SlotMap;
+
+// SlotMapView: provides operator[] for a specific component type
+template <typename Component, typename... Components>
+class SlotMapView {
+public:
+    using Key = typename SlotMap<Components...>::Key;
+    using SlotMapType = SlotMap<Components...>;
+
+    SlotMapView(SlotMapType& in_slotmap) : slotmap(in_slotmap) {}
+
+    const Component& operator[](const Key& key) const {
+        auto* ptr = slotmap.get<Component>(key);
+        assert(ptr && "Invalid key access in SlotMapView");
+        return *ptr;
+    }
+    
+    Component& operator[](const Key& key) {
+        return const_cast<Component&>(
+            static_cast<const SlotMapView*>(this)->operator[](key)
+        );
+    }
+
+    // Optionally, expose raw data
+    const std::vector<Component>& raw_data() const {
+        return slotmap.template raw_data<Component>();
+    }
+
+private:
+    SlotMapType& slotmap;
+};
 
 template <typename... Components>
 class SlotMap {
 public:
     SlotMap() = default;
+    // Get a view for a specific component type
+    template <typename Component>
+    SlotMapView<Component, Components...> view() {
+        static_assert(contains_type<Component, Components...>(), "Component type not found in SlotMap");
+        return SlotMapView<Component, Components...>(*this);
+    }
+
+    template <typename Component>
+    const SlotMapView<Component, Components...> view() const {
+        static_assert(contains_type<Component, Components...>(), "Component type not found in SlotMap");
+        return SlotMapView<Component, Components...>(const_cast<SlotMap&>(*this));
+    }
 
     struct Key {
         uint32_t slot_index = 0xFFFFFFFF;
@@ -110,6 +157,19 @@ public:
     template <typename Component>
     Component* get(const Key& key) {
         return const_cast<Component*>(static_cast<const SlotMap*>(this)->get<Component>(key));
+    }
+    
+    const std::tuple_element_t<0, std::tuple<Components...>>& operator[](const Key& key) const {
+        using Component = std::tuple_element_t<0, std::tuple<Components...>>;
+        auto* ptr = get<Component>(key);
+        assert(ptr && "Invalid key access in SlotMap");
+        return *ptr;
+    }
+
+    std::tuple_element_t<0, std::tuple<Components...>>& operator[](const Key& key) {
+        return const_cast<std::tuple_element_t<0, std::tuple<Components...>>&>(
+            static_cast<const SlotMap*>(this)->operator[](key)
+        );
     }
 
     template <typename Component>

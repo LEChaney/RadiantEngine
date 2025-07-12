@@ -155,3 +155,75 @@ TEST(SlotMapTest, NullKeyProperties) {
     constexpr Key nh = Key::null();
     (void)nh;
 }
+
+TEST(SlotMapTest, SlotMapViewSingleComponent) {
+    SlotMap<Position> sm;
+    auto h = sm.add(Position{10.0f, 20.0f});
+    ASSERT_TRUE(sm.is_valid(h));
+    auto view = sm.view<Position>();
+    Position& pos = view[h];
+    EXPECT_FLOAT_EQ(pos.x, 10.0f);
+    EXPECT_FLOAT_EQ(pos.y, 20.0f);
+    // Const version
+    const auto& csm = sm;
+    auto cview = csm.view<Position>();
+    const Position& cpos = cview[h];
+    EXPECT_FLOAT_EQ(cpos.x, 10.0f);
+    EXPECT_FLOAT_EQ(cpos.y, 20.0f);
+    // Raw data
+    const auto& data = view.raw_data();
+    ASSERT_EQ(data.size(), 1u);
+    EXPECT_FLOAT_EQ(data[0].x, 10.0f);
+    EXPECT_FLOAT_EQ(data[0].y, 20.0f);
+}
+
+TEST(SlotMapTest, SlotMapViewMultipleComponents) {
+    SlotMap<Position, Velocity> sm;
+    auto h = sm.add(Position{5.0f, 6.0f}, Velocity{7.0f, 8.0f});
+    ASSERT_TRUE(sm.is_valid(h));
+    auto pos_view = sm.view<Position>();
+    auto vel_view = sm.view<Velocity>();
+    Position& pos = pos_view[h];
+    Velocity& vel = vel_view[h];
+    EXPECT_FLOAT_EQ(pos.x, 5.0f);
+    EXPECT_FLOAT_EQ(pos.y, 6.0f);
+    EXPECT_FLOAT_EQ(vel.dx, 7.0f);
+    EXPECT_FLOAT_EQ(vel.dy, 8.0f);
+    // Const version
+    const auto& csm = sm;
+    auto cpos_view = csm.view<Position>();
+    auto cvel_view = csm.view<Velocity>();
+    const Position& cpos = cpos_view[h];
+    const Velocity& cvel = cvel_view[h];
+    EXPECT_FLOAT_EQ(cpos.x, 5.0f);
+    EXPECT_FLOAT_EQ(cpos.y, 6.0f);
+    EXPECT_FLOAT_EQ(cvel.dx, 7.0f);
+    EXPECT_FLOAT_EQ(cvel.dy, 8.0f);
+    // Raw data
+    const auto& pos_data = pos_view.raw_data();
+    const auto& vel_data = vel_view.raw_data();
+    ASSERT_EQ(pos_data.size(), 1u);
+    ASSERT_EQ(vel_data.size(), 1u);
+    EXPECT_FLOAT_EQ(pos_data[0].x, 5.0f);
+    EXPECT_FLOAT_EQ(vel_data[0].dx, 7.0f);
+}
+
+TEST(SlotMapTest, OperatorIndexFirstComponentMultipleTypes) {
+    SlotMap<Position, Velocity> sm;
+    auto h = sm.add(Position{5.0f, 6.0f}, Velocity{7.0f, 8.0f});
+    ASSERT_TRUE(sm.is_valid(h));
+    // operator[] returns first component (Position)
+    Position& pos = sm[h];
+    EXPECT_FLOAT_EQ(pos.x, 5.0f);
+    EXPECT_FLOAT_EQ(pos.y, 6.0f);
+    // Const version
+    const auto& csm = sm;
+    const Position& cpos = csm[h];
+    EXPECT_FLOAT_EQ(cpos.x, 5.0f);
+    EXPECT_FLOAT_EQ(cpos.y, 6.0f);
+    // Access second component via get
+    auto* vel = sm.get<Velocity>(h);
+    ASSERT_NE(vel, nullptr);
+    EXPECT_FLOAT_EQ(vel->dx, 7.0f);
+    EXPECT_FLOAT_EQ(vel->dy, 8.0f);
+}
