@@ -144,7 +144,6 @@ private:
     // minimal_dirty_set.
     void mark_dirty_recursive(
         SceneNodeKey node_key,
-        bool dirty_this_node = true,
         bool remove_from_minimal_dirty_set = true);
     bool is_covered_by_dirty_set(SceneNodeKey node_key) const;
 

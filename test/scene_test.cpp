@@ -134,6 +134,10 @@ TEST(SceneTest, DirtyFlagAndMinimalDirtySetSingleNode) {
     // Minimal dirty set should contain only child
     EXPECT_EQ(scene.get_minimal_dirty_set().size(), 1u);
     EXPECT_TRUE(scene.get_minimal_dirty_set().count(child));
+    // Node in minimal dirty set should be dirty
+    for (auto key : scene.get_minimal_dirty_set()) {
+        EXPECT_TRUE(scene.get_node(key)->dirty);
+    }
 }
 
 TEST(SceneTest, DirtyFlagCoveredByParent) {
@@ -154,12 +158,18 @@ TEST(SceneTest, DirtyFlagCoveredByParent) {
     // Minimal dirty set should contain only root
     EXPECT_EQ(scene.get_minimal_dirty_set().size(), 1u);
     EXPECT_TRUE(scene.get_minimal_dirty_set().count(root));
+    for (auto key : scene.get_minimal_dirty_set()) {
+        EXPECT_TRUE(scene.get_node(key)->dirty);
+    }
 
     // Now set local transform on grandchild, should not add grandchild to minimal dirty set
     scene.set_local_transform(grandchild, glm::mat4(3.0f));
     EXPECT_TRUE(scene.get_node(grandchild)->dirty);
     EXPECT_EQ(scene.get_minimal_dirty_set().size(), 1u);
     EXPECT_TRUE(scene.get_minimal_dirty_set().count(root));
+    for (auto key : scene.get_minimal_dirty_set()) {
+        EXPECT_TRUE(scene.get_node(key)->dirty);
+    }
 }
 
 TEST(SceneTest, AddNodeMarksDirtyAndMinimalDirtySet) {
@@ -169,6 +179,9 @@ TEST(SceneTest, AddNodeMarksDirtyAndMinimalDirtySet) {
     EXPECT_TRUE(scene.get_node(child)->dirty);
     EXPECT_EQ(scene.get_minimal_dirty_set().size(), 1u);
     EXPECT_TRUE(scene.get_minimal_dirty_set().count(child));
+    for (auto key : scene.get_minimal_dirty_set()) {
+        EXPECT_TRUE(scene.get_node(key)->dirty);
+    }
 }
 
 TEST(SceneTest, PropagateTransformsTo_RemovesMinimalDirtySetIfSingleChild) {
@@ -191,27 +204,88 @@ TEST(SceneTest, PropagateTransformsTo_RemovesMinimalDirtySetIfSingleChild) {
     EXPECT_TRUE(scene.get_minimal_dirty_set().empty());
 }
 
-TEST(SceneTest, PropagateTransformsTo_KeepsMinimalDirtySetIfMultipleChildren) {
+TEST(SceneTest, PropagateTransformsTo_ChainLeavesDescendantsDirty) {
     Scene scene{};
     SceneNodeKey root = scene.get_root_key();
+    SceneNodeKey child = scene.add_node(root, "child");
+    SceneNodeKey grandchild = scene.add_node(child, "grandchild");
+    SceneNodeKey greatgrandchild = scene.add_node(grandchild, "greatgrandchild");
 
-    SceneNodeKey child1 = scene.add_node(root, "child1");
-    SceneNodeKey child2 = scene.add_node(root, "child2");
-
-    // Flush dirty state after node creation
     scene.finalize_and_notify();
-    
-    // Use set_local_transform to dirty root and both children
+
+    // Dirty the whole chain
     scene.set_local_transform(root, glm::mat4(2.0f));
 
-    // Propagate transforms to child1
-    scene.propagate_transforms_to(child1);
+    // Propagate only to grandchild
+    scene.propagate_transforms_to(grandchild);
 
-    // After propagation, minimal_dirty_set should still contain root (since root has multiple children)
+    // grandchild should not be dirty, but greatgrandchild should still be dirty
+    EXPECT_FALSE(scene.get_node(grandchild)->dirty);
+    EXPECT_TRUE(scene.get_node(greatgrandchild)->dirty);
+
+    // Minimal dirty set should contain greatgrandchild only
     EXPECT_EQ(scene.get_minimal_dirty_set().size(), 1u);
-    EXPECT_TRUE(scene.get_minimal_dirty_set().count(root));
-    EXPECT_FALSE(scene.get_node(child1)->dirty);
-    EXPECT_TRUE(scene.get_node(child2)->dirty); // child2 should still be dirty since it was not propagated to
+    EXPECT_TRUE(scene.get_minimal_dirty_set().count(greatgrandchild));
+    for (auto key : scene.get_minimal_dirty_set()) {
+        EXPECT_TRUE(scene.get_node(key)->dirty);
+    }
+
+    // changed_nodes should include grandchild
+    EXPECT_TRUE(scene.get_changed_nodes().count(grandchild));
+}
+
+TEST(SceneTest, PropagateTransformsTo_MultiChildDirtySetBehavior) {
+    Scene scene{};
+    SceneNodeKey root = scene.get_root_key();
+    SceneNodeKey child1 = scene.add_node(root, "child1");
+    SceneNodeKey child2 = scene.add_node(root, "child2");
+    SceneNodeKey child3 = scene.add_node(root, "child3");
+
+    scene.finalize_and_notify();
+
+    // Dirty all children
+    scene.set_local_transform(root, glm::mat4(2.0f));
+
+    // Propagate to child2 only
+    scene.propagate_transforms_to(child2);
+
+    // child2 should not be dirty, but child1 and child3 should remain dirty
+    EXPECT_FALSE(scene.get_node(child2)->dirty);
+    EXPECT_TRUE(scene.get_node(child1)->dirty);
+    EXPECT_TRUE(scene.get_node(child3)->dirty);
+
+    // Minimal dirty set should contain child1 and child3 only
+    EXPECT_EQ(scene.get_minimal_dirty_set().size(), 2u);
+    EXPECT_TRUE(scene.get_minimal_dirty_set().count(child1));
+    EXPECT_TRUE(scene.get_minimal_dirty_set().count(child3));
+    EXPECT_FALSE(scene.get_minimal_dirty_set().count(root));
+    for (auto key : scene.get_minimal_dirty_set()) {
+        EXPECT_TRUE(scene.get_node(key)->dirty);
+    }
+
+    // changed_nodes should include child2
+    EXPECT_TRUE(scene.get_changed_nodes().count(child2));
+}
+
+TEST(SceneTest, PropagateTransformsTo_ChangedNodesAreCorrect) {
+    Scene scene{};
+    SceneNodeKey root = scene.get_root_key();
+    SceneNodeKey child = scene.add_node(root, "child");
+    SceneNodeKey grandchild = scene.add_node(child, "grandchild");
+
+    scene.finalize_and_notify();
+
+    // Dirty all
+    scene.set_local_transform(root, glm::mat4(2.0f));
+    scene.set_local_transform(child, glm::mat4(3.0f));
+
+    // Propagate to grandchild
+    scene.propagate_transforms_to(grandchild);
+
+    // changed_nodes should include grandchild, child, and root
+    EXPECT_TRUE(scene.get_changed_nodes().count(root));
+    EXPECT_TRUE(scene.get_changed_nodes().count(child));
+    EXPECT_TRUE(scene.get_changed_nodes().count(grandchild));
 }
 
 TEST(SceneTest, PropagateTransforms_ClearsDirtyFlagsAndMinimalDirtySet) {
@@ -393,6 +467,9 @@ TEST(SceneTest, ComplexGraphTransformPropagationAndNotification) {
     // Only child1 should be in minimal dirty set
     EXPECT_EQ(scene.get_minimal_dirty_set().size(), 1u);
     EXPECT_TRUE(scene.get_minimal_dirty_set().count(child1));
+    for (auto key : scene.get_minimal_dirty_set()) {
+        EXPECT_TRUE(scene.get_node(key)->dirty);
+    }
 
     // Finalize and notify, observer should get child1, grandchild1, grandchild2
     scene.finalize_and_notify();
@@ -413,6 +490,9 @@ TEST(SceneTest, ComplexGraphTransformPropagationAndNotification) {
     EXPECT_TRUE(scene.get_node(grandchild3)->dirty);
     EXPECT_EQ(scene.get_minimal_dirty_set().size(), 1u);
     EXPECT_TRUE(scene.get_minimal_dirty_set().count(root));
+    for (auto key : scene.get_minimal_dirty_set()) {
+        EXPECT_TRUE(scene.get_node(key)->dirty);
+    }
 
     // Finalize and notify, observer should get all nodes
     scene.finalize_and_notify();
@@ -434,6 +514,9 @@ TEST(SceneTest, ComplexGraphTransformPropagationAndNotification) {
     EXPECT_FALSE(scene.get_node(grandchild2)->dirty);
     EXPECT_EQ(scene.get_minimal_dirty_set().size(), 1u);
     EXPECT_TRUE(scene.get_minimal_dirty_set().count(grandchild3));
+    for (auto key : scene.get_minimal_dirty_set()) {
+        EXPECT_TRUE(scene.get_node(key)->dirty);
+    }
 
     // Finalize and notify, observer should get only grandchild3
     scene.finalize_and_notify();
