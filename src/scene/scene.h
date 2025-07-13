@@ -44,7 +44,7 @@ public:
         SceneNodeKey parent_key = SceneNodeKey::null(),
         const std::string& name = ""
     );
-    void remove_node(SceneNodeKey node_key);
+    void remove_node(SceneNodeKey node_key, bool remove_all_descendants = false);
 
     /**
      * Attaches an existing node to a new parent in the scene graph.

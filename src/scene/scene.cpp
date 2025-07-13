@@ -43,7 +43,7 @@ SceneNodeKey Scene::add_node(SceneNodeKey parent_key, const std::string& name) {
     return new_node_key;
 }
 
-void Scene::remove_node(SceneNodeKey node_key)
+void Scene::remove_node(SceneNodeKey node_key, bool remove_all_descendants)
 {
     assert(!node_key.is_null() && "Node key cannot be null");
     assert(node_key != root_key && "Cannot remove root node");
@@ -52,6 +52,15 @@ void Scene::remove_node(SceneNodeKey node_key)
 
     SceneNodeKey parent_key = node.parent_key;
     SceneNode& parent_node = nodes[parent_key];
+
+    if (remove_all_descendants) {
+        // Remove all descendants recursively
+        // Use a copy of children_keys to avoid modifying the vector while iterating
+        std::vector<SceneNodeKey> children_keys_copy = node.children_keys;
+        for (SceneNodeKey child_key : children_keys_copy) {
+            remove_node(child_key, true);
+        }
+    }
 
     // Remove node from parent's children_keys
     auto& siblings = parent_node.children_keys;

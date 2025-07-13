@@ -623,3 +623,27 @@ TEST(SceneTest, AttachNodeToRootAndDirtyState) {
     EXPECT_EQ(scene.get_minimal_dirty_set().size(), 1u);
     EXPECT_TRUE(scene.get_minimal_dirty_set().count(b));
 }
+
+TEST(SceneTest, RemoveNodeWithDescendants_RemovesAll) {
+    Scene scene{};
+    SceneNodeKey root = scene.get_root_key();
+    SceneNodeKey a = scene.add_node(root, "A");
+    SceneNodeKey b = scene.add_node(a, "B");
+    SceneNodeKey c = scene.add_node(a, "C");
+    SceneNodeKey d = scene.add_node(b, "D");
+    scene.finalize_and_notify();
+    MockSceneObserver observer;
+    scene.add_observer(&observer);
+    // Remove A and all descendants
+    scene.remove_node(a, true);
+    // Root should have no children
+    EXPECT_TRUE(scene.get_children_keys(root).empty());
+    scene.finalize_and_notify();
+    // Observer should be notified of all removals
+    EXPECT_EQ(observer.remove_notify_count, 1);
+    EXPECT_TRUE(observer.last_removed.count(a));
+    EXPECT_TRUE(observer.last_removed.count(b));
+    EXPECT_TRUE(observer.last_removed.count(c));
+    EXPECT_TRUE(observer.last_removed.count(d));
+}
+
