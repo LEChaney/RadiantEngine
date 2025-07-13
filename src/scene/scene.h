@@ -32,6 +32,7 @@ class ISceneObserver {
 public:
     virtual ~ISceneObserver() = default;
     virtual void on_scene_nodes_changed(const SceneNodeKeySet& changed_nodes) = 0;
+    virtual void on_scene_nodes_removed(const SceneNodeKeySet& removed_nodes) = 0;
 };
 
 class Scene {
@@ -44,6 +45,18 @@ public:
         const std::string& name = ""
     );
     void remove_node(SceneNodeKey node_key);
+
+    /**
+     * Attaches an existing node to a new parent in the scene graph.
+     * Removes the node from its current parent and adds it to the new parent's children.
+     * Marks the node and its descendants as dirty for transform propagation.
+     */
+    void attach_node(SceneNodeKey node_key, SceneNodeKey new_parent_key);
+    /**
+     * Detaches a node from its parent, and attaches it to the root node of the tree.
+     * Marks the node and its descendants as dirty for transform propagation.
+     */
+    void detach_node(SceneNodeKey node_key);
 
     SceneNodeKey get_root_key() const;
     SceneNodeKey get_parent_key(SceneNodeKey node_key) const;
@@ -133,19 +146,24 @@ private:
     // notifications.
     SceneNodeKeySet changed_nodes;
 
+    // Set of nodes that have been removed since the last frame. Used for observer
+    // notifications.
+    SceneNodeKeySet removed_nodes;
+
     // Observers for transform change notifications
     std::vector<ISceneObserver*> observers;
 
-    // Marks the node and all its descendants as dirty. Also updates the minimal
-    // dirty set such that only the top-most dirty ancestor is kept.
-    void mark_dirty(SceneNodeKey node_key);
+    /**
+     * Marks the node and all its descendants as dirty. Also updates the minimal
+     * dirty set such that only the top-most dirty ancestor is kept.
+     * @param force_update_dirty_set If true, forces an update to the minimal dirty set,
+     * even if the node is already dirty. Useful when nodes get removed or re-attached.
+     */
+    void mark_dirty(SceneNodeKey node_key, bool force_update_dirty_set=false);
 
-    // Recursively marks nodes as dirty and optionally removes them from
-    // minimal_dirty_set.
-    void mark_dirty_recursive(
-        SceneNodeKey node_key,
-        bool remove_from_minimal_dirty_set = true);
-    bool is_covered_by_dirty_set(SceneNodeKey node_key) const;
+    // Helper for mark_dirty: Recursively marks nodes as dirty and removes
+    // them from the minimal dirty set.
+    void mark_dirty_recursive(SceneNodeKey node_key);
 
     // Helper: propagate transforms down a subtree.
     void propagate_subtree(

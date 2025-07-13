@@ -6,11 +6,17 @@
 class MockSceneObserver : public ISceneObserver {
 public:
     int notify_count = 0;
+    int remove_notify_count = 0;
     SceneNodeKeySet last_changed;
+    SceneNodeKeySet last_removed;
 
     void on_scene_nodes_changed(const SceneNodeKeySet& changed_nodes) override {
-        ++notify_count;
+        notify_count++;
         last_changed = changed_nodes;
+    }
+    void on_scene_nodes_removed(const SceneNodeKeySet& removed_nodes) override {
+        remove_notify_count++;
+        last_removed = removed_nodes;
     }
 };
 
@@ -527,4 +533,93 @@ TEST(SceneTest, ComplexGraphTransformPropagationAndNotification) {
     EXPECT_FALSE(observer.last_changed.count(child2));
     EXPECT_FALSE(observer.last_changed.count(grandchild1));
     EXPECT_FALSE(observer.last_changed.count(grandchild2));
+}
+
+TEST(SceneTest, AttachNodeReparentsAndDirtyState) {
+    Scene scene{};
+    SceneNodeKey root = scene.get_root_key();
+    SceneNodeKey a = scene.add_node(root, "A");
+    SceneNodeKey b = scene.add_node(root, "B");
+    SceneNodeKey c = scene.add_node(a, "C");
+    scene.finalize_and_notify();
+
+    // Attach C under B
+    scene.attach_node(c, b);
+    EXPECT_EQ(scene.get_parent_key(c), b);
+    const auto& b_children = scene.get_children_keys(b);
+    EXPECT_TRUE(std::find(b_children.begin(), b_children.end(), c) != b_children.end());
+    // A should no longer have C as child
+    const auto& a_children = scene.get_children_keys(a);
+    EXPECT_TRUE(std::find(a_children.begin(), a_children.end(), c) == a_children.end());
+    // C should be dirty after reparent
+    EXPECT_TRUE(scene.get_node(c)->dirty);
+    // Minimal dirty set should contain C
+    EXPECT_EQ(scene.get_minimal_dirty_set().size(), 1u);
+    EXPECT_TRUE(scene.get_minimal_dirty_set().count(c));
+}
+
+TEST(SceneTest, RemoveNodePatchesChildrenAndDirtyState) {
+    Scene scene{};
+    SceneNodeKey root = scene.get_root_key();
+    SceneNodeKey a = scene.add_node(root, "A");
+    SceneNodeKey b = scene.add_node(a, "B");
+    SceneNodeKey c = scene.add_node(a, "C");
+    scene.finalize_and_notify();
+
+    MockSceneObserver observer;
+    scene.add_observer(&observer);
+
+    // Remove A, B and C should be patched to root
+    scene.remove_node(a);
+    EXPECT_EQ(scene.get_parent_key(b), root);
+    EXPECT_EQ(scene.get_parent_key(c), root);
+    const auto& root_children = scene.get_children_keys(root);
+    EXPECT_TRUE(std::find(root_children.begin(), root_children.end(), b) != root_children.end());
+    EXPECT_TRUE(std::find(root_children.begin(), root_children.end(), c) != root_children.end());
+    // B and C should be dirty after reparent
+    EXPECT_TRUE(scene.get_node(b)->dirty);
+    EXPECT_TRUE(scene.get_node(c)->dirty);
+    // Minimal dirty set should contain B and C
+    EXPECT_EQ(scene.get_minimal_dirty_set().size(), 2u);
+    EXPECT_TRUE(scene.get_minimal_dirty_set().count(b));
+    EXPECT_TRUE(scene.get_minimal_dirty_set().count(c));
+    // After finalize_and_notify, observer should be notified of removal
+    scene.finalize_and_notify();
+    EXPECT_EQ(observer.remove_notify_count, 1);
+    // Removed nodes set should contain A
+    EXPECT_TRUE(observer.last_removed.count(a));
+}
+
+TEST(SceneTest, RemoveLeafNode) {
+    Scene scene{};
+    SceneNodeKey root = scene.get_root_key();
+    SceneNodeKey a = scene.add_node(root, "A");
+    scene.finalize_and_notify();
+    MockSceneObserver observer;
+    scene.add_observer(&observer);
+    // Remove leaf node
+    scene.remove_node(a);
+    EXPECT_TRUE(scene.get_children_keys(root).empty());
+    EXPECT_EQ(scene.get_minimal_dirty_set().size(), 0u);
+    scene.finalize_and_notify();
+    EXPECT_EQ(observer.remove_notify_count, 1);
+    EXPECT_TRUE(observer.last_removed.count(a));
+}
+
+TEST(SceneTest, AttachNodeToRootAndDirtyState) {
+    Scene scene{};
+    SceneNodeKey root = scene.get_root_key();
+    SceneNodeKey a = scene.add_node(root, "A");
+    SceneNodeKey b = scene.add_node(a, "B");
+    scene.finalize_and_notify();
+    // Attach B to root
+    scene.attach_node(b, root);
+    EXPECT_EQ(scene.get_parent_key(b), root);
+    const auto& root_children = scene.get_children_keys(root);
+    EXPECT_TRUE(std::find(root_children.begin(), root_children.end(), b) != root_children.end());
+    // B should be dirty
+    EXPECT_TRUE(scene.get_node(b)->dirty);
+    // Minimal dirty set should contain B
+    EXPECT_EQ(scene.get_minimal_dirty_set().size(), 1u);
+    EXPECT_TRUE(scene.get_minimal_dirty_set().count(b));
 }
