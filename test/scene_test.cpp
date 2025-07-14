@@ -647,3 +647,224 @@ TEST(SceneTest, RemoveNodeWithDescendants_RemovesAll) {
     EXPECT_TRUE(observer.last_removed.count(d));
 }
 
+TEST(SceneTest, SetWorldTransformUpdatesLocalAndWorld) {
+    Scene scene{};
+    SceneNodeKey root = scene.get_root_key();
+    SceneNodeKey child = scene.add_node(root, "child");
+    scene.finalize_and_notify();
+
+    MockSceneObserver observer;
+    scene.add_observer(&observer);
+
+    glm::mat4 root_local = glm::mat4(2.0f);
+    scene.set_local_transform(root, root_local);
+
+    glm::mat4 desired_world = glm::mat4(5.0f);
+    scene.set_world_transform(child, desired_world);
+    
+    // Child's world transform should be set
+    EXPECT_EQ(scene.get_node(child)->world_tansform, desired_world);
+    // Child's local transform should be parent^-1 * world
+    glm::mat4 expected_local = glm::inverse(root_local) * desired_world;
+    EXPECT_EQ(scene.get_node(child)->local_transform, expected_local);
+    // Child should not be dirty
+    EXPECT_FALSE(scene.get_node(child)->dirty);
+    // Minimal dirty set should not contain child
+    EXPECT_FALSE(scene.get_minimal_dirty_set().count(child));
+    // Changed nodes should include child
+    EXPECT_TRUE(scene.get_changed_nodes().count(child));
+    
+    // Observer should be notified of the change
+    scene.finalize_and_notify();
+    EXPECT_EQ(observer.notify_count, 1);
+    EXPECT_TRUE(observer.last_changed.count(child));
+}
+
+TEST(SceneTest, SetWorldTransformMarksDescendantsDirty) {
+    Scene scene{};
+    SceneNodeKey root = scene.get_root_key();
+    SceneNodeKey child = scene.add_node(root, "child");
+    SceneNodeKey grandchild1 = scene.add_node(child, "grandchild1");
+    SceneNodeKey grandchild2 = scene.add_node(child, "grandchild2");
+    scene.finalize_and_notify();
+
+    MockSceneObserver observer;
+    scene.add_observer(&observer);
+
+    glm::mat4 desired_world = glm::mat4(3.0f);
+    scene.set_world_transform(child, desired_world);
+    
+    // Child should not be dirty
+    EXPECT_FALSE(scene.get_node(child)->dirty);
+    // Grandchild should be dirty
+    EXPECT_TRUE(scene.get_node(grandchild1)->dirty);
+    EXPECT_TRUE(scene.get_node(grandchild2)->dirty);
+    // Minimal dirty set should contain grandchild
+    EXPECT_TRUE(scene.get_minimal_dirty_set().count(grandchild1));
+    EXPECT_TRUE(scene.get_minimal_dirty_set().count(grandchild2));
+    EXPECT_EQ(scene.get_minimal_dirty_set().size(), 2u);
+    // Changed nodes should include child
+    EXPECT_TRUE(scene.get_changed_nodes().count(child));
+    // Observer should be notified of the change
+    scene.finalize_and_notify();
+    EXPECT_EQ(observer.notify_count, 1);
+    // Observer should have child and grandchildren in last_changed
+    EXPECT_FALSE(observer.last_changed.count(root));
+    EXPECT_TRUE(observer.last_changed.count(child));
+    EXPECT_TRUE(observer.last_changed.count(grandchild1));
+    EXPECT_TRUE(observer.last_changed.count(grandchild2));
+    EXPECT_EQ(observer.last_changed.size(), 3u);
+}
+
+TEST(SceneTest, SetWorldTransformWithDirtyParent) {
+    Scene scene{};
+    SceneNodeKey root = scene.get_root_key();
+    SceneNodeKey child = scene.add_node(root, "child");
+    scene.finalize_and_notify();
+
+    MockSceneObserver observer;
+    scene.add_observer(&observer);
+
+    // Dirty the parent
+    scene.set_local_transform(root, glm::mat4(4.0f));
+    EXPECT_TRUE(scene.get_node(root)->dirty);
+    EXPECT_TRUE(scene.get_minimal_dirty_set().count(root));
+
+    glm::mat4 desired_world = glm::mat4(7.0f);
+    scene.set_world_transform(child, desired_world);
+    
+    // Child's world transform should be set
+    EXPECT_EQ(scene.get_node(child)->world_tansform, desired_world);
+    // Child should NOT be dirty
+    EXPECT_FALSE(scene.get_node(child)->dirty);
+    // Minimal dirty set should be empty (propagated from parent)
+    EXPECT_EQ(scene.get_minimal_dirty_set().size(), 0u);
+    // Changed nodes should include root and child (propogated by set_world_transform)
+    EXPECT_TRUE(scene.get_changed_nodes().count(root));
+    EXPECT_TRUE(scene.get_changed_nodes().count(child));
+    EXPECT_EQ(scene.get_changed_nodes().size(), 2u);
+    // Observer should be notified of the change
+    scene.finalize_and_notify();
+    EXPECT_EQ(observer.notify_count, 1);
+    // Observer should have root and child in last_changed
+    EXPECT_TRUE(observer.last_changed.count(root));
+    EXPECT_TRUE(observer.last_changed.count(child));
+    EXPECT_EQ(observer.last_changed.size(), 2u);
+}
+
+TEST(SceneTest, ComplexGraphSetWorldTransformPropagationAndDirtyState) {
+    Scene scene{};
+    // Build a complex graph:
+    // root
+    // ├── child1
+    // │   ├── grandchild1
+    // │   └── grandchild2
+    // └── child2
+    //     └── grandchild3
+    SceneNodeKey root = scene.get_root_key();
+    SceneNodeKey child1 = scene.add_node(root, "child1");
+    SceneNodeKey child2 = scene.add_node(root, "child2");
+    SceneNodeKey grandchild1 = scene.add_node(child1, "grandchild1");
+    SceneNodeKey grandchild2 = scene.add_node(child1, "grandchild2");
+    SceneNodeKey grandchild3 = scene.add_node(child2, "grandchild3");
+    scene.finalize_and_notify();
+
+    MockSceneObserver observer;
+    scene.add_observer(&observer);
+
+    // Stage 1: Set world transform on child1
+    glm::mat4 child1_world = glm::mat4(10.0f);
+    scene.set_world_transform(child1, child1_world);
+    // child1 and ancestors should be clean
+    EXPECT_FALSE(scene.get_node(child1)->dirty);
+    EXPECT_FALSE(scene.get_node(root)->dirty);
+    // Descendants dirty
+    EXPECT_TRUE(scene.get_node(grandchild1)->dirty);
+    EXPECT_TRUE(scene.get_node(grandchild2)->dirty);
+    // Sibling and its descendant clean
+    EXPECT_FALSE(scene.get_node(child2)->dirty);
+    EXPECT_FALSE(scene.get_node(grandchild3)->dirty);
+    // Minimal dirty set: grandchild1, grandchild2
+    EXPECT_EQ(scene.get_minimal_dirty_set().size(), 2u);
+    EXPECT_TRUE(scene.get_minimal_dirty_set().count(grandchild1));
+    EXPECT_TRUE(scene.get_minimal_dirty_set().count(grandchild2));
+    // Changed nodes should include child1
+    EXPECT_TRUE(scene.get_changed_nodes().count(child1));
+    EXPECT_EQ(scene.get_changed_nodes().size(), 1u);
+
+    // Stage 2: Finalize and notify, observer should get child1, grandchild1, grandchild2
+    scene.finalize_and_notify();
+    EXPECT_EQ(observer.notify_count, 1);
+    EXPECT_TRUE(observer.last_changed.count(child1));
+    EXPECT_TRUE(observer.last_changed.count(grandchild1));
+    EXPECT_TRUE(observer.last_changed.count(grandchild2));
+    EXPECT_FALSE(observer.last_changed.count(child2));
+    EXPECT_FALSE(observer.last_changed.count(grandchild3));
+    EXPECT_EQ(observer.last_changed.size(), 3u);
+
+    // Stage 3: Set world transform on root
+    glm::mat4 root_world = glm::mat4(20.0f);
+    scene.set_world_transform(root, root_world);
+    // root clean
+    EXPECT_FALSE(scene.get_node(root)->dirty);
+    // All descendants dirty
+    EXPECT_TRUE(scene.get_node(child1)->dirty);
+    EXPECT_TRUE(scene.get_node(child2)->dirty);
+    EXPECT_TRUE(scene.get_node(grandchild1)->dirty);
+    EXPECT_TRUE(scene.get_node(grandchild2)->dirty);
+    EXPECT_TRUE(scene.get_node(grandchild3)->dirty);
+    // Minimal dirty set: child1, child2
+    EXPECT_EQ(scene.get_minimal_dirty_set().size(), 2u);
+    EXPECT_TRUE(scene.get_minimal_dirty_set().count(child1));
+    EXPECT_TRUE(scene.get_minimal_dirty_set().count(child2));
+    // Changed nodes should include root
+    EXPECT_TRUE(scene.get_changed_nodes().count(root));
+    EXPECT_EQ(scene.get_changed_nodes().size(), 1u);
+
+    // Stage 4: Finalize and notify, observer should get root, child1, child2, grandchild1, grandchild2, grandchild3
+    scene.finalize_and_notify();
+    EXPECT_EQ(observer.notify_count, 2);
+    EXPECT_TRUE(observer.last_changed.count(root));
+    EXPECT_TRUE(observer.last_changed.count(child1));
+    EXPECT_TRUE(observer.last_changed.count(child2));
+    EXPECT_TRUE(observer.last_changed.count(grandchild1));
+    EXPECT_TRUE(observer.last_changed.count(grandchild2));
+    EXPECT_TRUE(observer.last_changed.count(grandchild3));
+    EXPECT_EQ(observer.last_changed.size(), 6u);
+
+    // Stage 5: Set world transform on root then on grandchild3
+    root_world = glm::mat4(30.0f);
+    scene.set_world_transform(root, root_world);
+    // root clean
+    glm::mat4 grandchild3_world = glm::mat4(40.0f);
+    scene.set_world_transform(grandchild3, grandchild3_world);
+    // grandchild3 and ancestors clean
+    EXPECT_FALSE(scene.get_node(grandchild3)->dirty);
+    EXPECT_FALSE(scene.get_node(child2)->dirty);
+    EXPECT_FALSE(scene.get_node(root)->dirty);
+    // Descendants (none) would be dirty if present
+    // Siblings retain dirty state
+    EXPECT_TRUE(scene.get_node(child1)->dirty);
+    EXPECT_TRUE(scene.get_node(grandchild1)->dirty);
+    EXPECT_TRUE(scene.get_node(grandchild2)->dirty);
+    // Minimal dirty set: child1
+    EXPECT_EQ(scene.get_minimal_dirty_set().size(), 1u);
+    EXPECT_TRUE(scene.get_minimal_dirty_set().count(child1));
+    // Changed nodes should include root, child2, and grandchild3
+    EXPECT_TRUE(scene.get_changed_nodes().count(root));
+    EXPECT_TRUE(scene.get_changed_nodes().count(child2));
+    EXPECT_TRUE(scene.get_changed_nodes().count(grandchild3));
+    EXPECT_EQ(scene.get_changed_nodes().size(), 3u);
+
+    // Stage 6: Finalize and notify, observer should be notified of the change
+    scene.finalize_and_notify();
+    EXPECT_EQ(observer.notify_count, 3);
+    // Observer should observe all nodes changed
+    EXPECT_TRUE(observer.last_changed.count(root));
+    EXPECT_TRUE(observer.last_changed.count(child1));
+    EXPECT_TRUE(observer.last_changed.count(child2));
+    EXPECT_TRUE(observer.last_changed.count(grandchild1));
+    EXPECT_TRUE(observer.last_changed.count(grandchild2));
+    EXPECT_TRUE(observer.last_changed.count(grandchild3));
+    EXPECT_EQ(observer.last_changed.size(), 6u);
+}

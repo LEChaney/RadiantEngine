@@ -218,7 +218,41 @@ void Scene::propagate_subtree(SceneNodeKey node_key, const glm::mat4& parent_wor
     }
 }
 
-void Scene::propagate_transforms_to(SceneNodeKey target_key) {
+void Scene::set_world_transform(SceneNodeKey node_key, const glm::mat4 &world)
+{
+    SceneNode& node = nodes[node_key];
+    if (node.world_tansform == world && !node.dirty) {
+        // No change, no need to dirty
+        return;
+    }
+
+    // Ensure the parent world transform is up to date
+    SceneNodeKey parent_key = node.parent_key;
+    propagate_transforms_to(parent_key);
+
+    // Compute the local transform based on the parent world
+    // P * L = W -> L = P^-1 * W
+    glm::mat4 parent_world = parent_key.is_null() ? 
+        glm::mat4(1.0f) : 
+        nodes[parent_key].world_tansform;
+    node.local_transform = glm::inverse(parent_world) * world;
+
+    // Update world transform and mark as changed
+    if (node.world_tansform != world) {
+        node.world_tansform = world;
+        changed_nodes.insert(node_key);
+    }
+
+    // Clear dirty state on this node and mark all descendants as dirty
+    node.dirty = false;
+    minimal_dirty_set.erase(node_key);
+    for (const auto& child_key : node.children_keys) {
+        mark_dirty(child_key, true);
+    }
+}
+
+void Scene::propagate_transforms_to(SceneNodeKey target_key)
+{
     if (target_key.is_null() || !nodes[target_key].dirty) {
         return; // Nothing to propagate
     }
@@ -295,10 +329,6 @@ void Scene::remove_observer(ISceneObserver* observer) {
     }
 }
 
-const SceneNodeKeySet& Scene::get_changed_nodes() const {
-    return changed_nodes;
-}
-
 bool Scene::is_node_dirty(SceneNodeKey node_key) const
 {
     return nodes[node_key].dirty;
@@ -307,4 +337,12 @@ bool Scene::is_node_dirty(SceneNodeKey node_key) const
 const SceneNodeKeySet &Scene::get_minimal_dirty_set() const
 {
     return minimal_dirty_set;
+}
+
+const SceneNodeKeySet& Scene::get_changed_nodes() const {
+    return changed_nodes;
+}
+
+const SceneNodeKeySet& Scene::get_removed_nodes() const {
+    return removed_nodes;
 }

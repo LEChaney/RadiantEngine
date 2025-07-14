@@ -117,11 +117,9 @@ public:
     void propagate_transforms();
 
     /**
-     * Performs final transform propagation (calls propagate_transforms internally if
-     * needed), notifies all registered observers of node transform changes via the
-     * observer pattern, passing the set of changed nodes, and then clears the changed
-     * nodes set. Should be called once per frame, after all transform updates and
-     * before rendering.
+     * Performs final transform propagation.
+     * Notifies all registered observers of node changes.
+     * Clears the internal changed node set after nofitication.
      */
     void finalize_and_notify();
 
@@ -129,11 +127,12 @@ public:
     void add_observer(ISceneObserver* observer);
     void remove_observer(ISceneObserver* observer);
 
-    const SceneNodeKeySet& get_changed_nodes() const;
     bool is_node_dirty(SceneNodeKey node_key) const;
 
-    // For testing and debugging: expose minimal_dirty_set
+    // For testing and debugging: expose internal state
     const SceneNodeKeySet& get_minimal_dirty_set() const;
+    const SceneNodeKeySet& get_changed_nodes() const;
+    const SceneNodeKeySet& get_removed_nodes() const;
 
 private:
     SlotMap<SceneNode> nodes;
