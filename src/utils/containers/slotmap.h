@@ -135,10 +135,10 @@ public:
         uint32_t generation   = 0;
     };
 
+    // Add method: accepts any subset of component arguments, missing types are default constructed
     template <typename... Args>
-    Key add(Args &&...args) {
-        static_assert(sizeof...(Components) == sizeof...(Args), "Number of arguments must match number of components");
-
+    Key add(Args&&... args) {
+        static_assert(sizeof...(Args) <= sizeof...(Components), "Too many arguments for SlotMap::add");
         uint32_t slot_index;
         if (!free_slots.empty()) {
             slot_index = free_slots.back();
@@ -150,7 +150,7 @@ public:
 
         uint32_t packed_index = (uint32_t)std::get<0>(component_arrays).size();
 
-        insert_components(packed_index, std::forward<Args>(args)...);
+        insert_or_default_components(std::forward<Args>(args)...);
 
         slots[slot_index].packed_index = packed_index;
         packed_to_slot.push_back(slot_index);
@@ -272,16 +272,27 @@ private:
     static constexpr bool contains_type() {
         return (std::is_same_v<T, Ts> || ...);
     }
-
-    // Insert helper
+    
+    // Helper: emplace provided args, default construct missing types
     template <typename... Args, std::size_t... Is>
-    void insert_components_impl(uint32_t, std::index_sequence<Is...>, Args &&...args) {
-        (std::get<Is>(component_arrays).emplace_back(std::forward<Args>(args)), ...);
+    void insert_or_default_components_impl(std::index_sequence<Is...>, Args&&... args) {
+        // For each component type, emplace arg if present, else default
+        (insert_one_component<Is, Args...>(std::forward<Args>(args)...), ...);
+    }
+    
+    template <typename... Args>
+    void insert_or_default_components(Args&&... args) {
+        insert_or_default_components_impl(std::make_index_sequence<sizeof...(Components)>(), std::forward<Args>(args)...);
     }
 
-    template <typename... Args>
-    void insert_components(uint32_t index, Args &&...args) {
-        insert_components_impl(index, std::index_sequence_for<Components...>{}, std::forward<Args>(args)...);
+    template <std::size_t I, typename... Args>
+    void insert_one_component(Args&&... args) {
+        using Component = std::tuple_element_t<I, std::tuple<Components...>>;
+        if constexpr (I < sizeof...(Args)) {
+            std::get<I>(component_arrays).emplace_back(std::get<I>(std::forward_as_tuple(std::forward<Args>(args)...)));
+        } else {
+            std::get<I>(component_arrays).emplace_back();
+        }
     }
 
     // Move helper

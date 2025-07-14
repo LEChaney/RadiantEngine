@@ -23,14 +23,11 @@ SceneNodeKey Scene::add_node(SceneNodeKey parent_key, const std::string& name) {
         parent_key = root_key;
     }
 
-    SceneNodeKey new_node_key = nodes.add(SceneNode{
-        parent_key,      // parent_key
-        {},              // children_keys
-        glm::mat4(1.0f), // local_transform
-        glm::mat4(1.0f), // world_tansform
-        true,            // dirty
-        name             // name
-    });
+    SceneNodeKey new_node_key = nodes.add();
+    SceneNode& new_node = nodes[new_node_key];
+    new_node.parent_key = parent_key;
+    new_node.name = name;
+    new_node.dirty = true; // New nodes are always dirty initially
 
     SceneNode& parent_node = nodes[parent_key];
     parent_node.children_keys.push_back(new_node_key);

@@ -3,8 +3,8 @@
 #include <string>
 #include <type_traits>
 
-struct Position { float x, y; };
-struct Velocity { float dx, dy; };
+struct Position { float x=0, y=0; };
+struct Velocity { float dx=0, dy=0; };
 
 TEST(SlotMapTest, AddAndGetSingleComponent) {
     SlotMap<Position> sm;
@@ -329,4 +329,32 @@ TEST(SlotMapTest, ConstKeyValueIterationSlotMapView) {
     EXPECT_EQ(found[0].dx + found[1].dx, 100);
     EXPECT_TRUE((keys[0] == h1 || keys[0] == h2));
     EXPECT_TRUE((keys[1] == h1 || keys[1] == h2));
+}
+
+TEST(SlotMapTest, AddDefaultConstructAllComponents) {
+    SlotMap<Position, Velocity> sm;
+    auto h = sm.add();
+    ASSERT_TRUE(sm.is_valid(h));
+    auto* pos = sm.get<Position>(h);
+    auto* vel = sm.get<Velocity>(h);
+    ASSERT_NE(pos, nullptr);
+    ASSERT_NE(vel, nullptr);
+    EXPECT_FLOAT_EQ(pos->x, 0.0f);
+    EXPECT_FLOAT_EQ(pos->y, 0.0f);
+    EXPECT_FLOAT_EQ(vel->dx, 0.0f);
+    EXPECT_FLOAT_EQ(vel->dy, 0.0f);
+}
+
+TEST(SlotMapTest, AddDefaultConstructMissingComponents) {
+    SlotMap<Position, Velocity> sm;
+    auto h = sm.add(Position{1.5f, 2.5f});
+    ASSERT_TRUE(sm.is_valid(h));
+    auto* pos = sm.get<Position>(h);
+    auto* vel = sm.get<Velocity>(h);
+    ASSERT_NE(pos, nullptr);
+    ASSERT_NE(vel, nullptr);
+    EXPECT_FLOAT_EQ(pos->x, 1.5f);
+    EXPECT_FLOAT_EQ(pos->y, 2.5f);
+    EXPECT_FLOAT_EQ(vel->dx, 0.0f);
+    EXPECT_FLOAT_EQ(vel->dy, 0.0f);
 }
