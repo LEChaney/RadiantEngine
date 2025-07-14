@@ -155,10 +155,17 @@ private:
     /**
      * Marks the node and all its descendants as dirty. Also updates the minimal
      * dirty set such that only the top-most dirty ancestor is kept.
-     * @param force_update_dirty_set If true, forces an update to the minimal dirty set,
-     * even if the node is already dirty. Useful when nodes get removed or re-attached.
+     * @param skip_update_if_dirty If true, skip dirty propagation, and updating 
+     * of the minimal dirty set, if the node is already dirty. Useful optimization
+     * when we know that no changes will be made when the node is dirty.
+     * @param skip_covered_check If true, skips checking if the node is already 
+     * covered by a parent in the minimal dirty set. Useful optimization when we
+     * know the node is not covered.
      */
-    void mark_dirty(SceneNodeKey node_key, bool force_update_dirty_set=false);
+    void mark_dirty(
+        SceneNodeKey node_key, 
+        bool skip_update_if_dirty=false,
+        bool skip_covered_check=false);
 
     // Helper for mark_dirty: Recursively marks nodes as dirty and removes
     // them from the minimal dirty set.

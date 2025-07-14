@@ -75,12 +75,11 @@ void Scene::remove_node(SceneNodeKey node_key, bool remove_all_descendants)
         SceneNode& child_node = nodes[child_key];
         child_node.parent_key = parent_key;
         parent_node.children_keys.push_back(child_key);
-        // Mark child as dirty since its parent is being removed.
-        // Force an update for the minimal dirty set, since it might be incorrect now
-        mark_dirty(child_key, true);
+        // Mark child as dirty since its parent is changing
+        mark_dirty(child_key);
     }
 
-    // Remove from dirty sets
+    // Update internal state tracking
     minimal_dirty_set.erase(node_key);
     changed_nodes.erase(node_key);
     removed_nodes.insert(node_key);
@@ -108,9 +107,8 @@ void Scene::attach_node(SceneNodeKey node_key, SceneNodeKey new_parent_key) {
     SceneNode& new_parent = nodes[new_parent_key];
     new_parent.children_keys.push_back(node_key);
 
-    // Mark dirty and force an update for the minimal dirty set, 
-    // since it might be incorrect now
-    mark_dirty(node_key, true);
+    // Mark the node and its descendants as dirty
+    mark_dirty(node_key);
 }
 
 void Scene::detach_node(SceneNodeKey node_key)
@@ -182,50 +180,12 @@ void Scene::set_local_transform(SceneNodeKey node_key, const glm::mat4& local) {
         return; // No change, no need to dirty
     }
     node.local_transform = local;
-    mark_dirty(node_key);
-}
 
-void Scene::mark_dirty(SceneNodeKey node_key, bool force_update_dirty_set) {
-    SceneNode& node = nodes[node_key];
-    if (node.dirty && !force_update_dirty_set) {
-        return;
-    }
-
-    mark_dirty_recursive(node_key);
-
-    // Add to minimal dirty set if not already covered by parent.
-    SceneNodeKey parent_key = node.parent_key;
-    if (parent_key.is_null() || !nodes[parent_key].dirty) {
-        minimal_dirty_set.insert(node_key);
-    }
-}
-
-void Scene::mark_dirty_recursive(SceneNodeKey node_key) {
-    SceneNode& node = nodes[node_key];
-    if (node.dirty) {
-        // Remove from minimal dirty set if already dirty; 
-        // descendants are already covered by ancestor.
-        minimal_dirty_set.erase(node_key);
-        return;
-    }
-
-    node.dirty = true;
-    for (const auto& child_key : node.children_keys) {
-        mark_dirty_recursive(child_key);
-    }
-}
-
-void Scene::propagate_subtree(SceneNodeKey node_key, const glm::mat4& parent_world, SceneNodeKeySet& changed_nodes) {
-    SceneNode& node = nodes[node_key];
-    glm::mat4 prev_world = node.world_tansform;
-    node.world_tansform = parent_world * node.local_transform;
-    node.dirty = false;
-    if (node.world_tansform != prev_world) {
-        changed_nodes.insert(node_key);
-    }
-    for (const auto& child_key : node.children_keys) {
-        propagate_subtree(child_key, node.world_tansform, changed_nodes);
-    }
+    // Mark the node and all descendants as dirty
+    // Skip updating dirty state if already dirty; covered by parent if so.
+    // If node isn't dirty, parent also can't be dirty, so covered check 
+    // isn't needed either.
+    mark_dirty(node_key, true, true);
 }
 
 void Scene::set_world_transform(SceneNodeKey node_key, const glm::mat4 &world)
@@ -257,7 +217,58 @@ void Scene::set_world_transform(SceneNodeKey node_key, const glm::mat4 &world)
     node.dirty = false;
     minimal_dirty_set.erase(node_key);
     for (const auto& child_key : node.children_keys) {
-        mark_dirty(child_key, true);
+        // We CAN'T skip update on already dirty children, as they will need
+        // to be added to the minimal dirty set still. We can skip the covered check
+        // though, since the parent node is clean.
+        mark_dirty(child_key, false, true);
+    }
+}
+
+void Scene::mark_dirty(SceneNodeKey node_key, 
+    bool skip_update_if_dirty, 
+    bool skip_covered_check)
+{
+    SceneNode& node = nodes[node_key];
+    if (skip_update_if_dirty && node.dirty) {
+        return;
+    }
+
+    mark_dirty_recursive(node_key);
+
+    // Add to minimal dirty set if not already covered by parent.
+    if (skip_covered_check ||
+        node.parent_key.is_null() ||
+        !nodes[node.parent_key].dirty) 
+    {
+        minimal_dirty_set.insert(node_key);
+    }
+}
+
+void Scene::mark_dirty_recursive(SceneNodeKey node_key) {
+    SceneNode& node = nodes[node_key];
+    if (node.dirty) {
+        // Remove from minimal dirty set if already dirty; 
+        // descendants are already covered by ancestor.
+        minimal_dirty_set.erase(node_key);
+        return;
+    }
+
+    node.dirty = true;
+    for (const auto& child_key : node.children_keys) {
+        mark_dirty_recursive(child_key);
+    }
+}
+
+void Scene::propagate_subtree(SceneNodeKey node_key, const glm::mat4& parent_world, SceneNodeKeySet& changed_nodes) {
+    SceneNode& node = nodes[node_key];
+    glm::mat4 prev_world = node.world_tansform;
+    node.world_tansform = parent_world * node.local_transform;
+    node.dirty = false;
+    if (node.world_tansform != prev_world) {
+        changed_nodes.insert(node_key);
+    }
+    for (const auto& child_key : node.children_keys) {
+        propagate_subtree(child_key, node.world_tansform, changed_nodes);
     }
 }
 
