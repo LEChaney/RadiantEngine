@@ -868,3 +868,18 @@ TEST(SceneTest, ComplexGraphSetWorldTransformPropagationAndDirtyState) {
     EXPECT_TRUE(observer.last_changed.count(grandchild3));
     EXPECT_EQ(observer.last_changed.size(), 6u);
 }
+
+TEST(SceneTest, FindNodeByName) {
+    Scene scene{};
+    SceneNodeKey root = scene.get_root_key();
+    SceneNodeKey child = scene.add_node(root, "child");
+    SceneNodeKey grandchild = scene.add_node(child, "grandchild");
+
+    // Should find root, child, grandchild by name
+    EXPECT_EQ(scene.find_node_by_name("root"), root);
+    EXPECT_EQ(scene.find_node_by_name("child"), child);
+    EXPECT_EQ(scene.find_node_by_name("grandchild"), grandchild);
+
+    // Should not find non-existent node
+    EXPECT_EQ(scene.find_node_by_name("not_a_node"), SceneNodeKey::null());
+}

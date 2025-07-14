@@ -131,6 +131,16 @@ const std::vector<SceneNodeKey>& Scene::get_children_keys(SceneNodeKey node_key)
     return nodes.get<SceneNode>(node_key)->children_keys;
 }
 
+SceneNodeKey Scene::find_node_by_name(const std::string &name) const
+{
+    for (const auto& [key, node] : nodes) {
+        if (node.name == name) {
+            return key;
+        }
+    }
+    return SceneNodeKey::null(); // Not found
+}
+
 const SceneNode* Scene::get_node(SceneNodeKey node_key) const
 {
     return nodes.get<SceneNode>(node_key);
