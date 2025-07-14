@@ -13,6 +13,37 @@
 template <typename... Components>
 class SlotMap;
 
+
+
+// Generic key-value iterator for SlotMap and SlotMapView
+template <typename Container, typename Component>
+class SlotMapKvIterator {
+public:
+    using Key = typename Container::Key;
+    using difference_type = std::ptrdiff_t;
+    using reference_type = decltype(std::declval<Container>().template raw_data<Component>()[0]);
+    using value_type = std::pair<Key, reference_type>;
+    using pointer = value_type*;
+    using reference = value_type;
+    using iterator_category = std::forward_iterator_tag;
+
+    SlotMapKvIterator(Container& container, size_t idx)
+        : container(container), idx(idx) {}
+
+    reference operator*() const {
+        uint32_t slot_index = container.packed_to_slot[idx];
+        Key key{slot_index, container.slots[slot_index].generation};
+        return value_type{key, container.template raw_data<Component>()[idx]};
+    }
+    SlotMapKvIterator& operator++() { ++idx; return *this; }
+    SlotMapKvIterator operator++(int) { SlotMapKvIterator tmp = *this; ++idx; return tmp; }
+    bool operator==(const SlotMapKvIterator& other) const { return idx == other.idx; }
+    bool operator!=(const SlotMapKvIterator& other) const { return idx != other.idx; }
+private:
+    Container& container;
+    size_t idx;
+};
+
 // SlotMapView: provides operator[] for a specific component type
 template <typename Component, typename... Components>
 class SlotMapView {
@@ -39,6 +70,22 @@ public:
         return slotmap.template raw_data<Component>();
     }
 
+    // Range-based for loop support (key-value by default)
+    auto begin() { return SlotMapKvIterator<SlotMapType, Component>(slotmap, 0); }
+    auto end()   { return SlotMapKvIterator<SlotMapType, Component>(slotmap, slotmap.template raw_data<Component>().size()); }
+    auto begin() const { return SlotMapKvIterator<SlotMapType, Component>(const_cast<SlotMapType&>(slotmap), 0); }
+    auto end()   const { return SlotMapKvIterator<SlotMapType, Component>(const_cast<SlotMapType&>(slotmap), slotmap.template raw_data<Component>().size()); }
+
+    // Raw data iteration
+    auto raw_begin() { return slotmap.template raw_data<Component>().begin(); }
+    auto raw_end()   { return slotmap.template raw_data<Component>().end(); }
+    auto raw_begin() const { return slotmap.template raw_data<Component>().begin(); }
+    auto raw_end()   const { return slotmap.template raw_data<Component>().end(); }
+
+    // Key-value iterator support (explicit)
+    auto kv_begin() { return begin(); }
+    auto kv_end()   { return end(); }
+
 private:
     SlotMapType& slotmap;
 };
@@ -47,18 +94,12 @@ template <typename... Components>
 class SlotMap {
 public:
     SlotMap() = default;
-    // Get a view for a specific component type
-    template <typename Component>
-    SlotMapView<Component, Components...> view() {
-        static_assert(contains_type<Component, Components...>(), "Component type not found in SlotMap");
-        return SlotMapView<Component, Components...>(*this);
-    }
-
-    template <typename Component>
-    const SlotMapView<Component, Components...> view() const {
-        static_assert(contains_type<Component, Components...>(), "Component type not found in SlotMap");
-        return SlotMapView<Component, Components...>(const_cast<SlotMap&>(*this));
-    }
+    
+    // Allow SlotMapView and iterator to access private members
+    template <typename Component, typename... Cs>
+    friend class SlotMapView;
+    template <typename Container, typename ComponentT>
+    friend class SlotMapKvIterator;
 
     struct Key {
         uint32_t slot_index = 0xFFFFFFFF;
@@ -178,6 +219,47 @@ public:
         static_assert(contains_type<Component, Components...>(), "Component type not found in SlotMap");
         return std::get<std::vector<Component>>(component_arrays);
     }
+
+    // Get a view for a specific component type
+    template <typename Component>
+    SlotMapView<Component, Components...> view() {
+        static_assert(contains_type<Component, Components...>(), "Component type not found in SlotMap");
+        return SlotMapView<Component, Components...>(*this);
+    }
+
+    template <typename Component>
+    const SlotMapView<Component, Components...> view() const {
+        static_assert(contains_type<Component, Components...>(), "Component type not found in SlotMap");
+        return SlotMapView<Component, Components...>(const_cast<SlotMap&>(*this));
+    }
+
+    // Range-based for loop support (key-value by default)
+    auto begin() {
+        using Component = std::tuple_element_t<0, std::tuple<Components...>>;
+        return SlotMapKvIterator<SlotMap, Component>(*this, 0);
+    }
+    auto end() {
+        using Component = std::tuple_element_t<0, std::tuple<Components...>>;
+        return SlotMapKvIterator<SlotMap, Component>(*this, std::get<0>(component_arrays).size());
+    }
+    auto begin() const {
+        using Component = std::tuple_element_t<0, std::tuple<Components...>>;
+        return SlotMapKvIterator<SlotMap, Component>(const_cast<SlotMap&>(*this), 0);
+    }
+    auto end() const {
+        using Component = std::tuple_element_t<0, std::tuple<Components...>>;
+        return SlotMapKvIterator<SlotMap, Component>(const_cast<SlotMap&>(*this), std::get<0>(component_arrays).size());
+    }
+
+    // Raw data iteration
+    auto raw_begin() { return std::get<0>(component_arrays).begin(); }
+    auto raw_end()   { return std::get<0>(component_arrays).end(); }
+    auto raw_begin() const { return std::get<0>(component_arrays).begin(); }
+    auto raw_end()   const { return std::get<0>(component_arrays).end(); }
+
+    // Key-value iterator support (explicit)
+    auto kv_begin() { return begin(); }
+    auto kv_end()   { return end(); }
 
 private:
     std::vector<Slot>                      slots;

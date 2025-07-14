@@ -227,3 +227,106 @@ TEST(SlotMapTest, OperatorIndexFirstComponentMultipleTypes) {
     EXPECT_FLOAT_EQ(vel->dx, 7.0f);
     EXPECT_FLOAT_EQ(vel->dy, 8.0f);
 }
+
+TEST(SlotMapTest, KeyValueIterationSingleComponent) {
+    SlotMap<Position> sm;
+    auto h1 = sm.add(Position{1.0f, 2.0f});
+    auto h2 = sm.add(Position{3.0f, 4.0f});
+    std::vector<Position> found;
+    std::vector<SlotMap<Position>::Key> keys;
+    for (const auto& [key, pos] : sm) {
+        found.push_back(pos);
+        keys.push_back(key);
+        EXPECT_TRUE(sm.is_valid(key));
+    }
+    ASSERT_EQ(found.size(), 2u);
+    EXPECT_FLOAT_EQ(found[0].x, 1.0f);
+    EXPECT_FLOAT_EQ(found[1].y, 4.0f);
+    EXPECT_TRUE((keys[0] == h1 || keys[0] == h2));
+    EXPECT_TRUE((keys[1] == h1 || keys[1] == h2));
+}
+
+TEST(SlotMapTest, KeyValueIterationMultipleComponents) {
+    SlotMap<Position, Velocity> sm;
+    auto h1 = sm.add(Position{1,2}, Velocity{3,4});
+    auto h2 = sm.add(Position{5,6}, Velocity{7,8});
+    std::vector<Position> found;
+    std::vector<SlotMap<Position, Velocity>::Key> keys;
+    for (const auto& [key, pos] : sm) {
+        found.push_back(pos);
+        keys.push_back(key);
+        EXPECT_TRUE(sm.is_valid(key));
+    }
+    ASSERT_EQ(found.size(), 2u);
+    EXPECT_EQ(found[0].x + found[1].x, 6);
+    EXPECT_TRUE((keys[0] == h1 || keys[0] == h2));
+    EXPECT_TRUE((keys[1] == h1 || keys[1] == h2));
+}
+
+TEST(SlotMapTest, KeyValueIterationSlotMapView) {
+    SlotMap<Position, Velocity> sm;
+    auto h1 = sm.add(Position{10,20}, Velocity{30,40});
+    auto h2 = sm.add(Position{50,60}, Velocity{70,80});
+    auto view = sm.view<Velocity>();
+    std::vector<Velocity> found;
+    std::vector<SlotMap<Position, Velocity>::Key> keys;
+    for (const auto& [key, vel] : view) {
+        found.push_back(vel);
+        keys.push_back(key);
+        EXPECT_TRUE(sm.is_valid(key));
+    }
+    ASSERT_EQ(found.size(), 2u);
+    EXPECT_EQ(found[0].dx + found[1].dx, 100);
+    EXPECT_TRUE((keys[0] == h1 || keys[0] == h2));
+    EXPECT_TRUE((keys[1] == h1 || keys[1] == h2));
+}
+
+TEST(SlotMapTest, RawDataIterationStillWorks) {
+    SlotMap<Position> sm;
+    sm.add(Position{1,2});
+    sm.add(Position{3,4});
+    std::vector<float> xs;
+    for (auto it = sm.raw_begin(); it != sm.raw_end(); ++it) {
+        xs.push_back(it->x);
+    }
+    ASSERT_EQ(xs.size(), 2u);
+    EXPECT_EQ(xs[0], 1);
+    EXPECT_EQ(xs[1], 3);
+}
+
+TEST(SlotMapTest, ConstKeyValueIterationSlotMap) {
+    SlotMap<Position, Velocity> sm;
+    auto h1 = sm.add(Position{1,2}, Velocity{3,4});
+    auto h2 = sm.add(Position{5,6}, Velocity{7,8});
+    const auto& csm = sm;
+    std::vector<Position> found;
+    std::vector<SlotMap<Position, Velocity>::Key> keys;
+    for (const auto& [key, pos] : csm) {
+        found.push_back(pos);
+        keys.push_back(key);
+        EXPECT_TRUE(csm.is_valid(key));
+    }
+    ASSERT_EQ(found.size(), 2u);
+    EXPECT_EQ(found[0].x + found[1].x, 6);
+    EXPECT_TRUE((keys[0] == h1 || keys[0] == h2));
+    EXPECT_TRUE((keys[1] == h1 || keys[1] == h2));
+}
+
+TEST(SlotMapTest, ConstKeyValueIterationSlotMapView) {
+    SlotMap<Position, Velocity> sm;
+    auto h1 = sm.add(Position{10,20}, Velocity{30,40});
+    auto h2 = sm.add(Position{50,60}, Velocity{70,80});
+    const auto& csm = sm;
+    auto cview = csm.view<Velocity>();
+    std::vector<Velocity> found;
+    std::vector<SlotMap<Position, Velocity>::Key> keys;
+    for (const auto& [key, vel] : cview) {
+        found.push_back(vel);
+        keys.push_back(key);
+        EXPECT_TRUE(csm.is_valid(key));
+    }
+    ASSERT_EQ(found.size(), 2u);
+    EXPECT_EQ(found[0].dx + found[1].dx, 100);
+    EXPECT_TRUE((keys[0] == h1 || keys[0] == h2));
+    EXPECT_TRUE((keys[1] == h1 || keys[1] == h2));
+}
