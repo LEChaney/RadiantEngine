@@ -65,4 +65,15 @@ target_include_directories(scene_test PRIVATE "${CMAKE_SOURCE_DIR}/src")
 target_link_libraries(scene_test PRIVATE GTest::gtest GTest::gtest_main glm unordered_dense)
 add_dependencies(build_tests scene_test)
 add_test(NAME scene_test COMMAND scene_test)
-# Add test executable(s)
+
+# SceneManager unit test
+add_executable(scene_manager_test 
+    scene_manager_test.cpp 
+    ${CMAKE_SOURCE_DIR}/src/scene/scene.cpp
+    ${CMAKE_SOURCE_DIR}/src/scene/scene_manager.cpp)
+set_property(TARGET scene_manager_test PROPERTY CXX_STANDARD 20)
+set_target_properties(scene_manager_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${TEST_OUTPUT_DIRECTORY}")
+target_include_directories(scene_manager_test PRIVATE "${CMAKE_SOURCE_DIR}/src")
+target_link_libraries(scene_manager_test PRIVATE GTest::gtest GTest::gtest_main glm unordered_dense)
+add_dependencies(build_tests scene_manager_test)
+add_test(NAME scene_manager_test COMMAND scene_manager_test)
