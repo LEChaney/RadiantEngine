@@ -16,23 +16,30 @@ Manages the collection of mesh resources for a scene, providing APIs for lookup,
 
 ---
 
-
 ## Registry API and Internals
 
 ```cpp
 class MeshRegistry {
 public:
-    void add_mesh(MeshHandle handle, Mesh&& mesh); // Only stores mesh, does not allocate
-    void remove_mesh(MeshHandle handle);           // Removes and destroys mesh
+    MeshRegistry(MeshAllocator* allocator);
+
+    MeshHandle create_mesh(const MeshSource& src);
+    void destroy_mesh(MeshHandle handle);
     const Mesh& get_mesh(MeshHandle handle) const;
     const std::vector<MeshSection>& get_sections(MeshHandle handle) const;
 
 private:
+    MeshAllocator* allocator_; // Dependency injected
     std::unordered_map<MeshHandle, Mesh> meshes;
     // (Optional) handle maps for fast lookup
     // (Optional) scene/context info for per-scene ownership
 };
 ```
+
+Typical flow:
+- `create_mesh` calls allocator to construct the mesh, stores it in the registry, and returns the handle.
+- `destroy_mesh` removes the mesh from the registry and calls allocator to destroy it.
+
 
 ---
 

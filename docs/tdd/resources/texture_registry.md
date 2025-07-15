@@ -18,7 +18,6 @@ Manages texture resources for a scene, including loading, deduplication, and GPU
 
 ---
 
-
 ## Registry API and Internals
 
 ```cpp
@@ -33,16 +32,23 @@ struct Texture {
 
 class TextureRegistry {
 public:
-    void add_texture(TextureHandle handle, Texture&& texture); // Only stores texture, does not allocate
-    void remove_texture(TextureHandle handle);                 // Removes and destroys texture
+    TextureRegistry(TextureAllocator* allocator);
+
+    TextureHandle create_texture(const TextureCreateDesc& desc);
+    void destroy_texture(TextureHandle handle);
     const Texture& get_texture(TextureHandle handle) const;
     TextureHandle find_texture(const std::string& path) const;
 
 private:
+    TextureAllocator* allocator_; // Dependency injected
     std::unordered_map<TextureHandle, Texture> textures;
     // (Optional) path-to-handle map for deduplication
 };
 ```
+
+Typical flow:
+- `create_texture` calls allocator to construct the texture, stores it in the registry, and returns the handle.
+- `destroy_texture` removes the texture from the registry and calls allocator to destroy it.
 
 ---
 

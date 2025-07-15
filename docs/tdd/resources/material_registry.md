@@ -14,27 +14,33 @@ Manages the collection of both material instances and material templates for a s
 
 ---
 
-
-
 ## Registry API and Internals
 
 ```cpp
 class MaterialRegistry {
 public:
-    void add_material(MaterialHandle handle, Material&& material); // Only stores material, does not allocate
-    void add_material_template(MaterialTemplateHandle handle, MaterialTemplate&& templ);
-    void remove_material(MaterialHandle handle);                   // Removes and destroys material
-    void remove_material_template(MaterialTemplateHandle handle);
+    MaterialRegistry(MaterialAllocator* allocator);
+
+    MaterialHandle create_material(const MaterialDesc& desc);
+    void destroy_material(MaterialHandle handle);
+    MaterialTemplateHandle create_material_template(const MaterialTemplateDesc& desc);
+    void destroy_material_template(MaterialTemplateHandle handle);
+
     const Material& get_material(MaterialHandle handle) const;
     const MaterialTemplate& get_material_template(MaterialTemplateHandle handle) const;
 
 private:
+    MaterialAllocator* allocator_; // Dependency injected
     std::unordered_map<MaterialHandle, Material> materials;
     std::unordered_map<MaterialTemplateHandle, MaterialTemplate> templates;
     // (Optional) handle maps for fast lookup
     // (Optional) scene/context info for per-scene ownership
 };
 ```
+
+Typical flow:
+- `create_material` calls allocator to construct the material, stores it in the registry, and returns the handle.
+- `destroy_material` removes the material from the registry and calls allocator to destroy it.
 
 ---
 
