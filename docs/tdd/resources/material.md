@@ -15,20 +15,27 @@ Defines a single material instance for a scene, including its parameters, textur
 
 ---
 
-## Structure & Internals
 
-- `Material` struct/class holds:
-  - `parameters`: Material parameter values (floats, vectors, etc.)
-  - `texture_handles`: References to textures (from TextureManager)
-  - `pipeline_handle`, `pipeline_layout_handle`: GPU handles for pipeline and layout
-  - `descriptor_set`: GPU handle for descriptor set
-  - (Optional) metadata for editor integration
+## Data Structures
+
+```cpp
+struct Material {
+    // Construction Data (CPU side)
+    std::vector<TextureHandle> texture_handles;
+    MaterialMetadata metadata; // optional
+    // PSO Data + Bindings (GPU side)
+    PipelineHandle pipeline_handle;
+    PipelineLayoutHandle pipeline_layout_handle;
+    DescriptorSetHandle descriptor_set;
+    MaterialParameters parameters; // Push constants, etc. (May be on CPU or GPU side)
+};
+```
 
 ---
 
 ## Ownership & Lifetime
 
-- Materials are owned per scene by the registry
+- Materials are owned per scene by the material registry
 - All GPU resources are released when the material is destroyed or the scene is unloaded
 
 ---

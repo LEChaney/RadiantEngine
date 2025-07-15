@@ -14,33 +14,34 @@ Manages the collection of both material instances and material templates for a s
 
 ---
 
-## Structure & Internals
 
-- `MaterialRegistry` holds:
-  - `materials`: Registry of `Material` objects (instances)
-  - `templates`: Registry of `MaterialTemplate` objects
-  - (Optional) handle maps for fast lookup
-  - (Optional) scene/context info for per-scene ownership
+
+## Registry API and Internals
+
+```cpp
+class MaterialRegistry {
+public:
+    void add_material(MaterialHandle handle, Material&& material); // Only stores material, does not allocate
+    void add_material_template(MaterialTemplateHandle handle, MaterialTemplate&& templ);
+    void remove_material(MaterialHandle handle);                   // Removes and destroys material
+    void remove_material_template(MaterialTemplateHandle handle);
+    const Material& get_material(MaterialHandle handle) const;
+    const MaterialTemplate& get_material_template(MaterialTemplateHandle handle) const;
+
+private:
+    std::unordered_map<MaterialHandle, Material> materials;
+    std::unordered_map<MaterialTemplateHandle, MaterialTemplate> templates;
+    // (Optional) handle maps for fast lookup
+    // (Optional) scene/context info for per-scene ownership
+};
+```
 
 ---
 
-## Example API
+## Integration with Allocator
 
-```cpp
-// Create a new material template
-MaterialTemplateHandle create_material_template(const MaterialTemplateDesc& desc);
-
-// Create a new material instance
-MaterialHandle create_material(const MaterialDesc& desc);
-
-// Destroy a material or template
-void destroy_material(MaterialHandle handle);
-void destroy_material_template(MaterialTemplateHandle handle);
-
-// Query material or template
-const Material& get_material(MaterialHandle handle) const;
-const MaterialTemplate& get_material_template(MaterialTemplateHandle handle) const;
-```
+- Material and MaterialTemplate objects should be constructed and destroyed by their respective allocators.
+- Registry only stores, looks up, and manages lifetime.
 
 ---
 
