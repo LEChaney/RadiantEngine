@@ -1844,7 +1844,7 @@ MaterialInstance GLTFMetallicRoughness::write_material(VkDevice device, AlphaMod
     matData.descriptorSet = descriptorAllocator.allocate(device, descriptorSetLayout);
 
     writer.clear();
-    writer.write_buffer(0, resources.dataBuffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    writer.write_buffer(0, resources.dataBuffer, sizeof(GLTFMetallicRoughness::MaterialConstants), resources.dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
     writer.write_image(1, resources.colorImage.view, resources.colorSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     writer.write_image(2, resources.metalRoughImage.view, resources.metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     writer.update_set(device, matData.descriptorSet);
