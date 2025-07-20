@@ -21,15 +21,6 @@ Manages texture resources for a scene, including loading, deduplication, and GPU
 ## Registry API and Internals
 
 ```cpp
-struct Texture {
-    TextureHandle handle;
-    VkImage image;
-    VkImageView image_view;
-    VkSampler sampler;
-    TextureMetadata metadata; // dimensions, format, mip levels, etc.
-    // (Optional) reference count for global/shared textures
-};
-
 class TextureRegistry {
 public:
     TextureRegistry(TextureAllocator* allocator);
