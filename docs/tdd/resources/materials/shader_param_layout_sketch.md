@@ -21,15 +21,6 @@ layout(set = 2, binding = 0) readonly buffer InstanceBuffer {
     InstanceData instances[];
 };
 
-// Buffer reference for per-instance material parameters
-layout(buffer_reference, std430) buffer MaterialParams {
-    vec4 baseColor;
-    float roughness;
-    float metallic;
-    // ...other material parameters...
-    uint textureIndices[4]; // Indices into bindlessTextures
-};
-
 // Optional: buffer reference for shared parameter collection (e.g., lighting)
 layout(buffer_reference, std430) buffer LightingParams {
     vec3 lightDirection;
@@ -37,11 +28,20 @@ layout(buffer_reference, std430) buffer LightingParams {
     // ...other shared parameters...
 };
 
+// Buffer reference for per-instance material parameters
+layout(buffer_reference, std430) buffer MaterialParams {
+    vec4 baseColor;
+    float roughness;
+    float metallic;
+    // ...other material parameters...
+    LightingParams lighting; // Optional, may be null
+    uint textureIndices[4]; // Indices into bindlessTextures
+};
+
 // Per-instance data structure (matches InstanceBuffer layout)
 struct InstanceData {
     mat4 model;
     MaterialParams material;
-    LightingParams lighting; // Optional, may be null
 };
 
 // Main shader entry
@@ -64,9 +64,9 @@ void main() {
     vec4 albedo = texture(bindlessTextures[albedoIdx], ...);
 
     // Access shared lighting parameters if present
-    if (instance.lighting != LightingParams(0)) {
-        vec3 lightDir = instance.lighting.lightDirection;
-        vec4 ambient = instance.lighting.ambientColor;
+    if (instance.material.lighting != LightingParams(0)) {
+        vec3 lightDir = instance.material.lighting.lightDirection;
+        vec4 ambient = instance.material.lighting.ambientColor;
         // ...use lighting params...
     }
 
