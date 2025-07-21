@@ -22,8 +22,8 @@ class Fence;
 
 class Queue {
 public:
-    virtual void Submit(const std::vector<CommandBuffer*>& commandBuffers, Fence* fence = nullptr) = 0;
-    virtual void WaitIdle() = 0;
+    virtual void submit(const std::vector<CommandBuffer*>& commandBuffers, Fence* fence = nullptr) = 0;
+    virtual void wait_idle() = 0;
     virtual ~Queue() = default;
 };
 ```

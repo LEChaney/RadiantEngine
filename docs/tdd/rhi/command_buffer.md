@@ -18,16 +18,16 @@ This document describes the command buffer abstraction in the Render Hardware In
 // RHI/CommandBuffer.h
 class CommandBuffer {
 public:
-    virtual void Begin() = 0;
-    virtual void End() = 0;
-    virtual void BeginRenderPass(...) = 0;
-    virtual void EndRenderPass() = 0;
-    virtual void BindPipeline(...) = 0;
-    virtual void BindVertexBuffer(...) = 0;
-    virtual void BindIndexBuffer(...) = 0;
-    virtual void BindDescriptorSet(...) = 0;
-    virtual void Draw(...) = 0;
-    virtual void Dispatch(...) = 0;
+    virtual void begin() = 0;
+    virtual void end() = 0;
+    virtual void begin_render_pass(...) = 0;
+    virtual void end_render_pass() = 0;
+    virtual void bind_pipeline(...) = 0;
+    virtual void bind_vertex_buffer(...) = 0;
+    virtual void bind_index_buffer(...) = 0;
+    virtual void bind_descriptor_set(...) = 0;
+    virtual void draw(...) = 0;
+    virtual void dispatch(...) = 0;
     virtual ~CommandBuffer() = default;
 };
 ```

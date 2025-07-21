@@ -17,9 +17,9 @@ This document describes the pipeline allocator abstraction in the Render Hardwar
 ```cpp
 class PipelineAllocator {
 public:
-    virtual Pipeline* CreateGraphicsPipeline(const GraphicsPipelineDesc& desc) = 0;
-    virtual Pipeline* CreateComputePipeline(const ComputePipelineDesc& desc) = 0;
-    virtual void DestroyPipeline(Pipeline* pipeline) = 0;
+    virtual Pipeline* create_graphics_pipeline(const GraphicsPipelineDesc& desc) = 0;
+    virtual Pipeline* create_compute_pipeline(const ComputePipelineDesc& desc) = 0;
+    virtual void destroy_pipeline(Pipeline* pipeline) = 0;
     virtual ~PipelineAllocator() = default;
 };
 ```

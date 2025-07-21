@@ -17,10 +17,10 @@ This document describes the buffer and image allocator abstraction in the Render
 ```cpp
 class BufferImageAllocator {
 public:
-    virtual Buffer* CreateBuffer(const BufferDesc& desc) = 0;
-    virtual void DestroyBuffer(Buffer* buffer) = 0;
-    virtual Image* CreateImage(const ImageDesc& desc) = 0;
-    virtual void DestroyImage(Image* image) = 0;
+    virtual Buffer* create_buffer(const BufferDesc& desc) = 0;
+    virtual void destroy_buffer(Buffer* buffer) = 0;
+    virtual Image* create_image(const ImageDesc& desc) = 0;
+    virtual void destroy_image(Image* image) = 0;
     virtual ~BufferImageAllocator() = default;
 };
 ```

@@ -16,8 +16,8 @@ This document describes the descriptor set allocator abstraction in the Render H
 ```cpp
 class DescriptorSetAllocator {
 public:
-    virtual DescriptorSet* AllocateDescriptorSet(DescriptorSetLayout* layout) = 0;
-    virtual void FreeDescriptorSet(DescriptorSet* set) = 0;
+    virtual DescriptorSet* allocate_descriptor_set(DescriptorSetLayout* layout) = 0;
+    virtual void free_descriptor_set(DescriptorSet* set) = 0;
     virtual ~DescriptorSetAllocator() = default;
 };
 ```

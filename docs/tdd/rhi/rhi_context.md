@@ -22,10 +22,10 @@ This document describes the RHI context abstraction, following the single respon
 // RHI/RHIContext.h
 class RHIContext {
 public:
-    virtual Queue* GetGraphicsQueue() = 0;
-    virtual CommandBuffer* CreateCommandBuffer() = 0;
-    virtual Fence* CreateFence() = 0;
-    virtual Semaphore* CreateSemaphore() = 0;
+    virtual Queue* get_graphics_queue() = 0;
+    virtual CommandBuffer* create_command_buffer() = 0;
+    virtual Fence* create_fence() = 0;
+    virtual Semaphore* create_semaphore() = 0;
     virtual ~RHIContext() = default;
 };
 ```

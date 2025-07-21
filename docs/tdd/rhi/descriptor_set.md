@@ -25,7 +25,7 @@ public:
 // RHI/DescriptorSet.h
 class DescriptorSet {
 public:
-    virtual void Update(const DescriptorUpdateInfo& info) = 0;
+    virtual void update(const DescriptorUpdateInfo& info) = 0;
     virtual ~DescriptorSet() = default;
 };
 ```
