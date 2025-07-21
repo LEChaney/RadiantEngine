@@ -77,3 +77,17 @@ target_include_directories(scene_manager_test PRIVATE "${CMAKE_SOURCE_DIR}/src")
 target_link_libraries(scene_manager_test PRIVATE GTest::gtest GTest::gtest_main glm unordered_dense)
 add_dependencies(build_tests scene_manager_test)
 add_test(NAME scene_manager_test COMMAND scene_manager_test)
+
+# RHI Vulkan test
+add_executable(rhi_vulkan_test
+    rhi_vulkan_test.cpp
+    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_context.cpp
+    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_queue.cpp
+    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_command_buffer.cpp
+)
+set_property(TARGET rhi_vulkan_test PROPERTY CXX_STANDARD 20)
+set_target_properties(rhi_vulkan_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${TEST_OUTPUT_DIRECTORY}")
+target_include_directories(rhi_vulkan_test PRIVATE "${CMAKE_SOURCE_DIR}/src")
+target_link_libraries(rhi_vulkan_test PRIVATE GTest::gtest GTest::gtest_main Vulkan::Vulkan fmt::fmt)
+add_dependencies(build_tests rhi_vulkan_test)
+add_test(NAME rhi_vulkan_test COMMAND rhi_vulkan_test)
