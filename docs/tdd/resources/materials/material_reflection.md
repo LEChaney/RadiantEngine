@@ -20,7 +20,7 @@ It enables strict validation and packing of parameter data on the CPU, ensuring 
   - Buffer reference types (parameter collections), including their expected struct type and layout
   - For each buffer reference type, extract and store full parameter reflection info for the referenced struct
 - Provide per-material reflection info for validation and buffer packing
-- Enable validation when setting any parameter, texture index array, or parameter collection (including type and struct matching)
+- Centralize all validation logic for parameters and parameter collections
 - Support dynamic layouts for different material types and shaders
 
 ---
@@ -28,16 +28,36 @@ It enables strict validation and packing of parameter data on the CPU, ensuring 
 ## Key Structures
 
 ```cpp
-// Describes a single parameter (scalar, vector, struct, or buffer reference)
+#include <variant>
+#include <vector>
+#include <string>
+#include <unordered_map>
+
+// Type aliases for clarity
+using ScalarOrVectorFormat = VkFormat; // For scalar/vector types
+struct StructParameterInfo;            // Forward declaration for struct members
+using StructMembers = std::vector<StructParameterInfo>; // For struct parameters
+using BufferReferenceTypeName = std::string;            // For buffer reference types
+
+// The variant type for parameter kinds
+using ParameterKind = std::variant<
+    ScalarOrVectorFormat,   // Scalar or vector
+    StructMembers,          // Struct
+    BufferReferenceTypeName // Buffer reference
+>;
+
 struct MaterialParameterInfo {
     std::string name;
     size_t offset;
     size_t size;
-    VkFormat format; // For scalars/vectors
-    bool isStruct = false;
-    bool isBufferReference = false;
-    std::string structTypeName; // For structs or buffer references
-    std::vector<MaterialParameterInfo> members; // For struct members
+    ParameterKind kind;
+};
+
+struct StructParameterInfo {
+    std::string name;
+    size_t offset;
+    size_t size;
+    std::vector<MaterialParameterInfo> members;
 };
 
 // Full reflection info for a material shader
@@ -51,6 +71,45 @@ struct MaterialReflection {
 
     // Map from buffer reference type name to full parameter reflection info for that collection
     std::unordered_map<std::string, std::vector<MaterialParameterInfo>> parameterCollectionReflections;
+
+    // --- Validation Methods ---
+
+    // Validate a parameter by name and size
+    bool ValidateParameter(const std::string& name, size_t size) const {
+        auto it = std::find_if(parameters.begin(), parameters.end(),
+            [&](const MaterialParameterInfo& p) { return p.name == name; });
+        if (it == parameters.end() || it->size != size) return false;
+        // Additional type checks can be added here
+        return true;
+    }
+
+    // Retrieve parameter info by name
+    const MaterialParameterInfo* GetParameterInfo(const std::string& name) const {
+        auto it = std::find_if(parameters.begin(), parameters.end(),
+            [&](const MaterialParameterInfo& p) { return p.name == name; });
+        return (it != parameters.end()) ? &(*it) : nullptr;
+    }
+
+    // Validate a parameter collection (buffer reference)
+    bool ValidateParameterCollection(const std::string& name, const MaterialParameterCollection& collection) const {
+        auto it = std::find_if(parameters.begin(), parameters.end(),
+            [&](const MaterialParameterInfo& p) { return p.name == name && std::holds_alternative<BufferReferenceTypeName>(p.kind); });
+        if (it == parameters.end()) return false;
+
+        const auto* typeName = std::get_if<BufferReferenceTypeName>(&it->kind);
+        if (!typeName || *typeName != collection.GetStructTypeName()) return false;
+
+        auto refIt = parameterCollectionReflections.find(*typeName);
+        if (refIt == parameterCollectionReflections.end()) return false;
+        const auto& expectedParams = refIt->second;
+        return collection.ValidateAgainst(expectedParams);
+    }
+
+    // Validate a texture index
+    bool ValidateTextureIndex(uint32_t index) const {
+        // Ensure the index is within the expected range
+        return index < textureIndexCount;
+    }
 };
 ```
 
@@ -60,12 +119,13 @@ struct MaterialReflection {
 
 - When setting a parameter (including struct or buffer reference), the system:
   - Looks up the parameter by name in `parameters`
+  - Uses `std::holds_alternative` or `std::get_if` to determine the parameter type
   - Validates type, size, and (for structs/collections) struct type name
   - For buffer references (parameter collections), checks that the provided buffer's struct type matches the expected type
   - Packs the data or address at the correct offset in the material's CPU-side buffer
 
 - When setting a parameter collection, the system:
-  - Looks up the buffer reference parameter in `parameters` by name and checks `isBufferReference`
+  - Looks up the buffer reference parameter in `parameters` by name and checks that its type is `BufferReferenceTypeName`
   - Looks up the buffer reference type in `parameterCollectionReflections`
   - Validates the provided collection's internal data using the reflection info for that type
 
@@ -73,58 +133,6 @@ struct MaterialReflection {
   - Expects an array of bindless texture indices (uint32_t) to be set at the correct offset in the struct
   - Validates that the number of indices matches `textureIndexCount`
   - Packs the indices at `textureIndicesOffset` in the struct
-
----
-
-## Example: Setting Parameters, Parameter Collections, and Texture Indices
-
-```cpp
-// Setting a scalar/vector/struct parameter
-bool MaterialInstance::SetParameter(const std::string& name, const void* data, size_t size) {
-    const MaterialReflection* refl = material->GetReflection();
-    auto it = std::find_if(refl->parameters.begin(), refl->parameters.end(),
-        [&](const MaterialParameterInfo& p) { return p.name == name; });
-    if (it == refl->parameters.end() || it->size != size) return false; // Validation
-
-    memcpy(m_parameterData.data() + it->offset, data, size);
-    m_dirty = true;
-    return true;
-}
-
-// Setting a parameter collection (buffer reference)
-bool MaterialInstance::SetParameterCollection(const std::string& name, const MaterialParameterCollection& collection) {
-    const MaterialReflection* refl = material->GetReflection();
-    auto it = std::find_if(refl->parameters.begin(), refl->parameters.end(),
-        [&](const MaterialParameterInfo& p) { return p.name == name && p.isBufferReference; });
-    if (it == refl->parameters.end()) return false;
-
-    // Validate struct type matches
-    if (it->structTypeName != collection.GetStructTypeName()) return false;
-
-    // Validate the collection's internal data layout using parameterCollectionReflections
-    auto refIt = refl->parameterCollectionReflections.find(it->structTypeName);
-    if (refIt == refl->parameterCollectionReflections.end()) return false;
-    const auto& expectedParams = refIt->second;
-    if (!collection.ValidateAgainst(expectedParams)) return false;
-
-    // Write the buffer device address at the correct offset
-    VkDeviceAddress addr = collection.GetBufferAddress();
-    memcpy(m_parameterData.data() + it->offset, &addr, sizeof(addr));
-    m_dirty = true;
-    return true;
-}
-
-// Setting a single texture index (bindless)
-bool MaterialInstance::SetTexture(TextureHandle handle, uint32_t index) {
-    const MaterialReflection* refl = material->GetReflection();
-    if (index >= refl->textureIndexCount) return false; // Validation
-
-    uint32_t bindlessIndex = textureRegistry->GetBindlessIndex(handle);
-    memcpy(m_parameterData.data() + refl->textureIndicesOffset + index * sizeof(uint32_t), &bindlessIndex, sizeof(uint32_t));
-    m_dirty = true;
-    return true;
-}
-```
 
 ---
 
@@ -157,23 +165,23 @@ The reflection system would produce:
 ```cpp
 MaterialReflection {
     parameters = {
-        { "baseColor", 0, 16, VK_FORMAT_R32G32B32A32_SFLOAT },
-        { "roughness", 16, 4, VK_FORMAT_R32_SFLOAT },
-        { "lighting", 20, 8, VK_FORMAT_UNDEFINED, false, true, "LightingParams" },
-        { "fog", 28, 8, VK_FORMAT_UNDEFINED, false, true, "FogParams" },
-        { "textureIndices", 36, 16, VK_FORMAT_R32_UINT }
+        { "baseColor", 0, 16, ScalarOrVectorFormat(VK_FORMAT_R32G32B32A32_SFLOAT) },
+        { "roughness", 16, 4, ScalarOrVectorFormat(VK_FORMAT_R32_SFLOAT) },
+        { "lighting", 20, 8, BufferReferenceTypeName("LightingParams") },
+        { "fog", 28, 8, BufferReferenceTypeName("FogParams") },
+        { "textureIndices", 36, 16, ScalarOrVectorFormat(VK_FORMAT_R32_UINT) }
     },
     structSize = 52, // Example value, must match std430 layout
     textureIndexCount = 4,
     textureIndicesOffset = 36,
     parameterCollectionReflections = {
         { "LightingParams", {
-            { "lightDir", 0, 12, VK_FORMAT_R32G32B32_SFLOAT },
-            { "ambient", 16, 16, VK_FORMAT_R32G32B32A32_SFLOAT }
+            { "lightDir", 0, 12, ScalarOrVectorFormat(VK_FORMAT_R32G32B32_SFLOAT) },
+            { "ambient", 16, 16, ScalarOrVectorFormat(VK_FORMAT_R32G32B32A32_SFLOAT) }
         }},
         { "FogParams", {
-            { "fogDensity", 0, 4, VK_FORMAT_R32_SFLOAT },
-            { "fogColor", 16, 12, VK_FORMAT_R32G32B32_SFLOAT }
+            { "fogDensity", 0, 4, ScalarOrVectorFormat(VK_FORMAT_R32_SFLOAT) },
+            { "fogColor", 16, 12, ScalarOrVectorFormat(VK_FORMAT_R32G32B32_SFLOAT) }
         }}
     }
 }
@@ -183,12 +191,12 @@ MaterialReflection {
 
 ## Notes
 
-- **Parameter collections** are validated by checking for a buffer reference parameter in the parameter list and then using the type name to look up the expected layout in `parameterCollectionReflections`.
-- **Multiple parameter collections** are supported; each is validated by name and struct type.
-- **Struct parameters** (non-buffer reference) are recursively validated and packed.
-- **Reflection system** must parse nested structs, buffer reference types, and array sizes from SPIR-V or metadata.
+- **All validation logic** for parameters and parameter collections is centralized in `MaterialReflection`.
+- **MaterialInstance** is responsible only for calling validation and, if successful, copying data to the correct offset.
+- **Parameter collections** are validated by type name and their internal layout, using a map for fast lookup.
+- **Textures** are set by index, validated against the shader's expected count.
+- **Struct and nested parameter layouts** are handled recursively.
 - **CPU-side packing** must match the GPU-side layout exactly (std430, alignment, etc).
-- **Textures** are set by index array, validated against the shader's expected count.
 
 ---
 
@@ -202,8 +210,6 @@ MaterialReflection {
 ## Summary
 
 - The reflection system fully describes all material parameters, including scalars, vectors, structs, buffer references (parameter collections), and the expected number of texture indices.
-- Parameter collections are validated by type name and their internal layout, using a map for fast lookup.
-- Textures are set by index array, validated against the shader's expected count.
-- Struct and nested parameter layouts are handled recursively.
+- All validation is centralized in `MaterialReflection`, keeping `MaterialInstance` simple and robust.
 - This enables robust, flexible, and safe material parameter management for both rasterization and compute/ray tracing shaders.
 

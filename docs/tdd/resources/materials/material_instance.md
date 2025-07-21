@@ -24,6 +24,7 @@ public:
     VkDeviceAddress GetParameterBufferAddress() const; // buffer_reference for GPU
     const std::vector<uint32_t>& GetTextureIndices() const;
     // ...other per-instance info
+    
 };
 ```
 
@@ -56,4 +57,41 @@ InstanceData instance;
 instance.model = ...;
 instance.materialAddress = matInstance->GetParameterBufferAddress();
 instance.globalParamsAddress = globalParams->GetBufferAddress();
+```
+
+---
+
+## Example: Setting Parameters, Parameter Collections, and Texture Indices
+
+```cpp
+// In MaterialInstance
+
+bool SetParameter(const std::string& name, const void* data, size_t size) {
+    const MaterialReflection* refl = material->GetReflection();
+    if (!refl->ValidateParameter(name, size)) return false;
+    const MaterialParameterInfo* paramInfo = refl->GetParameterInfo(name);
+    memcpy(m_parameterData.data() + paramInfo->offset, data, size);
+    m_dirty = true;
+    return true;
+}
+
+bool SetParameterCollection(const std::string& name, const MaterialParameterCollection& collection) {
+    const MaterialReflection* refl = material->GetReflection();
+    if (!refl->ValidateParameterCollection(name, collection)) return false;
+    const MaterialParameterInfo* paramInfo = refl->GetParameterInfo(name);
+    VkDeviceAddress addr = collection.GetBufferAddress();
+    memcpy(m_parameterData.data() + paramInfo->offset, &addr, sizeof(addr));
+    m_dirty = true;
+    return true;
+}
+
+bool SetTexture(TextureHandle handle, uint32_t index) {
+    const MaterialReflection* refl = material->GetReflection();
+    if (!refl->ValidateTextureIndex(index)) return false;
+
+    uint32_t bindlessIndex = textureRegistry->GetBindlessIndex(handle);
+    memcpy(m_parameterData.data() + refl->textureIndicesOffset + index * sizeof(uint32_t), &bindlessIndex, sizeof(uint32_t));
+    m_dirty = true;
+    return true;
+}
 ```
