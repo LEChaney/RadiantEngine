@@ -36,13 +36,12 @@ It enables strict validation and packing of parameter data on the CPU, ensuring 
 // Type aliases for clarity
 using ScalarOrVectorFormat = VkFormat; // For scalar/vector types
 struct StructParameterInfo;            // Forward declaration for struct members
-using StructMembers = std::vector<StructParameterInfo>; // For struct parameters
-using BufferReferenceTypeName = std::string;            // For buffer reference types
+using BufferReferenceTypeName = std::string; // For buffer reference types
 
 // The variant type for parameter kinds
-using ParameterKind = std::variant<
+using ParameterTypeInfo = std::variant<
     ScalarOrVectorFormat,   // Scalar or vector
-    StructMembers,          // Struct
+    StructParameterInfo,    // Struct
     BufferReferenceTypeName // Buffer reference
 >;
 
@@ -50,13 +49,11 @@ struct MaterialParameterInfo {
     std::string name;
     size_t offset;
     size_t size;
-    ParameterKind kind;
+    ParameterTypeInfo type_info;
 };
 
 struct StructParameterInfo {
     std::string name;
-    size_t offset;
-    size_t size;
     std::vector<MaterialParameterInfo> members;
 };
 
@@ -93,10 +90,10 @@ struct MaterialReflection {
     // Validate a parameter collection (buffer reference)
     bool ValidateParameterCollection(const std::string& name, const MaterialParameterCollection& collection) const {
         auto it = std::find_if(parameters.begin(), parameters.end(),
-            [&](const MaterialParameterInfo& p) { return p.name == name && std::holds_alternative<BufferReferenceTypeName>(p.kind); });
+            [&](const MaterialParameterInfo& p) { return p.name == name && std::holds_alternative<BufferReferenceTypeName>(p.type_info); });
         if (it == parameters.end()) return false;
 
-        const auto* typeName = std::get_if<BufferReferenceTypeName>(&it->kind);
+        const auto* typeName = std::get_if<BufferReferenceTypeName>(&it->type_info);
         if (!typeName || *typeName != collection.GetStructTypeName()) return false;
 
         auto refIt = parameterCollectionReflections.find(*typeName);

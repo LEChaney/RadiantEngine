@@ -64,9 +64,7 @@ instance.globalParamsAddress = globalParams->GetBufferAddress();
 ## Example: Setting Parameters, Parameter Collections, and Texture Indices
 
 ```cpp
-// In MaterialInstance
-
-bool SetParameter(const std::string& name, const void* data, size_t size) {
+bool MaterialInstance::SetParameter(const std::string& name, const void* data, size_t size) {
     const MaterialReflection* refl = material->GetReflection();
     if (!refl->ValidateParameter(name, size)) return false;
     const MaterialParameterInfo* paramInfo = refl->GetParameterInfo(name);
@@ -75,7 +73,7 @@ bool SetParameter(const std::string& name, const void* data, size_t size) {
     return true;
 }
 
-bool SetParameterCollection(const std::string& name, const MaterialParameterCollection& collection) {
+bool MaterialInstance::SetParameterCollection(const std::string& name, const MaterialParameterCollection& collection) {
     const MaterialReflection* refl = material->GetReflection();
     if (!refl->ValidateParameterCollection(name, collection)) return false;
     const MaterialParameterInfo* paramInfo = refl->GetParameterInfo(name);
@@ -85,7 +83,7 @@ bool SetParameterCollection(const std::string& name, const MaterialParameterColl
     return true;
 }
 
-bool SetTexture(TextureHandle handle, uint32_t index) {
+bool MaterialInstance::SetTexture(TextureHandle handle, uint32_t index) {
     const MaterialReflection* refl = material->GetReflection();
     if (!refl->ValidateTextureIndex(index)) return false;
 
