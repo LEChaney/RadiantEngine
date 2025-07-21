@@ -16,6 +16,11 @@ public:
     const MaterialReflection* GetReflection() const;
     VkPipeline GetPipeline() const;
     // ...other low-level info
+
+private:
+    VkPipeline m_pipeline; // Vulkan pipeline handle
+    MaterialReflection m_reflection; // Reflection info for parameter offsets and validation
+    // Other internal state as needed
 };
 ```
 

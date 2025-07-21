@@ -68,6 +68,7 @@ bool MaterialInstance::SetParameter(const std::string& name, const void* data, s
     const MaterialReflection* refl = material->GetReflection();
     if (!refl->ValidateParameter(name, size)) return false;
     const MaterialParameterInfo* paramInfo = refl->GetParameterInfo(name);
+    // Optional: Check if parameter data is changing
     memcpy(m_parameterData.data() + paramInfo->offset, data, size);
     m_dirty = true;
     return true;
@@ -78,6 +79,7 @@ bool MaterialInstance::SetParameterCollection(const std::string& name, const Mat
     if (!refl->ValidateParameterCollection(name, collection)) return false;
     const MaterialParameterInfo* paramInfo = refl->GetParameterInfo(name);
     VkDeviceAddress addr = collection.GetBufferAddress();
+    // Optional: Check if parameter data is changing
     memcpy(m_parameterData.data() + paramInfo->offset, &addr, sizeof(addr));
     m_dirty = true;
     return true;
@@ -88,6 +90,7 @@ bool MaterialInstance::SetTexture(TextureHandle handle, uint32_t index) {
     if (!refl->ValidateTextureIndex(index)) return false;
 
     uint32_t bindlessIndex = textureRegistry->GetBindlessIndex(handle);
+    // Optional: Check if parameter data is changing
     memcpy(m_parameterData.data() + refl->textureIndicesOffset + index * sizeof(uint32_t), &bindlessIndex, sizeof(uint32_t));
     m_dirty = true;
     return true;

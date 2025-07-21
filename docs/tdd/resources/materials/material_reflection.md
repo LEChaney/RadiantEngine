@@ -28,10 +28,6 @@ It enables strict validation and packing of parameter data on the CPU, ensuring 
 ## Key Structures
 
 ```cpp
-#include <variant>
-#include <vector>
-#include <string>
-#include <unordered_map>
 
 // Type aliases for clarity
 using ScalarOrVectorFormat = VkFormat; // For scalar/vector types
