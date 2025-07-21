@@ -30,7 +30,7 @@ public:
 
 private:
     MeshAllocator* allocator_; // Dependency injected
-    std::unordered_map<MeshHandle, Mesh> meshes;
+    SlotMap<Mesh> meshes;
     // (Optional) handle maps for fast lookup
     // (Optional) scene/context info for per-scene ownership
 };

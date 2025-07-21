@@ -53,9 +53,9 @@ public:
 
 private:
     MaterialAllocator* allocator_; // Dependency injected
-    std::unordered_map<MaterialInstanceHandle, MaterialInstance> material_instances;
-    std::unordered_map<MaterialHandle, Material> materials;
-    std::unordered_map<MaterialParameterCollectionHandle, MaterialParameterCollection> parameter_collections;
+    SlotMap<MaterialInstance> material_instances;
+    SlotMap<Material> materials;
+    SlotMap<MaterialParameterCollection> parameter_collections;
     // (Optional) handle maps for fast lookup
     // (Optional) scene/context info for per-scene ownership
 };

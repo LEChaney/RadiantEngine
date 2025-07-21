@@ -32,7 +32,7 @@ public:
 
 private:
     TextureAllocator* allocator_; // Dependency injected
-    std::unordered_map<TextureHandle, Texture> textures;
+    SlotMap<Texture> textures;
     // (Optional) path-to-handle map for deduplication
 };
 ```
