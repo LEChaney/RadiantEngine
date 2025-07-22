@@ -43,7 +43,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     if (g_validationCallback) {
         g_validationCallback(pCallbackData->pMessage, level);
     } else {
-        std::cerr << fmt::format("[Validation {}] {}", levelStr, pCallbackData->pMessage) << std::endl;
+        std::cerr << fmt::format("[Vk Validation][{}] {}", levelStr, pCallbackData->pMessage) << std::endl;
     }
     return VK_FALSE;
 }

@@ -15,8 +15,6 @@ using rhi::RHIContext;
 using rhi::vulkan::RHIVKContext;
 
 // Helper to capture validation messages
-static std::vector<std::string> g_capturedValidationMsgs;
-
 void ValidationMsgCollector(const char* msg, RHIVKContext::ValidationLevel level) {
     const char* levelStr = "INFO";
     if (level == RHIVKContext::ValidationLevel::Error) {
@@ -26,9 +24,8 @@ void ValidationMsgCollector(const char* msg, RHIVKContext::ValidationLevel level
     } else {
         levelStr = "INFO";
     }
-    std::string formatted_msg = fmt::format("[Validation {}] {}", levelStr, msg);
-    //std::cerr << formatted_msg << std::endl;
-    g_capturedValidationMsgs.emplace_back(formatted_msg);
+    std::string formatted_msg = fmt::format("[Vk Validation][{}] {}", levelStr, msg);
+    GTEST_NONFATAL_FAILURE_(formatted_msg.c_str()); // Fail the test on validation errors
 }
 
 class RHIVulkanTest : public ::testing::Test {
@@ -36,7 +33,6 @@ protected:
     RHIContext* context = nullptr;
 
     void SetUp() override {
-        g_capturedValidationMsgs.clear();
         RHIVKContext::set_validation_callback(ValidationMsgCollector);
         context = new RHIVKContext(true); // enable validation for test
         ASSERT_NE(context, nullptr);
@@ -46,7 +42,6 @@ protected:
         delete context;
         context = nullptr;
         RHIVKContext::set_validation_callback(nullptr);
-        g_capturedValidationMsgs.clear();
     }
 };
 
@@ -89,19 +84,11 @@ protected:
 };
 
 TEST_F(RHIVulkanTest, BasicInitTeardown) {
-    for (const auto& msg : g_capturedValidationMsgs) {
-        EXPECT_EQ(msg, "");
-    }
-    EXPECT_TRUE(g_capturedValidationMsgs.empty());
 }
 
 TEST_F(RHIVulkanTest, CreateContextAndGraphicsQueue) {
     auto* queue = context->get_graphics_queue();
     ASSERT_NE(queue, nullptr);
-    for (const auto& msg : g_capturedValidationMsgs) {
-        EXPECT_EQ(msg, "");
-    }
-    EXPECT_TRUE(g_capturedValidationMsgs.empty());
 }
 
 TEST_F(RHIVulkanTest, CreateAndSubmitEmptyCommandBuffer) {
@@ -113,10 +100,6 @@ TEST_F(RHIVulkanTest, CreateAndSubmitEmptyCommandBuffer) {
     cmd->end();
     queue->submit({cmd}, nullptr, nullptr);
     queue->wait_idle();
-    for (const auto& msg : g_capturedValidationMsgs) {
-        EXPECT_EQ(msg, "");
-    }
-    EXPECT_TRUE(g_capturedValidationMsgs.empty());
 }
 
 TEST_F(RHIVulkanTestWithSDLAndSwap, SwapchainDoubleBufferingDrawWithSDL) {

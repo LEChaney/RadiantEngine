@@ -16,17 +16,16 @@ namespace rhi {
 namespace vulkan {
 
 RHIVKSwapchain::RHIVKSwapchain(RHIVKContext* context, SDL_Window* window, uint32_t width, uint32_t height, uint32_t buffer_count)
-    : m_context(context), m_image_count(buffer_count) {
+    : m_context(context), m_image_count(buffer_count), m_surface(VK_NULL_HANDLE) {
     // Create swapchain surface using SDL
-    VkSurfaceKHR surface;
-    if (SDL_Vulkan_CreateSurface(window, m_context->get_vk_instance(), &surface) != SDL_TRUE) {
+    if (SDL_Vulkan_CreateSurface(window, m_context->get_vk_instance(), &m_surface) != SDL_TRUE) {
         throw std::runtime_error("Failed to create Vulkan surface");
     }
 
     // Create swapchain (minimal, not handling oldSwapchain, formats, etc.)
     VkSwapchainCreateInfoKHR swapchainInfo{};
     swapchainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    swapchainInfo.surface = surface;
+    swapchainInfo.surface = m_surface;
     swapchainInfo.minImageCount = buffer_count;
     swapchainInfo.imageFormat = VK_FORMAT_B8G8R8A8_UNORM; // Hardcoded for test
     swapchainInfo.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
