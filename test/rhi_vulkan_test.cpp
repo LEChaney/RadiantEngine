@@ -3,9 +3,13 @@
 #include "rhi/rhi_context.h"
 #include "rhi/command_buffer.h"
 #include "rhi/queue.h"
+#include "rhi/swapchain.h"
 #include "rhi/vulkan/rhivk_context.h"
+#include "rhi/vulkan/rhivk_swapchain.h"
 #include "fmt/format.h"
 #include <vector>
+
+#include <SDL.h>
 
 using rhi::RHIContext;
 using rhi::vulkan::RHIVKContext;
@@ -46,6 +50,44 @@ protected:
     }
 };
 
+class RHIVulkanTestWithSDLAndSwap : public RHIVulkanTest {
+protected:
+    SDL_Window* window = nullptr;
+    rhi::Swapchain* swapchain = nullptr;
+    const uint32_t buffer_count = 2; // double buffering
+
+    void SetUp() override {
+        RHIVulkanTest::SetUp();
+
+        // Initialize SDL
+        ASSERT_EQ(SDL_Init(SDL_INIT_VIDEO), 0);
+
+        const int width = 640, height = 480;
+        window = SDL_CreateWindow(
+            "RHI Vulkan Swapchain Test", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+            width, height, SDL_WINDOW_VULKAN | SDL_WINDOW_SHOWN);
+        ASSERT_NE(window, nullptr);
+
+        // Create swapchain (API assumed: create_swapchain(SDL_Window*, width, height, buffer_count))
+        swapchain = context->create_swapchain(window, width, height, buffer_count);
+        ASSERT_NE(swapchain, nullptr);
+        EXPECT_EQ(swapchain->image_count(), buffer_count);
+    }
+
+    void TearDown() override {
+        if (swapchain) {
+            delete swapchain;
+        }
+        if (window) {
+            SDL_DestroyWindow(window);
+            window = nullptr;
+        }
+
+        SDL_Quit();
+        RHIVulkanTest::TearDown();
+    }
+};
+
 TEST_F(RHIVulkanTest, BasicInitTeardown) {
     for (const auto& msg : g_capturedValidationMsgs) {
         EXPECT_EQ(msg, "");
@@ -75,4 +117,20 @@ TEST_F(RHIVulkanTest, CreateAndSubmitEmptyCommandBuffer) {
         EXPECT_EQ(msg, "");
     }
     EXPECT_TRUE(g_capturedValidationMsgs.empty());
+}
+
+TEST_F(RHIVulkanTestWithSDLAndSwap, SwapchainDoubleBufferingDrawWithSDL) {
+    // Draw two frames (double buffering)
+    for (uint32_t frame = 0; frame < buffer_count; ++frame) {
+        auto frame_data = swapchain->acquire_next_frame();
+        ASSERT_NE(frame_data.command_buffer, nullptr);
+        ASSERT_NE(frame_data.image_view, nullptr);
+
+        frame_data.command_buffer->begin();
+        // Pseudo-code: clear the image to a color (adapt to your API)
+        // frame_data.command_buffer->clear_color(frame_data.image_view, {0.1f * frame, 0.2f, 0.3f, 1.0f});
+        frame_data.command_buffer->end();
+
+        swapchain->present(frame_data);
+    }
 }

@@ -1,6 +1,7 @@
 #include "rhi/vulkan/rhivk_context.h"
 #include "rhi/vulkan/rhivk_queue.h"
 #include "rhi/vulkan/rhivk_command_buffer.h"
+#include "rhi/vulkan/rhivk_swapchain.h"
 #include "fmt/format.h"
 #include <iostream>
 #include <cstring>
@@ -257,6 +258,10 @@ Fence* RHIVKContext::create_fence() {
 Semaphore* RHIVKContext::create_semaphore() {
     // Not needed for minimal test
     return nullptr;
+}
+
+Swapchain* RHIVKContext::create_swapchain(void* window, uint32_t width, uint32_t height, uint32_t buffer_count) {
+    return new RHIVKSwapchain(window, width, height, buffer_count);
 }
 
 } // namespace rhi::vulkan

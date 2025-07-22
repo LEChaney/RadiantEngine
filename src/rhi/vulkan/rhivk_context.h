@@ -1,4 +1,3 @@
-
 #pragma once
 #include "rhi/rhi_context.h"
 #include <memory>
@@ -39,6 +38,7 @@ public:
     CommandBuffer* create_command_buffer() override;
     Fence* create_fence() override;
     Semaphore* create_semaphore() override;
+    Swapchain* create_swapchain(void* window, uint32_t width, uint32_t height, uint32_t buffer_count) override;
 
     // Set a custom validation callback (thread-unsafe, for test/dev only)
     static void set_validation_callback(ValidationCallback cb);

@@ -92,10 +92,17 @@ add_executable(rhi_vulkan_test
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_context.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_queue.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_command_buffer.cpp
+    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_swapchain.cpp
 )
 set_property(TARGET rhi_vulkan_test PROPERTY CXX_STANDARD 20)
 set_target_properties(rhi_vulkan_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${TEST_OUTPUT_DIRECTORY}")
 target_include_directories(rhi_vulkan_test PRIVATE "${CMAKE_SOURCE_DIR}/src")
-target_link_libraries(rhi_vulkan_test PRIVATE GTest::gtest GTest::gtest_main Vulkan::Vulkan fmt::fmt)
+target_link_libraries(rhi_vulkan_test PRIVATE GTest::gtest GTest::gtest_main Vulkan::Vulkan fmt::fmt SDL2::SDL2 glm)
+if (WIN32)
+  add_custom_command(TARGET rhi_vulkan_test POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:rhi_vulkan_test> $<TARGET_FILE_DIR:rhi_vulkan_test>
+    COMMAND_EXPAND_LISTS
+  )
+endif()
 add_dependencies(build_tests rhi_vulkan_test)
 add_test(NAME rhi_vulkan_test COMMAND rhi_vulkan_test)
