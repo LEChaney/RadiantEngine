@@ -115,29 +115,44 @@ void RHIVKContext::create_instance() {
         createInfo.enabledLayerCount = 0;
         createInfo.ppEnabledLayerNames = nullptr;
     }
+    
+    // Always enable platform surface extensions
+    std::vector<const char*> surface_exts;
+    surface_exts.push_back("VK_KHR_surface");
+#ifdef _WIN32
+    surface_exts.push_back("VK_KHR_win32_surface");
+#elif defined(__linux__)
+    surface_exts.push_back("VK_KHR_xcb_surface");
+    surface_exts.push_back("VK_KHR_xlib_surface");
+    surface_exts.push_back("VK_KHR_wayland_surface");
+#elif defined(__APPLE__)
+    surface_exts.push_back("VK_EXT_metal_surface");
+#elif defined(__ANDROID__)
+    surface_exts.push_back("VK_KHR_android_surface");
+#endif
 
     // Query required instance extensions
-    uint32_t extCount = 0;
-    vkEnumerateInstanceExtensionProperties(nullptr, &extCount, nullptr);
-    std::vector<VkExtensionProperties> availableExts(extCount);
-    vkEnumerateInstanceExtensionProperties(nullptr, &extCount, availableExts.data());
-    std::vector<const char*> extensions;
-    // Always enable platform surface extensions if needed (not needed for headless test)
-    // Enable debug utils if validation is enabled
-    if (validation_enabled_) {
-        bool found = false;
-        for (const auto& ext : availableExts) {
-            if (strcmp(ext.extensionName, "VK_EXT_debug_utils") == 0) {
-                found = true;
-                break;
-            }
-        }
-        if (found) {
-            extensions.push_back("VK_EXT_debug_utils");
+    uint32_t ext_count = 0;
+    std::vector<const char*> enabled_exts;
+    vkEnumerateInstanceExtensionProperties(nullptr, &ext_count, nullptr);
+    std::vector<VkExtensionProperties> available_exts(ext_count);
+    vkEnumerateInstanceExtensionProperties(nullptr, &ext_count, available_exts.data());
+    for (const auto& surface_ext : surface_exts) {
+        if (std::find_if(available_exts.begin(), available_exts.end(),
+                         [&surface_ext](const VkExtensionProperties& ext) {
+                             return strcmp(ext.extensionName, surface_ext) == 0;
+                         }) != available_exts.end()) {
+            enabled_exts.push_back(surface_ext);
         }
     }
-    createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
-    createInfo.ppEnabledExtensionNames = extensions.empty() ? nullptr : extensions.data();
+
+    // Enable debug utils if validation is enabled
+    if (validation_enabled_) {
+        enabled_exts.push_back("VK_EXT_debug_utils");
+    }
+
+    createInfo.enabledExtensionCount = static_cast<uint32_t>(enabled_exts.size());
+    createInfo.ppEnabledExtensionNames = enabled_exts.empty() ? nullptr : enabled_exts.data();
 
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
     if (validation_enabled_) {
@@ -217,6 +232,11 @@ void RHIVKContext::create_logical_device() {
         createInfo.ppEnabledLayerNames = nullptr;
     }
 
+    // Enable VK_KHR_swapchain device extension
+    std::vector<const char*> deviceExtensions = { "VK_KHR_swapchain" };
+    createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
+    createInfo.ppEnabledExtensionNames = deviceExtensions.data();
+
     if (vkCreateDevice(physicalDevice_, &createInfo, nullptr, &device_) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create logical device");
     }
@@ -260,8 +280,8 @@ RHISemaphore* RHIVKContext::create_semaphore() {
     return nullptr;
 }
 
-RHISwapchain* RHIVKContext::create_swapchain(void* window, uint32_t width, uint32_t height, uint32_t buffer_count) {
-    return new RHIVKSwapchain(window, width, height, buffer_count);
+RHISwapchain* RHIVKContext::create_swapchain(SDL_Window* window, uint32_t width, uint32_t height, uint32_t buffer_count) {
+    return new RHIVKSwapchain(this, window, width, height, buffer_count);
 }
 
 } // namespace rhi::vulkan

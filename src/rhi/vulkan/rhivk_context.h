@@ -38,7 +38,15 @@ public:
     RHICommandBuffer* create_command_buffer() override;
     RHIFence* create_fence() override;
     RHISemaphore* create_semaphore() override;
-    RHISwapchain* create_swapchain(void* window, uint32_t width, uint32_t height, uint32_t buffer_count) override;
+    RHISwapchain* create_swapchain(SDL_Window* window, uint32_t width, uint32_t height, uint32_t buffer_count) override;
+
+    // Vulkan object accessors
+    VkInstance get_vk_instance() const { return instance_; }
+    VkPhysicalDevice get_vk_physical_device() const { return physicalDevice_; }
+    VkDevice get_vk_device() const { return device_; }
+    VkQueue get_vk_graphics_queue() const { return graphicsQueue_; }
+    uint32_t get_vk_graphics_queue_family() const { return graphicsQueueFamily_; }
+    VkCommandPool get_vk_command_pool() const { return commandPool_; }
 
     // Set a custom validation callback (thread-unsafe, for test/dev only)
     static void set_validation_callback(ValidationCallback cb);
