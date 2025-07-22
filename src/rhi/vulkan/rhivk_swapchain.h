@@ -3,13 +3,13 @@
 
 namespace rhi {
 namespace vulkan {
-class RHIVKSwapchain : public Swapchain {
+class RHIVKSwapchain : public RHISwapchain {
 public:
     RHIVKSwapchain(void* window, uint32_t width, uint32_t height, uint32_t buffer_count);
     ~RHIVKSwapchain() override;
 
-    Frame acquire_next_frame() override;
-    void present(const Frame& frame) override;
+    RHIFrame acquire_next_frame() override;
+    void present(const RHIFrame& frame) override;
     uint32_t image_count() const override;
     void resize(uint32_t width, uint32_t height) override;
 

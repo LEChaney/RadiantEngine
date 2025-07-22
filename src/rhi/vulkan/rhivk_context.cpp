@@ -233,11 +233,11 @@ void RHIVKContext::create_command_pool() {
     }
 }
 
-Queue* RHIVKContext::get_graphics_queue() {
+RHIQueue* RHIVKContext::get_graphics_queue() {
     return graphicsQueueWrapper_.get();
 }
 
-CommandBuffer* RHIVKContext::create_command_buffer() {
+RHICommandBuffer* RHIVKContext::create_command_buffer() {
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.commandPool = commandPool_;
@@ -250,17 +250,17 @@ CommandBuffer* RHIVKContext::create_command_buffer() {
     return new RHIVKCommandBuffer(cmdBuffer, device_, commandPool_);
 }
 
-Fence* RHIVKContext::create_fence() {
+RHIFence* RHIVKContext::create_fence() {
     // Not needed for minimal test
     return nullptr;
 }
 
-Semaphore* RHIVKContext::create_semaphore() {
+RHISemaphore* RHIVKContext::create_semaphore() {
     // Not needed for minimal test
     return nullptr;
 }
 
-Swapchain* RHIVKContext::create_swapchain(void* window, uint32_t width, uint32_t height, uint32_t buffer_count) {
+RHISwapchain* RHIVKContext::create_swapchain(void* window, uint32_t width, uint32_t height, uint32_t buffer_count) {
     return new RHIVKSwapchain(window, width, height, buffer_count);
 }
 

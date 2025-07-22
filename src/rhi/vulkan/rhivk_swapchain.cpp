@@ -12,12 +12,12 @@ RHIVKSwapchain::~RHIVKSwapchain() {
     // TODO: Cleanup Vulkan resources
 }
 
-Swapchain::Frame RHIVKSwapchain::acquire_next_frame() {
+RHISwapchain::RHIFrame RHIVKSwapchain::acquire_next_frame() {
     // TODO: Acquire next image, return Frame struct
-    return Frame{0, nullptr, nullptr};
+    return RHIFrame{0, nullptr, nullptr};
 }
 
-void RHIVKSwapchain::present(const Frame& frame) {
+void RHIVKSwapchain::present(const RHIFrame& frame) {
     // TODO: Present image to swapchain
 }
 

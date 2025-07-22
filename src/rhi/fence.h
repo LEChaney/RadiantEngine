@@ -2,9 +2,9 @@
 
 namespace rhi {
 
-class Fence {
+class RHIFence {
 public:
-    virtual ~Fence() = default;
+    virtual ~RHIFence() = default;
 };
 
 } // namespace rhi

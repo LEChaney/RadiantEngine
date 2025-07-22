@@ -6,10 +6,10 @@
 
 namespace rhi::vulkan {
 
-class RHIVKQueue : public rhi::Queue {
+class RHIVKQueue : public rhi::RHIQueue {
 public:
     RHIVKQueue(VkQueue queue, VkDevice device);
-    void submit(const std::vector<rhi::CommandBuffer*>& commandBuffers, rhi::Fence* fence, rhi::Semaphore* waitSemaphore) override;
+    void submit(const std::vector<rhi::RHICommandBuffer*>& commandBuffers, rhi::RHIFence* fence, rhi::RHISemaphore* waitSemaphore) override;
     void wait_idle() override;
 private:
     VkQueue queue_;

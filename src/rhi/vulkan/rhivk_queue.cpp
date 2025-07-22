@@ -8,7 +8,7 @@ namespace rhi::vulkan {
 RHIVKQueue::RHIVKQueue(VkQueue queue, VkDevice device)
     : queue_(queue), device_(device) {}
 
-void RHIVKQueue::submit(const std::vector<rhi::CommandBuffer*>& commandBuffers, rhi::Fence* /*fence*/, rhi::Semaphore* /*waitSemaphore*/) {
+void RHIVKQueue::submit(const std::vector<rhi::RHICommandBuffer*>& commandBuffers, rhi::RHIFence* /*fence*/, rhi::RHISemaphore* /*waitSemaphore*/) {
     std::vector<VkCommandBuffer> vkCmds;
     for (auto* cmd : commandBuffers) {
         auto* vkCmd = static_cast<RHIVKCommandBuffer*>(cmd);

@@ -2,20 +2,20 @@
 #include <cstdint>
 
 namespace rhi {
-class ImageView;
-class CommandBuffer;
+class RHIImageView;
+class RHICommandBuffer;
 
-class Swapchain {
+class RHISwapchain {
 public:
-    struct Frame {
+    struct RHIFrame {
         uint32_t image_index;
-        ImageView* image_view;
-        CommandBuffer* command_buffer;
+        RHIImageView* image_view;
+        RHICommandBuffer* command_buffer;
     };
 
-    virtual ~Swapchain() = default;
-    virtual Frame acquire_next_frame() = 0;
-    virtual void present(const Frame& frame) = 0;
+    virtual ~RHISwapchain() = default;
+    virtual RHIFrame acquire_next_frame() = 0;
+    virtual void present(const RHIFrame& frame) = 0;
     virtual uint32_t image_count() const = 0;
     virtual void resize(uint32_t width, uint32_t height) = 0;
 };

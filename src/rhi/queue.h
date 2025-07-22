@@ -3,15 +3,15 @@
 
 namespace rhi {
 
-class CommandBuffer;
-class Fence;
-class Semaphore;
+class RHICommandBuffer;
+class RHIFence;
+class RHISemaphore;
 
-class Queue {
+class RHIQueue {
 public:
-    virtual void submit(const std::vector<CommandBuffer*>& commandBuffers, Fence* fence, Semaphore* waitSemaphore) = 0;
+    virtual void submit(const std::vector<RHICommandBuffer*>& commandBuffers, RHIFence* fence, RHISemaphore* waitSemaphore) = 0;
     virtual void wait_idle() = 0;
-    virtual ~Queue() = default;
+    virtual ~RHIQueue() = default;
 };
 
 } // namespace rhi

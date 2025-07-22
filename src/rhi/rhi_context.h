@@ -3,19 +3,19 @@
 
 namespace rhi {
 
-class Queue;
-class CommandBuffer;
-class Fence;
-class Semaphore;
-class Swapchain;
+class RHIQueue;
+class RHICommandBuffer;
+class RHIFence;
+class RHISemaphore;
+class RHISwapchain;
 
 class RHIContext {
 public:
-    virtual Queue* get_graphics_queue() = 0;
-    virtual CommandBuffer* create_command_buffer() = 0;
-    virtual Fence* create_fence() = 0;
-    virtual Semaphore* create_semaphore() = 0;
-    virtual Swapchain* create_swapchain(void* window, uint32_t width, uint32_t height, uint32_t buffer_count) = 0;
+    virtual RHIQueue* get_graphics_queue() = 0;
+    virtual RHICommandBuffer* create_command_buffer() = 0;
+    virtual RHIFence* create_fence() = 0;
+    virtual RHISemaphore* create_semaphore() = 0;
+    virtual RHISwapchain* create_swapchain(void* window, uint32_t width, uint32_t height, uint32_t buffer_count) = 0;
     virtual ~RHIContext() = default;
 };
 

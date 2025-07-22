@@ -5,7 +5,7 @@
 
 namespace rhi::vulkan {
 
-class RHIVKFence : public rhi::Fence {
+class RHIVKFence : public rhi::RHIFence {
 public:
     RHIVKFence(VkFence fence, VkDevice device);
     ~RHIVKFence();

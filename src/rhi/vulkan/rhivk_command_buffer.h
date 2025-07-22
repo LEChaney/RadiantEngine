@@ -5,7 +5,7 @@
 
 namespace rhi::vulkan {
 
-class RHIVKCommandBuffer : public rhi::CommandBuffer {
+class RHIVKCommandBuffer : public rhi::RHICommandBuffer {
 public:
     RHIVKCommandBuffer(VkCommandBuffer cmdBuffer, VkDevice device, VkCommandPool pool);
     void begin() override;

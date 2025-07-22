@@ -53,7 +53,7 @@ protected:
 class RHIVulkanTestWithSDLAndSwap : public RHIVulkanTest {
 protected:
     SDL_Window* window = nullptr;
-    rhi::Swapchain* swapchain = nullptr;
+    rhi::RHISwapchain* swapchain = nullptr;
     const uint32_t buffer_count = 2; // double buffering
 
     void SetUp() override {

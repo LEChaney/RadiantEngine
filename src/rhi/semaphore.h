@@ -2,9 +2,9 @@
 
 namespace rhi {
 
-class Semaphore {
+class RHISemaphore {
 public:
-    virtual ~Semaphore() = default;
+    virtual ~RHISemaphore() = default;
 };
 
 } // namespace rhi
