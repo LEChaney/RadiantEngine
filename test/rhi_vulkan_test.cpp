@@ -1,9 +1,9 @@
 
 #include <gtest/gtest.h>
 #include "rhi/rhi_context.h"
-#include "rhi/command_buffer.h"
-#include "rhi/queue.h"
-#include "rhi/swapchain.h"
+#include "rhi/rhi_command_buffer.h"
+#include "rhi/rhi_queue.h"
+#include "rhi/rhi_swapchain.h"
 #include "rhi/vulkan/rhivk_context.h"
 #include "rhi/vulkan/rhivk_swapchain.h"
 #include "fmt/format.h"

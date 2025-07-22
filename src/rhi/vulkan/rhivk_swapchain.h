@@ -1,5 +1,5 @@
 #pragma once
-#include "rhi/swapchain.h"
+#include "rhi/rhi_swapchain.h"
 
 namespace rhi {
 namespace vulkan {

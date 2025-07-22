@@ -1,6 +1,6 @@
 
 #pragma once
-#include "rhi/command_buffer.h"
+#include "rhi/rhi_command_buffer.h"
 #include <vulkan/vulkan.h>
 
 namespace rhi::vulkan {

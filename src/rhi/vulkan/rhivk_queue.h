@@ -1,6 +1,6 @@
 
 #pragma once
-#include "rhi/queue.h"
+#include "rhi/rhi_queue.h"
 #include <vector>
 #include <vulkan/vulkan.h>
 
