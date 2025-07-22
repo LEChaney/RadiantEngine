@@ -48,6 +48,14 @@ endif()
 # add_dependencies(build_tests compile_time_RHI_switch_virtual)
 # add_test(NAME compile_time_RHI_switch_virtual COMMAND compile_time_RHI_switch_virtual)
 
+# Struct pass performance test
+add_executable(struct_pass_perf_test experimental/struct_pass_perf_test.cpp)
+set_property(TARGET struct_pass_perf_test PROPERTY CXX_STANDARD 20)
+set_target_properties(struct_pass_perf_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${TEST_OUTPUT_DIRECTORY}")
+target_include_directories(struct_pass_perf_test PRIVATE "${CMAKE_SOURCE_DIR}/src")
+add_dependencies(build_tests struct_pass_perf_test)
+add_test(NAME struct_pass_perf_test COMMAND struct_pass_perf_test)
+
 # Slotmap unit test
 add_executable(slotmap_test slotmap_test.cpp)
 set_property(TARGET slotmap_test PROPERTY CXX_STANDARD 20)
