@@ -41,12 +41,12 @@ public:
     RHISwapchain* create_swapchain(SDL_Window* window, uint32_t width, uint32_t height, uint32_t buffer_count) override;
 
     // Vulkan object accessors
-    VkInstance get_vk_instance() const { return instance_; }
-    VkPhysicalDevice get_vk_physical_device() const { return physicalDevice_; }
-    VkDevice get_vk_device() const { return device_; }
-    VkQueue get_vk_graphics_queue() const { return graphicsQueue_; }
-    uint32_t get_vk_graphics_queue_family() const { return graphicsQueueFamily_; }
-    VkCommandPool get_vk_command_pool() const { return commandPool_; }
+    VkInstance get_vk_instance() const { return m_instance; }
+    VkPhysicalDevice get_vk_physical_device() const { return m_physical_device; }
+    VkDevice get_vk_device() const { return m_device; }
+    VkQueue get_vk_graphics_queue() const { return m_graphics_queue; }
+    uint32_t get_vk_graphics_queue_family() const { return m_graphics_queue_family; }
+    VkCommandPool get_vk_command_pool() const { return m_command_pool; }
 
     // Set a custom validation callback (thread-unsafe, for test/dev only)
     static void set_validation_callback(ValidationCallback cb);
@@ -59,15 +59,15 @@ private:
     void setup_debug_messenger();
     bool validation_enabled_ = false;
 
-    VkInstance instance_{};
-    VkPhysicalDevice physicalDevice_{};
-    VkDevice device_{};
-    VkQueue graphicsQueue_{};
-    uint32_t graphicsQueueFamily_ = 0;
-    VkCommandPool commandPool_{};
-    VkDebugUtilsMessengerEXT debugMessenger_{};
+    VkInstance m_instance{};
+    VkPhysicalDevice m_physical_device{};
+    VkDevice m_device{};
+    VkQueue m_graphics_queue{};
+    uint32_t m_graphics_queue_family = 0;
+    VkCommandPool m_command_pool{};
+    VkDebugUtilsMessengerEXT m_debug_messenger{};
 
-    std::unique_ptr<RHIVKQueue> graphicsQueueWrapper_;
+    std::unique_ptr<RHIVKQueue> m_rhi_graphics_queue;
 };
 
 } // namespace rhi::vulkan

@@ -1,18 +1,18 @@
 
 #pragma once
-#include "rhi/semaphore.h"
+#include "rhi/rhi_semaphore.h"
 #include <vulkan/vulkan.h>
 
 namespace rhi::vulkan {
 
-class RHIVKSemaphore : public rhi::Semaphore {
+class RHIVKSemaphore : public rhi::RHISemaphore {
 public:
     RHIVKSemaphore(VkSemaphore semaphore, VkDevice device);
     ~RHIVKSemaphore();
-    VkSemaphore get_vk() const { return semaphore_; }
+    VkSemaphore get_vk() const { return m_semaphore; }
 private:
-    VkSemaphore semaphore_;
-    VkDevice device_;
+    VkSemaphore m_semaphore;
+    VkDevice m_device;
 };
 
 } // namespace rhi::vulkan

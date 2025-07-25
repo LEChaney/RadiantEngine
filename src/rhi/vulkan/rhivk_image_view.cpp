@@ -3,12 +3,12 @@
 
 namespace rhi::vulkan {
 
-RHIVKImageView::RHIVKImageView(VkImageView imageView, VkDevice device)
-    : imageView_(imageView), device_(device) {}
+RHIVKImageView::RHIVKImageView(VkImageView image_view, VkDevice device)
+    : m_image_view(image_view), m_vk_device(device) {}
 
 RHIVKImageView::~RHIVKImageView() {
-    if (imageView_ && device_) {
-        vkDestroyImageView(device_, imageView_, nullptr);
+    if (m_image_view && m_vk_device) {
+        vkDestroyImageView(m_vk_device, m_image_view, nullptr);
     }
 }
 

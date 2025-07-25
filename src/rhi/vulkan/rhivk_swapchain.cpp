@@ -15,83 +15,94 @@
 namespace rhi {
 namespace vulkan {
 
-RHIVKSwapchain::RHIVKSwapchain(RHIVKContext* context, SDL_Window* window, uint32_t width, uint32_t height, uint32_t buffer_count)
-    : m_context(context), m_image_count(buffer_count), m_surface(VK_NULL_HANDLE) {
+
+RHIVKSwapchain::RHIVKSwapchain(RHIVKContext* context, SDL_Window* window, uint32_t width, uint32_t height, uint32_t image_count)
+    : m_rhi_context(context)
+    , m_surface(VK_NULL_HANDLE)
+    , m_image_count(image_count) 
+{
     // Create swapchain surface using SDL
-    if (SDL_Vulkan_CreateSurface(window, m_context->get_vk_instance(), &m_surface) != SDL_TRUE) {
+    if (SDL_Vulkan_CreateSurface(window, m_rhi_context->get_vk_instance(), &m_surface) != SDL_TRUE) {
         throw std::runtime_error("Failed to create Vulkan surface");
     }
 
     // Create swapchain (minimal, not handling oldSwapchain, formats, etc.)
-    VkSwapchainCreateInfoKHR swapchainInfo{};
-    swapchainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    swapchainInfo.surface = m_surface;
-    swapchainInfo.minImageCount = buffer_count;
-    swapchainInfo.imageFormat = VK_FORMAT_B8G8R8A8_UNORM; // Hardcoded for test
-    swapchainInfo.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-    swapchainInfo.imageExtent = { width, height };
-    swapchainInfo.imageArrayLayers = 1;
-    swapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-    swapchainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    swapchainInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
-    swapchainInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    swapchainInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
-    swapchainInfo.clipped = VK_TRUE;
-    swapchainInfo.oldSwapchain = VK_NULL_HANDLE;
-    VkDevice device = context->get_vk_device();
+    VkSwapchainCreateInfoKHR swapchain_info{};
+    swapchain_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    swapchain_info.surface = m_surface;
+    swapchain_info.minImageCount = image_count;
+    swapchain_info.imageFormat = VK_FORMAT_B8G8R8A8_UNORM; // Hardcoded for test
+    swapchain_info.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+    swapchain_info.imageExtent = { width, height };
+    swapchain_info.imageArrayLayers = 1;
+    swapchain_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    swapchain_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    swapchain_info.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+    swapchain_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    swapchain_info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+    swapchain_info.clipped = VK_TRUE;
+    swapchain_info.oldSwapchain = VK_NULL_HANDLE;
+    VkDevice vk_device = context->get_vk_device();
     VkSwapchainKHR swapchain = VK_NULL_HANDLE;
-    VkResult res = vkCreateSwapchainKHR(device, &swapchainInfo, nullptr, &swapchain);
-    assert(res == VK_SUCCESS);
+    VkResult result = vkCreateSwapchainKHR(vk_device, &swapchain_info, nullptr, &swapchain);
+    assert(result == VK_SUCCESS);
 
     // Get swapchain images
-    uint32_t imageCount = 0;
-    vkGetSwapchainImagesKHR(device, swapchain, &imageCount, nullptr);
-    std::vector<VkImage> images(imageCount);
-    vkGetSwapchainImagesKHR(device, swapchain, &imageCount, images.data());
+    vkGetSwapchainImagesKHR(vk_device, swapchain, &image_count, nullptr);
+    std::vector<VkImage> images(image_count);
+    vkGetSwapchainImagesKHR(vk_device, swapchain, &image_count, images.data());
 
     // Create image views and command buffers
-    m_image_count = imageCount;
-    m_image_views.resize(imageCount);
-    m_command_buffers.resize(imageCount);
-    for (uint32_t i = 0; i < imageCount; ++i) {
+    m_image_count = image_count;
+    m_rhi_image_views.resize(image_count);
+    m_rhi_command_buffers.resize(image_count);
+    for (uint32_t i = 0; i < image_count; ++i) {
         // Create image view for each swapchain image
-        VkImageViewCreateInfo viewInfo{};
-        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        viewInfo.image = images[i];
-        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        viewInfo.format = swapchainInfo.imageFormat;
-        viewInfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G,
+        VkImageViewCreateInfo view_info{};
+        view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        view_info.image = images[i];
+        view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        view_info.format = swapchain_info.imageFormat;
+        view_info.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G,
                                 VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
-        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        viewInfo.subresourceRange.baseMipLevel = 0;
-        viewInfo.subresourceRange.levelCount = 1;
-        viewInfo.subresourceRange.layerCount = 1;
-        VkImageView imageView;
-        VkResult viewRes = vkCreateImageView(device, &viewInfo, nullptr, &imageView);
-        assert(viewRes == VK_SUCCESS && "Failed to create image view for swapchain image");
-        m_image_views[i] = new RHIVKImageView(imageView, device);
-        m_command_buffers[i] = static_cast<RHIVKCommandBuffer*>(context->create_command_buffer());
+        view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        view_info.subresourceRange.baseMipLevel = 0;
+        view_info.subresourceRange.levelCount = 1;
+        view_info.subresourceRange.layerCount = 1;
+        VkImageView image_view;
+        VkResult view_result = vkCreateImageView(vk_device, &view_info, nullptr, &image_view);
+        assert(view_result == VK_SUCCESS && "Failed to create image view for swapchain image");
+        m_rhi_image_views[i] = new RHIVKImageView(image_view, vk_device);
+        m_rhi_command_buffers[i] = static_cast<RHIVKCommandBuffer*>(context->create_command_buffer());
     }
     m_swapchain = swapchain;
     m_frame_index = 0;
 }
 
 RHIVKSwapchain::~RHIVKSwapchain() {
-    for (auto* cb : m_command_buffers) delete cb;
-    for (auto* iv : m_image_views) delete iv;
-    VkDevice device = m_context->get_vk_device();
-    if (m_swapchain) vkDestroySwapchainKHR(device, m_swapchain, nullptr);
-    if (m_surface) vkDestroySurfaceKHR(m_context->get_vk_instance(), m_surface, nullptr);
+    for (auto* command_buffer : m_rhi_command_buffers) {
+        delete command_buffer;
+    }
+    for (auto* image_view : m_rhi_image_views) {
+        delete image_view;
+    }
+    VkDevice vk_device = m_rhi_context->get_vk_device();
+    if (m_swapchain) {
+        vkDestroySwapchainKHR(vk_device, m_swapchain, nullptr);
+    }
+    if (m_surface) {
+        vkDestroySurfaceKHR(m_rhi_context->get_vk_instance(), m_surface, nullptr);
+    }
 }
 
 RHISwapchain::RHIFrame RHIVKSwapchain::acquire_next_frame() {
     // Minimal: just cycle through images
-    uint32_t idx = m_frame_index % m_image_count;
+    uint32_t image_index = m_frame_index % m_image_count;
     m_frame_index++;
-    return RHIFrame{ idx, m_image_views[idx], m_command_buffers[idx] };
+    return RHIFrame{ image_index, m_rhi_image_views[image_index], m_rhi_command_buffers[image_index] };
 }
 
-void RHIVKSwapchain::present(const RHIFrame& frame) {
+void RHIVKSwapchain::present(const RHIFrame& /*frame*/) {
     // Minimal: no actual present, just stub for test
 }
 

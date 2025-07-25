@@ -6,12 +6,12 @@ namespace rhi::vulkan {
 
 class RHIVKImageView : public rhi::RHIImageView {
 public:
-    RHIVKImageView(VkImageView imageView, VkDevice device);
+    RHIVKImageView(VkImageView image_view, VkDevice device);
     ~RHIVKImageView() override;
-    VkImageView get_vk() const { return imageView_; }
+    VkImageView get_vk() const { return m_image_view; }
 private:
-    VkImageView imageView_;
-    VkDevice device_;
+    VkImageView m_image_view;
+    VkDevice m_vk_device;
 };
 
 } // namespace rhi::vulkan

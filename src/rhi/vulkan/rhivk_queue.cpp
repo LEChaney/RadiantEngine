@@ -6,23 +6,23 @@
 namespace rhi::vulkan {
 
 RHIVKQueue::RHIVKQueue(VkQueue queue, VkDevice device)
-    : queue_(queue), device_(device) {}
+    : m_queue(queue), m_device(device) {}
 
-void RHIVKQueue::submit(const std::vector<rhi::RHICommandBuffer*>& commandBuffers, rhi::RHIFence* /*fence*/, rhi::RHISemaphore* /*waitSemaphore*/) {
-    std::vector<VkCommandBuffer> vkCmds;
-    for (auto* cmd : commandBuffers) {
-        auto* vkCmd = static_cast<RHIVKCommandBuffer*>(cmd);
-        vkCmds.push_back(vkCmd->get_vk());
+void RHIVKQueue::submit(const std::vector<rhi::RHICommandBuffer*>& command_buffers, rhi::RHIFence* /*fence*/, rhi::RHISemaphore* /*wait_semaphore*/) {
+    std::vector<VkCommandBuffer> vk_cmds;
+    for (auto* cmd : command_buffers) {
+        auto* vk_cmd = static_cast<RHIVKCommandBuffer*>(cmd);
+        vk_cmds.push_back(vk_cmd->get_vk());
     }
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = static_cast<uint32_t>(vkCmds.size());
-    submitInfo.pCommandBuffers = vkCmds.data();
-    vkQueueSubmit(queue_, 1, &submitInfo, VK_NULL_HANDLE);
+    VkSubmitInfo submit_info{};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.commandBufferCount = static_cast<uint32_t>(vk_cmds.size());
+    submit_info.pCommandBuffers = vk_cmds.data();
+    vkQueueSubmit(m_queue, 1, &submit_info, VK_NULL_HANDLE);
 }
 
 void RHIVKQueue::wait_idle() {
-    vkQueueWaitIdle(queue_);
+    vkQueueWaitIdle(m_queue);
 }
 
 } // namespace rhi::vulkan

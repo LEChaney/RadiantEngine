@@ -9,11 +9,11 @@ namespace rhi::vulkan {
 class RHIVKQueue : public rhi::RHIQueue {
 public:
     RHIVKQueue(VkQueue queue, VkDevice device);
-    void submit(const std::vector<rhi::RHICommandBuffer*>& commandBuffers, rhi::RHIFence* fence, rhi::RHISemaphore* waitSemaphore) override;
+    void submit(const std::vector<rhi::RHICommandBuffer*>& command_buffers, rhi::RHIFence* fence, rhi::RHISemaphore* wait_semaphore) override;
     void wait_idle() override;
 private:
-    VkQueue queue_;
-    VkDevice device_;
+    VkQueue m_queue;
+    VkDevice m_device;
 };
 
 } // namespace rhi::vulkan

@@ -11,7 +11,7 @@ namespace rhi {
 namespace vulkan {
 class RHIVKSwapchain : public RHISwapchain {
 public:
-    RHIVKSwapchain(RHIVKContext* context, SDL_Window* window, uint32_t width, uint32_t height, uint32_t buffer_count);
+    RHIVKSwapchain(RHIVKContext* context, SDL_Window* window, uint32_t width, uint32_t height, uint32_t image_count);
     ~RHIVKSwapchain() override;
 
     RHIFrame acquire_next_frame() override;
@@ -20,12 +20,12 @@ public:
     void resize(uint32_t width, uint32_t height) override;
 
 private:
-    RHIVKContext* m_context;
-    uint32_t m_image_count;
-    std::vector<RHICommandBuffer*> m_command_buffers;
-    std::vector<RHIImageView*> m_image_views;
+    RHIVKContext* m_rhi_context;
+    std::vector<RHICommandBuffer*> m_rhi_command_buffers;
+    std::vector<RHIImageView*> m_rhi_image_views;
     VkSurfaceKHR m_surface;
     VkSwapchainKHR m_swapchain;
+    uint32_t m_image_count;
     uint32_t m_frame_index;
 };
 } // namespace vulkan
