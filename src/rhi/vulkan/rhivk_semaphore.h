@@ -17,7 +17,7 @@ public:
     RHIVKSemaphore(RHIVKSemaphore&&) = delete;
     RHIVKSemaphore& operator=(RHIVKSemaphore&&) = delete;
     
-    VkSemaphore get_vk() const { return m_semaphore; }
+    const VkSemaphore& get_vk() const { return m_semaphore; }
     
 private:
     VkSemaphore m_semaphore;

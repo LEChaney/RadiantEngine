@@ -1,12 +1,14 @@
 
 #pragma once
-#include "rhi/vulkan/rhivk_context.h"
 #include "rhi/rhi_command_buffer.h"
-#include "rhi/rhi_image.h"
 #include "glm/vec4.hpp"
 #include <vulkan/vulkan.h>
 
 namespace rhi::vulkan {
+
+class rhi::RHIImage;
+class rhi::RHIBuffer;
+class RHIVKContext;
 
 class RHIVKCommandBuffer : public RHICommandBuffer {
 public:
@@ -16,6 +18,9 @@ public:
     void begin() override;
     void end() override;
     void clear_color(rhi::RHIImage* image, const glm::vec4& color) override;
+
+    void transition_image_layout(rhi::RHIImage* image, ImageLayout oldLayout, ImageLayout newLayout) override;
+    void copy_image_to_buffer(rhi::RHIImage* image, rhi::RHIBuffer* buffer, uint32_t width, uint32_t height) override;
 
     VkCommandBuffer get_vk() const { return m_cmd_buffer; }
     RHIVKCommandBuffer(const RHIVKCommandBuffer&) = delete;

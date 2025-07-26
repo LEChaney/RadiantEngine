@@ -16,7 +16,7 @@ public:
     RHIVKFence(RHIVKFence&&) = delete;
     RHIVKFence& operator=(RHIVKFence&&) = delete;
     
-    VkFence get_vk() const { return m_fence; }
+    const VkFence& get_vk() const { return m_fence; }
 private:
     VkFence m_fence;
     RHIVKContext* m_context;

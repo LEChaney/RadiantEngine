@@ -20,6 +20,7 @@ public:
 
     void submit(const Array<rhi::RHICommandBuffer*>& command_buffers, rhi::RHIFence* fence, rhi::RHISemaphore* wait_semaphore) override;
     void wait_idle() override;
+    void submit_and_wait(rhi::RHICommandBuffer* cmd) override;
 private:
     VkQueue m_queue;
     RHIVKContext* m_context;

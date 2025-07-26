@@ -1,19 +1,25 @@
 
 #include <gtest/gtest.h>
-#include "rhi/rhi_context.h"
+#include "rhi/vulkan/rhivk_context.h"
 #include "rhi/rhi_command_buffer.h"
 #include "rhi/rhi_queue.h"
 #include "rhi/rhi_swapchain.h"
-#include "rhi/vulkan/rhivk_context.h"
-#include "rhi/vulkan/rhivk_swapchain.h"
+#include "rhi/rhi_swapchain.h"
+#include "rhi/rhi_image_layout.h"
 #include "fmt/format.h"
 #include "core/core_defs.h"
 #include <vector>
 
 #include <SDL.h>
 
+#include <algorithm>
+
+#include "rhi/rhi_image_utils.h"
+
 using rhi::RHIContext;
 using rhi::vulkan::RHIVKContext;
+using rhi::RHIImageView;
+using rhi::ImageLayout;
 
 // Helper to capture validation messages
 void ValidationMsgCollector(const char* msg, RHIVKContext::ValidationLevel level) {
@@ -98,18 +104,83 @@ TEST_F(RHIVulkanTest, CreateAndSubmitEmptyCommandBuffer) {
     queue->wait_idle();
 }
 
-TEST_F(RHIVulkanTestWithSDLAndSwap, SwapchainDoubleBufferingDrawWithSDL) {
-    // Draw two frames (double buffering)
-    for (uint32_t frame = 0; frame < buffer_count; ++frame) {
+TEST_F(RHIVulkanTestWithSDLAndSwap, RenderSwapchainFrames) {
+    // Draw several frames (double buffered)
+    constexpr uint32_t frame_count = 100;
+    for (uint32_t frame_idx = 0; frame_idx < frame_count; ++frame_idx) {
         auto frame_data = swapchain->acquire_next_frame();
         ASSERT_NE(frame_data.command_buffer, nullptr);
         ASSERT_NE(frame_data.image_view, nullptr);
 
-        glm::vec4 clearColor(0.1f * frame, 0.2f, 0.3f, 1.0f);
+        // Record RHI commands
         frame_data.command_buffer->begin();
-        frame_data.command_buffer->clear_color(frame_data.image_view->get_image(), clearColor);
+        frame_data.command_buffer->transition_image_layout(frame_data.image,
+            ImageLayout::Undefined,
+            ImageLayout::Present
+        );
         frame_data.command_buffer->end();
 
+        // Submit command buffer to the graphics queue
+        auto* queue = context->get_graphics_queue();
+        queue->submit({frame_data.command_buffer}, nullptr, nullptr);
+
+        // Present the frame
         swapchain->present(frame_data);
+    }
+}
+
+TEST_F(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
+    // Draw several frames (double buffered)
+    constexpr uint32_t frame_count = 100;
+    for (uint32_t frame_idx = 0; frame_idx < frame_count; ++frame_idx) {
+        auto frame_data = swapchain->acquire_next_frame();
+        ASSERT_NE(frame_data.command_buffer, nullptr);
+        ASSERT_NE(frame_data.image_view, nullptr);
+
+        glm::vec4 clearColor(0.1f * frame_data.image_index, 0.2f, 0.3f, 1.0f);
+        frame_data.command_buffer->begin();
+        frame_data.command_buffer->transition_image_layout(frame_data.image,
+            ImageLayout::Undefined,
+            ImageLayout::TransferDst
+        );
+        frame_data.command_buffer->clear_color(frame_data.image, clearColor);
+        frame_data.command_buffer->transition_image_layout(frame_data.image,
+            ImageLayout::TransferDst,
+            ImageLayout::Present
+        );
+        frame_data.command_buffer->end();
+
+        auto* queue = context->get_graphics_queue();
+        queue->submit({frame_data.command_buffer}, nullptr, nullptr);
+
+        swapchain->present(frame_data);
+
+        // --- Validate clear color using read_image_to_cpu ---
+        // Get image size (assuming swapchain exposes width/height or use known values)
+        uint32_t width = 640, height = 480;
+        std::vector<uint8_t> imageData;
+        bool readbackOk = rhi::read_image_to_cpu(context.get(), frame_data.image, width, height, imageData);
+        ASSERT_TRUE(readbackOk) << "Failed to read back image data from GPU";
+        ASSERT_EQ(imageData.size(), width * height * 4);
+
+        // Convert clearColor to uint8 RGBA
+        uint8_t expectedR = static_cast<uint8_t>(std::clamp(clearColor.r, 0.0f, 1.0f) * 255.0f + 0.5f);
+        uint8_t expectedG = static_cast<uint8_t>(std::clamp(clearColor.g, 0.0f, 1.0f) * 255.0f + 0.5f);
+        uint8_t expectedB = static_cast<uint8_t>(std::clamp(clearColor.b, 0.0f, 1.0f) * 255.0f + 0.5f);
+        uint8_t expectedA = static_cast<uint8_t>(std::clamp(clearColor.a, 0.0f, 1.0f) * 255.0f + 0.5f);
+
+        // Check a few sample pixels (corners and center)
+        auto check_pixel = [&](uint32_t x, uint32_t y) {
+            size_t idx = (y * width + x) * 4;
+            ASSERT_EQ(imageData[idx + 0], expectedR) << fmt::format("Pixel ({},{}): R mismatch", x, y);
+            ASSERT_EQ(imageData[idx + 1], expectedG) << fmt::format("Pixel ({},{}): G mismatch", x, y);
+            ASSERT_EQ(imageData[idx + 2], expectedB) << fmt::format("Pixel ({},{}): B mismatch", x, y);
+            ASSERT_EQ(imageData[idx + 3], expectedA) << fmt::format("Pixel ({},{}): A mismatch", x, y);
+        };
+        check_pixel(0, 0);
+        check_pixel(width - 1, 0);
+        check_pixel(0, height - 1);
+        check_pixel(width - 1, height - 1);
+        check_pixel(width / 2, height / 2);
     }
 }

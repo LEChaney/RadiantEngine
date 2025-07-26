@@ -32,6 +32,8 @@ private:
     Array<UniquePtr<RHIVKCommandBuffer>> m_rhi_command_buffers;
     Array<UniquePtr<RHIVKImage>> m_rhi_images;
     Array<UniquePtr<RHIVKImageView>> m_rhi_image_views;
+    Array<UniquePtr<RHIVKSemaphore>> m_cur_image_acquire_semaphores;
+    Array<UniquePtr<RHIVKSemaphore>> m_free_image_acquire_semaphores;
     VkSurfaceKHR m_surface;
     VkSwapchainKHR m_swapchain;
     uint32_t m_image_count;

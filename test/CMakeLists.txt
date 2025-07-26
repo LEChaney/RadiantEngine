@@ -93,10 +93,12 @@ add_executable(rhi_vulkan_test
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_queue.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_command_buffer.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_swapchain.cpp
+    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_buffer.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_image.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_image_view.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_semaphore.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_fence.cpp
+    ${CMAKE_SOURCE_DIR}/src/rhi/rhi_image_utils.cpp
 )
 set_property(TARGET rhi_vulkan_test PROPERTY CXX_STANDARD 20)
 set_target_properties(rhi_vulkan_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${TEST_OUTPUT_DIRECTORY}")

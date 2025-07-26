@@ -1,5 +1,6 @@
 #pragma once
 #include "core/core_defs.h"
+#include "rhi_buffer_usage.h"
 #include <cstdint>
 
 class SDL_Window;
@@ -11,6 +12,7 @@ class RHICommandBuffer;
 class RHIFence;
 class RHISemaphore;
 class RHISwapchain;
+class RHIBuffer;
 
 class RHIContext {
 public:
@@ -29,6 +31,7 @@ public:
     virtual UniquePtr<RHIFence> create_fence() = 0;
     virtual UniquePtr<RHISemaphore> create_semaphore() = 0;
     virtual UniquePtr<RHISwapchain> create_swapchain(SDL_Window* window, uint32_t width, uint32_t height, uint32_t buffer_count) = 0;
+    virtual UniquePtr<RHIBuffer> create_buffer(uint64_t size, BufferUsage usage, MemoryProperty mem_props) = 0;
 };
 
 } // namespace rhi

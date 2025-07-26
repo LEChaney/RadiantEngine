@@ -2,6 +2,7 @@
 #include "rhi/vulkan/rhivk_queue.h"
 #include "rhi/vulkan/rhivk_command_buffer.h"
 #include "rhi/vulkan/rhivk_swapchain.h"
+#include "rhi/vulkan/rhivk_buffer.h"
 #include "rhi/vulkan/rhivk_fence.h"
 #include "rhi/vulkan/rhivk_semaphore.h"
 #include "rhi/rhi_swapchain.h"
@@ -285,6 +286,11 @@ UniquePtr<RHISwapchain> RHIVKContext::create_swapchain(SDL_Window* window, uint3
     return create_vk_swapchain(window, width, height, image_count);
 }
 
+UniquePtr<RHIBuffer> RHIVKContext::create_buffer(uint64_t size, BufferUsage usage, MemoryProperty mem_props)
+{
+    return create_vk_buffer(size, usage, mem_props);
+}
+
 UniquePtr<RHIVKCommandBuffer> RHIVKContext::create_vk_command_buffer()
 {
     VkCommandBufferAllocateInfo alloc_info{};
@@ -328,4 +334,9 @@ UniquePtr<RHIVKSwapchain> RHIVKContext::create_vk_swapchain(SDL_Window* window, 
 {
     return make_unique<RHIVKSwapchain>(this, window, width, height, image_count);
 }
+
+UniquePtr<RHIVKBuffer> RHIVKContext::create_vk_buffer(uint64_t size, BufferUsage usage, MemoryProperty mem_props) {
+    return make_unique<RHIVKBuffer>(m_device, m_physical_device, size, usage, mem_props);
+}
+
 } // namespace rhi::vulkan
