@@ -1,17 +1,8 @@
 #pragma once
 #include "rhi/rhi_context.h"
-#include <memory>
-#include <vector>
-#include <optional>
+#include "core/core_defs.h"
 #include <vulkan/vulkan.h>
 #include <functional>
-
-#pragma once
-#include "rhi/rhi_context.h"
-#include <memory>
-#include <vector>
-#include <optional>
-#include <vulkan/vulkan.h>
 
 namespace rhi::vulkan {
 
@@ -19,8 +10,7 @@ class RHIVKQueue;
 class RHIVKCommandBuffer;
 class RHIVKFence;
 class RHIVKSemaphore;
-
-
+class RHIVKSwapchain;
 
 class RHIVKContext : public RHIContext {
 public:
@@ -35,10 +25,18 @@ public:
     ~RHIVKContext() override;
 
     RHIQueue* get_graphics_queue() override;
-    RHICommandBuffer* create_command_buffer() override;
-    RHIFence* create_fence() override;
-    RHISemaphore* create_semaphore() override;
-    RHISwapchain* create_swapchain(SDL_Window* window, uint32_t width, uint32_t height, uint32_t buffer_count) override;
+
+    // Factory methods for creating RHI objects
+    UniquePtr<RHICommandBuffer> create_command_buffer() override;
+    UniquePtr<RHIFence> create_fence() override;
+    UniquePtr<RHISemaphore> create_semaphore() override;
+    UniquePtr<RHISwapchain> create_swapchain(SDL_Window* window, uint32_t width, uint32_t height, uint32_t buffer_count) override;
+
+    // Vulkan factory methods
+    UniquePtr<RHIVKCommandBuffer> create_vk_command_buffer();
+    UniquePtr<RHIVKFence> create_vk_fence();
+    UniquePtr<RHIVKSemaphore> create_vk_semaphore();
+    UniquePtr<RHIVKSwapchain> create_vk_swapchain(SDL_Window* window, uint32_t width, uint32_t height, uint32_t image_count);
 
     // Vulkan object accessors
     VkInstance get_vk_instance() const { return m_instance; }
@@ -50,6 +48,11 @@ public:
 
     // Set a custom validation callback (thread-unsafe, for test/dev only)
     static void set_validation_callback(ValidationCallback cb);
+
+    RHIVKContext(const RHIVKContext&) = delete;
+    RHIVKContext& operator=(const RHIVKContext&) = delete;
+    RHIVKContext(RHIVKContext&&) = delete;
+    RHIVKContext& operator=(RHIVKContext&&) = delete;
 
 private:
     void create_instance();
@@ -67,7 +70,7 @@ private:
     VkCommandPool m_command_pool{};
     VkDebugUtilsMessengerEXT m_debug_messenger{};
 
-    std::unique_ptr<RHIVKQueue> m_rhi_graphics_queue;
+    UniquePtr<RHIVKQueue> m_rhi_graphics_queue;
 };
 
 } // namespace rhi::vulkan

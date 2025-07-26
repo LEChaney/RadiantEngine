@@ -5,11 +5,15 @@
 
 namespace rhi::vulkan {
 
-RHIVKQueue::RHIVKQueue(VkQueue queue, VkDevice device)
-    : m_queue(queue), m_device(device) {}
+RHIVKQueue::RHIVKQueue(VkQueue queue, RHIVKContext* context)
+    : m_queue(queue), m_context(context) {}
 
-void RHIVKQueue::submit(const std::vector<rhi::RHICommandBuffer*>& command_buffers, rhi::RHIFence* /*fence*/, rhi::RHISemaphore* /*wait_semaphore*/) {
-    std::vector<VkCommandBuffer> vk_cmds;
+RHIVKQueue::~RHIVKQueue() {
+    // No explicit cleanup needed, Vulkan handles queue destruction
+}
+
+void RHIVKQueue::submit(const Array<rhi::RHICommandBuffer*>& command_buffers, rhi::RHIFence* /*fence*/, rhi::RHISemaphore* /*wait_semaphore*/) {
+    Array<VkCommandBuffer> vk_cmds;
     for (auto* cmd : command_buffers) {
         auto* vk_cmd = static_cast<RHIVKCommandBuffer*>(cmd);
         vk_cmds.push_back(vk_cmd->get_vk());

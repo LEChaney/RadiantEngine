@@ -7,6 +7,7 @@
 #include "rhi/vulkan/rhivk_context.h"
 #include "rhi/vulkan/rhivk_swapchain.h"
 #include "fmt/format.h"
+#include "core/core_defs.h"
 #include <vector>
 
 #include <SDL.h>
@@ -30,17 +31,15 @@ void ValidationMsgCollector(const char* msg, RHIVKContext::ValidationLevel level
 
 class RHIVulkanTest : public ::testing::Test {
 protected:
-    RHIContext* context = nullptr;
+    UniquePtr<RHIContext> context;
 
     void SetUp() override {
         RHIVKContext::set_validation_callback(ValidationMsgCollector);
-        context = new RHIVKContext(true); // enable validation for test
+        context = make_unique<RHIVKContext>(true); // enable validation for test
         ASSERT_NE(context, nullptr);
     }
 
     void TearDown() override {
-        delete context;
-        context = nullptr;
         RHIVKContext::set_validation_callback(nullptr);
     }
 };
@@ -48,7 +47,7 @@ protected:
 class RHIVulkanTestWithSDLAndSwap : public RHIVulkanTest {
 protected:
     SDL_Window* window = nullptr;
-    rhi::RHISwapchain* swapchain = nullptr;
+    UniquePtr<rhi::RHISwapchain> swapchain = nullptr;
     const uint32_t buffer_count = 2; // double buffering
 
     void SetUp() override {
@@ -70,9 +69,6 @@ protected:
     }
 
     void TearDown() override {
-        if (swapchain) {
-            delete swapchain;
-        }
         if (window) {
             SDL_DestroyWindow(window);
             window = nullptr;
@@ -94,11 +90,11 @@ TEST_F(RHIVulkanTest, CreateContextAndGraphicsQueue) {
 TEST_F(RHIVulkanTest, CreateAndSubmitEmptyCommandBuffer) {
     auto* queue = context->get_graphics_queue();
     ASSERT_NE(queue, nullptr);
-    auto* cmd = context->create_command_buffer();
+    auto cmd = context->create_command_buffer();
     ASSERT_NE(cmd, nullptr);
     cmd->begin();
     cmd->end();
-    queue->submit({cmd}, nullptr, nullptr);
+    queue->submit({cmd.get()}, nullptr, nullptr);
     queue->wait_idle();
 }
 
@@ -109,9 +105,9 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, SwapchainDoubleBufferingDrawWithSDL) {
         ASSERT_NE(frame_data.command_buffer, nullptr);
         ASSERT_NE(frame_data.image_view, nullptr);
 
+        glm::vec4 clearColor(0.1f * frame, 0.2f, 0.3f, 1.0f);
         frame_data.command_buffer->begin();
-        // Pseudo-code: clear the image to a color (adapt to your API)
-        // frame_data.command_buffer->clear_color(frame_data.image_view, {0.1f * frame, 0.2f, 0.3f, 1.0f});
+        frame_data.command_buffer->clear_color(frame_data.image_view->get_image(), clearColor);
         frame_data.command_buffer->end();
 
         swapchain->present(frame_data);

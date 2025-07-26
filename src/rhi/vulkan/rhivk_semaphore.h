@@ -5,14 +5,23 @@
 
 namespace rhi::vulkan {
 
+class RHIVKContext;
+
 class RHIVKSemaphore : public rhi::RHISemaphore {
 public:
-    RHIVKSemaphore(VkSemaphore semaphore, VkDevice device);
+    RHIVKSemaphore(VkSemaphore semaphore, RHIVKContext* context);
     ~RHIVKSemaphore();
+
+    RHIVKSemaphore(const RHIVKSemaphore&) = delete;
+    RHIVKSemaphore& operator=(const RHIVKSemaphore&) = delete;
+    RHIVKSemaphore(RHIVKSemaphore&&) = delete;
+    RHIVKSemaphore& operator=(RHIVKSemaphore&&) = delete;
+    
     VkSemaphore get_vk() const { return m_semaphore; }
+    
 private:
     VkSemaphore m_semaphore;
-    VkDevice m_device;
+    RHIVKContext* m_context;
 };
 
 } // namespace rhi::vulkan

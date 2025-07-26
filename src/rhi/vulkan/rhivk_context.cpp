@@ -2,9 +2,13 @@
 #include "rhi/vulkan/rhivk_queue.h"
 #include "rhi/vulkan/rhivk_command_buffer.h"
 #include "rhi/vulkan/rhivk_swapchain.h"
+#include "rhi/vulkan/rhivk_fence.h"
+#include "rhi/vulkan/rhivk_semaphore.h"
+#include "rhi/rhi_swapchain.h"
 #include "fmt/format.h"
 #include <iostream>
 #include <cstring>
+#include "rhivk_context.h"
 
 namespace rhi::vulkan {
 
@@ -85,7 +89,7 @@ RHIVKContext::RHIVKContext(bool enable_validation)
     pick_physical_device();
     create_logical_device();
     create_command_pool();
-    m_rhi_graphics_queue = std::make_unique<RHIVKQueue>(m_graphics_queue, m_device);
+    m_rhi_graphics_queue = make_unique<RHIVKQueue>(m_graphics_queue, this);
 }
 
 RHIVKContext::~RHIVKContext() {
@@ -265,7 +269,24 @@ RHIQueue* RHIVKContext::get_graphics_queue() {
     return m_rhi_graphics_queue.get();
 }
 
-RHICommandBuffer* RHIVKContext::create_command_buffer() {
+UniquePtr<RHICommandBuffer> RHIVKContext::create_command_buffer() {
+    return create_vk_command_buffer();
+}
+
+UniquePtr<RHIFence> RHIVKContext::create_fence() {
+    return create_vk_fence();
+}
+
+UniquePtr<RHISemaphore> RHIVKContext::create_semaphore() {
+    return create_vk_semaphore();
+}
+
+UniquePtr<RHISwapchain> RHIVKContext::create_swapchain(SDL_Window* window, uint32_t width, uint32_t height, uint32_t image_count) {
+    return create_vk_swapchain(window, width, height, image_count);
+}
+
+UniquePtr<RHIVKCommandBuffer> RHIVKContext::create_vk_command_buffer()
+{
     VkCommandBufferAllocateInfo alloc_info{};
     alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     alloc_info.commandPool = m_command_pool;
@@ -275,21 +296,36 @@ RHICommandBuffer* RHIVKContext::create_command_buffer() {
     if (vkAllocateCommandBuffers(m_device, &alloc_info, &cmd_buffer) != VK_SUCCESS) {
         throw std::runtime_error("Failed to allocate command buffer");
     }
-    return new RHIVKCommandBuffer(cmd_buffer, m_device, m_command_pool);
+    return make_unique<RHIVKCommandBuffer>(cmd_buffer, this);
 }
 
-RHIFence* RHIVKContext::create_fence() {
-    // Not needed for minimal test
-    return nullptr;
+UniquePtr<RHIVKFence> RHIVKContext::create_vk_fence()
+{
+    VkFenceCreateInfo fence_info{};
+    fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fence_info.flags = 0;
+
+    VkFence fence;
+    if (vkCreateFence(m_device, &fence_info, nullptr, &fence) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create fence");
+    }
+    return make_unique<RHIVKFence>(fence, this);
 }
 
-RHISemaphore* RHIVKContext::create_semaphore() {
-    // Not needed for minimal test
-    return nullptr;
+UniquePtr<RHIVKSemaphore> RHIVKContext::create_vk_semaphore()
+{
+    VkSemaphoreCreateInfo semaphore_info{};
+    semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    VkSemaphore semaphore;
+    if (vkCreateSemaphore(m_device, &semaphore_info, nullptr, &semaphore) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create semaphore");
+    }
+    return make_unique<RHIVKSemaphore>(semaphore, this);
 }
 
-RHISwapchain* RHIVKContext::create_swapchain(SDL_Window* window, uint32_t width, uint32_t height, uint32_t image_count) {
-    return new RHIVKSwapchain(this, window, width, height, image_count);
+UniquePtr<RHIVKSwapchain> RHIVKContext::create_vk_swapchain(SDL_Window* window, uint32_t width, uint32_t height, uint32_t image_count)
+{
+    return make_unique<RHIVKSwapchain>(this, window, width, height, image_count);
 }
-
 } // namespace rhi::vulkan
