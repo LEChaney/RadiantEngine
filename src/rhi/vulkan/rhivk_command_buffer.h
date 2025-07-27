@@ -26,14 +26,16 @@ public:
     void end() override;
     void reset() override;
     void clear_color(rhi::RHIImage* image, const glm::vec4& color) override;
-    void transition_image_layout(rhi::RHIImage* image, ImageLayout oldLayout, ImageLayout newLayout) override;
+    // Transition image layout using internal layout tracking for old layout
+    void transition_image_layout(class RHIImage* image, ImageLayout new_layout) override;
+    // Transition image layout with explicit old layout
+    void transition_image_layout(class RHIImage* image, ImageLayout old_layout, ImageLayout new_layout) override;
     void copy_image_to_buffer(rhi::RHIImage* image, rhi::RHIBuffer* buffer, uint32_t width, uint32_t height) override;
-
-    // TODO: Per command buffer fence management
 
 private:
     VkCommandBuffer m_cmd_buffer;
     RHIVKContext* m_context;
+    Map<rhi::RHIImage*, ImageLayout> m_tracked_image_layouts;
 };
 
 } // namespace rhi::vulkan

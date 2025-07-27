@@ -1,5 +1,6 @@
 #include "rhi/vulkan/rhivk_context.h"
 #include "rhi/vulkan/rhivk_command_buffer.h"
+#include "rhi/vulkan/rhivk_image.h"
 #include "rhi/vulkan/rhivk_image_view.h"
 #include "rhi/vulkan/rhivk_buffer.h"
 #include <vulkan/vulkan.h>
@@ -28,6 +29,15 @@ void RHIVKCommandBuffer::begin() {
 
 void RHIVKCommandBuffer::end() {
     vkEndCommandBuffer(m_cmd_buffer);
+
+    // After ending the command buffer, we can flush the tracked image layout states,
+    // and store the last known layouts on the images.
+    for (const auto& [image, layout] : m_tracked_image_layouts) {
+        // TODO: Thread safety: How should this be handled? The image storage is really just convenience for tracking.
+        // In a multi-threaded context, we might just not want to do this.
+        image->last_known_layout = layout;
+    }
+    m_tracked_image_layouts.clear();
 }
 
 void RHIVKCommandBuffer::reset()
@@ -52,8 +62,27 @@ void RHIVKCommandBuffer::clear_color(rhi::RHIImage* image, const glm::vec4& colo
     vkCmdClearColorImage(m_cmd_buffer, vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_color, 1, &range);
 }
 
-void RHIVKCommandBuffer::transition_image_layout(rhi::RHIImage* image, ImageLayout oldLayout, ImageLayout newLayout) {
+void RHIVKCommandBuffer::transition_image_layout(RHIImage *image, ImageLayout new_layout)
+{
+    ImageLayout old_layout;
+    if (m_tracked_image_layouts.contains(image)) {
+        old_layout = m_tracked_image_layouts[image];
+    } else {
+        // TODO: Assert if not main thread, this is not thread-safe
+        old_layout = image->last_known_layout;
+    }
+
+    transition_image_layout(image, old_layout, new_layout);
+}
+
+void RHIVKCommandBuffer::transition_image_layout(rhi::RHIImage* image, ImageLayout old_layout, ImageLayout new_layout) {
+    if (old_layout == new_layout) {
+        // No transition needed
+        return;
+    }
+
     VkImage vk_image = static_cast<RHIVKImage*>(image)->get_vk();
+
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     // Map RHI ImageLayout to Vulkan VkImageLayout
@@ -68,8 +97,8 @@ void RHIVKCommandBuffer::transition_image_layout(rhi::RHIImage* image, ImageLayo
             default: return VK_IMAGE_LAYOUT_UNDEFINED;
         }
     };
-    barrier.oldLayout = to_vk_layout(oldLayout);
-    barrier.newLayout = to_vk_layout(newLayout);
+    barrier.oldLayout = to_vk_layout(old_layout);
+    barrier.newLayout = to_vk_layout(new_layout);
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.image = vk_image;
@@ -85,6 +114,8 @@ void RHIVKCommandBuffer::transition_image_layout(rhi::RHIImage* image, ImageLayo
         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
         0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+    m_tracked_image_layouts[image] = new_layout;
 }
 
 void RHIVKCommandBuffer::copy_image_to_buffer(rhi::RHIImage* image, rhi::RHIBuffer* buffer, uint32_t width, uint32_t height) {

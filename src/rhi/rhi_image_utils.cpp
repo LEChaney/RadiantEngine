@@ -26,7 +26,7 @@ bool read_image_to_cpu(RHIContext* context, RHIImage* image, uint32_t width, uin
     cmd->begin();
 
     // 3. Transition image layout for copy
-    cmd->transition_image_layout(image, ImageLayout::Undefined, ImageLayout::TransferSrc);
+    cmd->transition_image_layout(image, ImageLayout::TransferSrc);
 
     // 4. Copy image to buffer
     cmd->copy_image_to_buffer(image, stagingBuffer.get(), width, height);

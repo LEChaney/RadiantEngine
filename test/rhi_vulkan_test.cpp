@@ -118,7 +118,6 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, RenderSwapchainFrames) {
         // Record RHI commands
         frame_data.command_buffer->begin();
         frame_data.command_buffer->transition_image_layout(frame_data.image,
-            ImageLayout::Undefined,
             ImageLayout::Present
         );
         frame_data.command_buffer->end();
@@ -133,19 +132,18 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, RenderSwapchainFrames) {
 }
 
 TEST_F(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
-
-    constexpr uint32_t frame_count = 4;
-
     struct SavedFrame {
         rhi::RHISwapchain::RHIFrame frame;
         glm::vec4 clearColor;
     };
-    Array<SavedFrame> saved_frames(frame_count);
-
+    Array<SavedFrame> saved_frames(buffer_count);
+    
     // Draw several frames (double buffered)
+    constexpr uint32_t frame_count = 100;
     for (uint32_t frame_idx = 0; frame_idx < frame_count; ++frame_idx) {
         auto frame_data = swapchain->acquire_next_frame();
         ASSERT_NE(frame_data.command_buffer, nullptr);
+        ASSERT_NE(frame_data.image, nullptr);
         ASSERT_NE(frame_data.image_view, nullptr);
 
         glm::vec4 clearColor(0.1f * (frame_idx % 10), 0.2f, 0.3f, 1.0f);
@@ -157,12 +155,10 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
         frame_data.command_buffer->reset();
         frame_data.command_buffer->begin();
         frame_data.command_buffer->transition_image_layout(frame_data.image,
-            ImageLayout::Undefined,
             ImageLayout::TransferDst
         );
         frame_data.command_buffer->clear_color(frame_data.image, clearColor);
         frame_data.command_buffer->transition_image_layout(frame_data.image,
-            ImageLayout::TransferDst,
             ImageLayout::Present
         );
         frame_data.command_buffer->end();
@@ -172,12 +168,17 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
 
         swapchain->present(frame_data);
 
-        saved_frames[frame_idx] = { frame_data, clearColor };
+        saved_frames[frame_data.image_index % buffer_count] = { frame_data, clearColor };
     }
 
+    bool checked_at_least_one_frame = false;
     for (uint32_t frame_idx = 0; frame_idx < saved_frames.size(); ++frame_idx) {
         auto& frame_data = saved_frames[frame_idx].frame;
         auto& clearColor = saved_frames[frame_idx].clearColor;
+
+        if (!frame_data.image) {
+            continue; // Skip if no image was acquired
+        }
 
         // --- Validate clear color using read_image_to_cpu ---
         // Get image size (assuming swapchain exposes width/height or use known values)
@@ -206,5 +207,9 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
         check_pixel(0, height - 1);
         check_pixel(width - 1, height - 1);
         check_pixel(width / 2, height / 2);
+
+        checked_at_least_one_frame = true;
     }
+
+    ASSERT_TRUE(checked_at_least_one_frame) << "No valid frames were tested";
 }
