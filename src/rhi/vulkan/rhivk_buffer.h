@@ -1,11 +1,11 @@
 #pragma once
 #include "rhi/rhi_buffer.h"
-#include "rhi/rhi_buffer_usage.h"
+#include "rhi/vulkan/rhivk_core_defs.h"
 #include <vulkan/vulkan.h>
 
 namespace rhi::vulkan {
 
-class RHIVKBuffer : public rhi::RHIBuffer {
+class RHIVKBuffer : public RHIBuffer {
 public:
     RHIVKBuffer(VkDevice device, VkPhysicalDevice physicalDevice, uint64_t size, BufferUsage usage, MemoryProperty memProps);
     ~RHIVKBuffer() override;

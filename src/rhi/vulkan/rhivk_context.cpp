@@ -5,11 +5,11 @@
 #include "rhi/vulkan/rhivk_buffer.h"
 #include "rhi/vulkan/rhivk_fence.h"
 #include "rhi/vulkan/rhivk_semaphore.h"
+#include "rhi/vulkan/rhivk_core_defs.h"
 #include "rhi/rhi_swapchain.h"
 #include "fmt/format.h"
 #include <iostream>
 #include <cstring>
-#include "rhivk_context.h"
 
 namespace rhi::vulkan {
 

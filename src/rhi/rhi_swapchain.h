@@ -30,5 +30,9 @@ public:
     virtual uint32_t image_count() const = 0;
     virtual void resize(uint32_t width, uint32_t height) = 0;
 
+    virtual RHIFormat get_format() const = 0;
+    virtual RHIColorSpace get_color_space() const = 0;
+    virtual RHISurfaceFormat get_surface_format() const = 0;
+
 };
 } // namespace rhi

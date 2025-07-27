@@ -14,7 +14,7 @@ RHIVKQueue::~RHIVKQueue() {
     // No explicit cleanup needed, Vulkan device destruction handles queue destruction
 }
 
-void RHIVKQueue::submit(const Array<rhi::RHICommandBuffer*>& command_buffers, rhi::RHIFence* fence, rhi::RHISemaphore* wait_semaphore) {
+void RHIVKQueue::submit(const Array<RHICommandBuffer*>& command_buffers, RHIFence* fence, RHISemaphore* wait_semaphore) {
     Array<VkCommandBuffer> vk_cmds;
     for (auto* cmd : command_buffers) {
         auto* vk_cmd = static_cast<RHIVKCommandBuffer*>(cmd);
@@ -38,7 +38,7 @@ void RHIVKQueue::wait_idle() {
 }
 
 
-void RHIVKQueue::submit_and_wait(rhi::RHICommandBuffer* cmd) {
+void RHIVKQueue::submit_and_wait(RHICommandBuffer* cmd) {
     auto* vk_cmd = static_cast<RHIVKCommandBuffer*>(cmd);
     VkCommandBuffer vk_cmd_buf = vk_cmd->get_vk();
     VkSubmitInfo submit_info{};

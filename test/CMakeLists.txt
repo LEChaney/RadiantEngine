@@ -98,6 +98,7 @@ add_executable(rhi_vulkan_test
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_image_view.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_semaphore.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_fence.cpp
+    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_core_defs.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/rhi_image_utils.cpp
 )
 set_property(TARGET rhi_vulkan_test PROPERTY CXX_STANDARD 20)

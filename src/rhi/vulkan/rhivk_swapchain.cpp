@@ -4,6 +4,7 @@
 #include "rhi/vulkan/rhivk_image_view.h"
 #include "rhi/vulkan/rhivk_image.h"
 #include "rhi/vulkan/rhivk_semaphore.h"
+#include "rhi/vulkan/rhivk_core_defs.h"
 #include <vulkan/vulkan.h>
 #include <vector>
 #include <cassert>
@@ -11,6 +12,7 @@
 
 #include <SDL.h>
 #include <SDL_vulkan.h>
+#include "rhivk_swapchain.h"
 
 namespace rhi {
 namespace vulkan {
@@ -26,18 +28,45 @@ RHIVKSwapchain::RHIVKSwapchain(RHIVKContext* context, SDL_Window* window, uint32
         throw std::runtime_error("Failed to create Vulkan surface");
     }
 
-    // Create swapchain (minimal, not handling oldSwapchain, formats, etc.)
+    // Query supported surface formats
+    VkPhysicalDevice physicalDevice = m_rhi_context->get_vk_physical_device();
+    uint32_t formatCount = 0;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, m_surface, &formatCount, nullptr);
+    ASSERT(formatCount > 0 && "No surface formats available");
+    std::vector<VkSurfaceFormatKHR> formats(formatCount);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, m_surface, &formatCount, formats.data());
+
+    // Preferred formats in order (Hardcoded for now)
+    // TODO: Support HDR formats and more flexible format selection
+    const VkSurfaceFormatKHR preferredFormats[] = {
+        { VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR },
+        { VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR },
+    };
+
+    m_surface_format = formats[0];
+    bool found = false;
+    for (const auto& pref : preferredFormats) {
+        for (const auto& fmt : formats) {
+            if (fmt.format == pref.format && fmt.colorSpace == pref.colorSpace) {
+                m_surface_format = fmt;
+                found = true;
+                break;
+            }
+        }
+        if (found) break;
+    }
+
     VkSwapchainCreateInfoKHR swapchain_info{};
     swapchain_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     swapchain_info.surface = m_surface;
     swapchain_info.minImageCount = image_count;
-    swapchain_info.imageFormat = VK_FORMAT_B8G8R8A8_UNORM; // Hardcoded for test
-    swapchain_info.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+    swapchain_info.imageFormat = m_surface_format.format;
+    swapchain_info.imageColorSpace = m_surface_format.colorSpace;
     swapchain_info.imageExtent = { width, height };
     swapchain_info.imageArrayLayers = 1;
-    swapchain_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | 
+    swapchain_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
                                 VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-                                VK_IMAGE_USAGE_TRANSFER_SRC_BIT; // Added transfer usage for readback
+                                VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     swapchain_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     swapchain_info.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
     swapchain_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
@@ -61,12 +90,12 @@ RHIVKSwapchain::RHIVKSwapchain(RHIVKContext* context, SDL_Window* window, uint32
     m_rhi_command_buffers.resize(image_count);
     for (uint32_t i = 0; i < image_count; ++i) {
         m_rhi_images[i] = make_unique<RHIVKImage>(images[i], vk_device, false); // swapchain owns the image
-        
+
         VkImageViewCreateInfo view_info{};
         view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         view_info.image = images[i];
         view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        view_info.format = swapchain_info.imageFormat;
+        view_info.format = m_surface_format.format;
         view_info.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G,
                                 VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
         view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -76,7 +105,7 @@ RHIVKSwapchain::RHIVKSwapchain(RHIVKContext* context, SDL_Window* window, uint32
         VkImageView image_view;
         VkResult view_result = vkCreateImageView(vk_device, &view_info, nullptr, &image_view);
         ASSERT(view_result == VK_SUCCESS && "Failed to create image view for swapchain image");
-        
+
         m_rhi_image_views[i] = make_unique<RHIVKImageView>(image_view, m_rhi_images[i].get(), m_rhi_context);
         m_rhi_command_buffers[i] = context->create_vk_command_buffer();
     }
@@ -189,5 +218,17 @@ void RHIVKSwapchain::resize(uint32_t width, uint32_t height) {
     // TODO: Recreate swapchain with new size
 }
 
+RHIFormat RHIVKSwapchain::get_format() const
+{
+    return to_rhi_format(m_surface_format.format);
+}
+RHIColorSpace RHIVKSwapchain::get_color_space() const
+{
+    return to_rhi_color_space(m_surface_format.colorSpace);
+}
+RHISurfaceFormat RHIVKSwapchain::get_surface_format() const
+{
+    return to_rhi_surface_format(m_surface_format);
+}
 } // namespace vulkan
 } // namespace rhi

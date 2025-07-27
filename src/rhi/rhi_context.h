@@ -1,6 +1,6 @@
 #pragma once
 #include "core/core_defs.h"
-#include "rhi_buffer_usage.h"
+#include "rhi_core_defs.h"
 #include <cstdint>
 
 class SDL_Window;

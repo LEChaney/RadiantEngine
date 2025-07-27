@@ -7,7 +7,7 @@ namespace rhi::vulkan {
 
 class RHIVKContext;
 
-class RHIVKSemaphore : public rhi::RHISemaphore {
+class RHIVKSemaphore : public RHISemaphore {
 public:
     RHIVKSemaphore(VkSemaphore semaphore, RHIVKContext* context);
     ~RHIVKSemaphore();

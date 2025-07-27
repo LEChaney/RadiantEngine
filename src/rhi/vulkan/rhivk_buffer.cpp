@@ -11,8 +11,12 @@ RHIVKBuffer::RHIVKBuffer(VkDevice device, VkPhysicalDevice physicalDevice, uint6
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bufferInfo.size = size;
     bufferInfo.usage = 0;
-    if ((usage & BufferUsage::TransferSrc) == BufferUsage::TransferSrc) bufferInfo.usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    if ((usage & BufferUsage::TransferDst) == BufferUsage::TransferDst) bufferInfo.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    if ((usage & BufferUsage::TransferSrc) == BufferUsage::TransferSrc) {
+        bufferInfo.usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    }
+    if ((usage & BufferUsage::TransferDst) == BufferUsage::TransferDst) {
+        bufferInfo.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    }
     // ... add more as needed
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     vkCreateBuffer(device, &bufferInfo, nullptr, &m_buffer);

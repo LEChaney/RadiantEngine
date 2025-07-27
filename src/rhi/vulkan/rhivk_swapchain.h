@@ -30,6 +30,10 @@ public:
     uint32_t image_count() const override;
     void resize(uint32_t width, uint32_t height) override;
 
+    RHIFormat get_format() const override;
+    RHIColorSpace get_color_space() const override;
+    RHISurfaceFormat get_surface_format() const override;
+
 private:
     RHIVKContext* m_rhi_context;
     Array<UniquePtr<RHIVKCommandBuffer>> m_rhi_command_buffers;
@@ -39,6 +43,7 @@ private:
     Array<UniquePtr<RHIVKSemaphore>> m_free_rhi_acquire_semaphores;
     Array<UniquePtr<RHIVKFence>> m_rhi_fences;
     VkSurfaceKHR m_surface;
+    VkSurfaceFormatKHR m_surface_format;
     VkSwapchainKHR m_swapchain;
     uint32_t m_image_count;
     uint32_t m_image_index;

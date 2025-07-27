@@ -1,6 +1,6 @@
 #pragma once
 #include <glm/vec4.hpp>
-#include "rhi_image_layout.h"
+#include "rhi_core_defs.h"
 
 namespace rhi {
 

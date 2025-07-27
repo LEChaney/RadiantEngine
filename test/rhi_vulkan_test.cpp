@@ -4,7 +4,6 @@
 #include "rhi/rhi_command_buffer.h"
 #include "rhi/rhi_queue.h"
 #include "rhi/rhi_swapchain.h"
-#include "rhi/rhi_image_layout.h"
 #include "rhi/rhi_fence.h"
 #include "fmt/format.h"
 #include "core/core_defs.h"
@@ -134,7 +133,7 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, RenderSwapchainFrames) {
 TEST_F(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
     struct SavedFrame {
         rhi::RHISwapchain::RHIFrame frame;
-        glm::vec4 clearColor;
+        glm::vec4 clear_color;
     };
     Array<SavedFrame> saved_frames(buffer_count);
     
@@ -172,9 +171,14 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
     }
 
     bool checked_at_least_one_frame = false;
+    // Determine channel order based on swapchain format
+    auto format = swapchain->get_format();
+    bool isBGRA = (format == rhi::RHIFormat::RHI_FORMAT_B8G8R8A8_UNORM ||
+                   format == rhi::RHIFormat::RHI_FORMAT_B8G8R8A8_SRGB);
+
     for (uint32_t frame_idx = 0; frame_idx < saved_frames.size(); ++frame_idx) {
         auto& frame_data = saved_frames[frame_idx].frame;
-        auto& clearColor = saved_frames[frame_idx].clearColor;
+        auto& clear_color = saved_frames[frame_idx].clear_color;
 
         if (!frame_data.image) {
             continue; // Skip if no image was acquired
@@ -183,24 +187,39 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
         // --- Validate clear color using read_image_to_cpu ---
         // Get image size (assuming swapchain exposes width/height or use known values)
         uint32_t width = 640, height = 480;
-        std::vector<uint8_t> imageData;
-        bool readbackOk = rhi::read_image_to_cpu(context.get(), frame_data.image, width, height, imageData);
-        ASSERT_TRUE(readbackOk) << "Failed to read back image data from GPU";
-        ASSERT_EQ(imageData.size(), width * height * 4);
+        std::vector<uint8_t> image_data;
+        bool read_back_ok = rhi::read_image_to_cpu(context.get(), frame_data.image, width, height, image_data);
+        ASSERT_TRUE(read_back_ok) << "Failed to read back image data from GPU";
+        ASSERT_EQ(image_data.size(), width * height * 4);
 
-        // Convert clearColor to uint8 RGBA
-        uint8_t expectedR = static_cast<uint8_t>(std::clamp(clearColor.r, 0.0f, 1.0f) * 255.0f + 0.5f);
-        uint8_t expectedG = static_cast<uint8_t>(std::clamp(clearColor.g, 0.0f, 1.0f) * 255.0f + 0.5f);
-        uint8_t expectedB = static_cast<uint8_t>(std::clamp(clearColor.b, 0.0f, 1.0f) * 255.0f + 0.5f);
-        uint8_t expectedA = static_cast<uint8_t>(std::clamp(clearColor.a, 0.0f, 1.0f) * 255.0f + 0.5f);
+        // Convert clear_color to uint8 RGBA
+        uint8_t expected_r = static_cast<uint8_t>(clear_color.r * 255.0f);
+        uint8_t expected_g = static_cast<uint8_t>(clear_color.g * 255.0f);
+        uint8_t expected_b = static_cast<uint8_t>(clear_color.b * 255.0f);
+        uint8_t expected_a = static_cast<uint8_t>(clear_color.a * 255.0f);
 
         // Check a few sample pixels (corners and center)
         auto check_pixel = [&](uint32_t x, uint32_t y) {
             size_t idx = (y * width + x) * 4;
-            ASSERT_EQ(imageData[idx + 0], expectedR) << fmt::format("Pixel ({},{}): R mismatch", x, y);
-            ASSERT_EQ(imageData[idx + 1], expectedG) << fmt::format("Pixel ({},{}): G mismatch", x, y);
-            ASSERT_EQ(imageData[idx + 2], expectedB) << fmt::format("Pixel ({},{}): B mismatch", x, y);
-            ASSERT_EQ(imageData[idx + 3], expectedA) << fmt::format("Pixel ({},{}): A mismatch", x, y);
+            if (isBGRA) {
+                EXPECT_EQ(image_data[idx + 0], expected_b) 
+                    << fmt::format("Pixel ({},{}): B mismatch (BGRA)", x, y);
+                EXPECT_EQ(image_data[idx + 1], expected_g) 
+                    << fmt::format("Pixel ({},{}): G mismatch (BGRA)", x, y);
+                EXPECT_EQ(image_data[idx + 2], expected_r) 
+                    << fmt::format("Pixel ({},{}): R mismatch (BGRA)", x, y);
+                EXPECT_EQ(image_data[idx + 3], expected_a) 
+                    << fmt::format("Pixel ({},{}): A mismatch (BGRA)", x, y);
+            } else {
+                EXPECT_EQ(image_data[idx + 0], expected_r) 
+                    << fmt::format("Pixel ({},{}): R mismatch (RGBA)", x, y);
+                EXPECT_EQ(image_data[idx + 1], expected_g) 
+                    << fmt::format("Pixel ({},{}): G mismatch (RGBA)", x, y);
+                EXPECT_EQ(image_data[idx + 2], expected_b) 
+                    << fmt::format("Pixel ({},{}): B mismatch (RGBA)", x, y);
+                EXPECT_EQ(image_data[idx + 3], expected_a) 
+                    << fmt::format("Pixel ({},{}): A mismatch (RGBA)", x, y);
+            }
         };
         check_pixel(0, 0);
         check_pixel(width - 1, 0);

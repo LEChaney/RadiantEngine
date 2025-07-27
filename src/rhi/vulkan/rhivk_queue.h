@@ -8,7 +8,7 @@ namespace rhi::vulkan {
 
 class RHIVKContext;
 
-class RHIVKQueue : public rhi::RHIQueue {
+class RHIVKQueue : public RHIQueue {
 public:
     RHIVKQueue(VkQueue queue, RHIVKContext* context);
     ~RHIVKQueue() override;
@@ -18,9 +18,9 @@ public:
     RHIVKQueue(RHIVKQueue&&) = delete;
     RHIVKQueue& operator=(RHIVKQueue&&) = delete;
 
-    void submit(const Array<rhi::RHICommandBuffer*>& command_buffers, rhi::RHIFence* fence, rhi::RHISemaphore* wait_semaphore) override;
+    void submit(const Array<RHICommandBuffer*>& command_buffers, RHIFence* fence, RHISemaphore* wait_semaphore) override;
     void wait_idle() override;
-    void submit_and_wait(rhi::RHICommandBuffer* cmd) override;
+    void submit_and_wait(RHICommandBuffer* cmd) override;
 private:
     VkQueue m_queue;
     RHIVKContext* m_context;
