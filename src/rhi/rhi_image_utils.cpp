@@ -22,8 +22,8 @@ bool read_image_to_cpu(
     // 1. Create a host-visible staging buffer
     auto staging_buffer = context->create_buffer(
         image_size,
-        BufferUsage::TransferDst,
-        MemoryProperty::HostVisible | MemoryProperty::HostCoherent
+        RHIBufferUsage::TransferDst,
+        RHIMemoryProperty::HostVisible | RHIMemoryProperty::HostCoherent
     );
 
     // 2. Create and begin a command buffer
@@ -31,10 +31,10 @@ bool read_image_to_cpu(
     cmd->begin();
 
     // 2.5 Save old image layout in case we need to restore it
-    ImageLayout old_layout = image->last_known_layout;
+    RHIImageLayout old_layout = image->last_known_layout;
 
     // 3. Transition image layout for copy
-    cmd->transition_image_layout(image, ImageLayout::TransferSrc);
+    cmd->transition_image_layout(image, RHIImageLayout::TransferSrc);
 
     // 4. Copy image to buffer
     cmd->copy_image_to_buffer(image, staging_buffer.get(), width, height);

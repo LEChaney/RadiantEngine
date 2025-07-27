@@ -17,7 +17,7 @@
 using rhi::RHIContext;
 using rhi::vulkan::RHIVKContext;
 using rhi::RHIImageView;
-using rhi::ImageLayout;
+using rhi::RHIImageLayout;
 
 // Helper to capture validation messages
 void ValidationMsgCollector(const char* msg, RHIVKContext::ValidationLevel level) {
@@ -39,7 +39,7 @@ protected:
 
     void SetUp() override {
         RHIVKContext::set_validation_callback(ValidationMsgCollector);
-        context = make_unique<RHIVKContext>(true); // enable validation for test
+        context = RHIVKContext::create_unique(true); // enable validation for test
         ASSERT_NE(context, nullptr);
     }
 
@@ -117,7 +117,7 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, RenderSwapchainFrames) {
         // Record RHI commands
         frame_data.command_buffer->begin();
         frame_data.command_buffer->transition_image_layout(frame_data.image,
-            ImageLayout::Present
+            RHIImageLayout::Present
         );
         frame_data.command_buffer->end();
 
@@ -154,11 +154,11 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
         frame_data.command_buffer->reset();
         frame_data.command_buffer->begin();
         frame_data.command_buffer->transition_image_layout(frame_data.image,
-            ImageLayout::TransferDst
+            RHIImageLayout::TransferDst
         );
         frame_data.command_buffer->clear_color(frame_data.image, clearColor);
         frame_data.command_buffer->transition_image_layout(frame_data.image,
-            ImageLayout::Present
+            RHIImageLayout::Present
         );
         frame_data.command_buffer->end();
 

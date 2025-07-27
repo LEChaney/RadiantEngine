@@ -10,6 +10,7 @@
 #include "fmt/format.h"
 #include <iostream>
 #include <cstring>
+#include "rhivk_context.h"
 
 namespace rhi::vulkan {
 
@@ -57,7 +58,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
 }
 
 bool check_validation_layer_support() {
-    uint32_t layer_count;
+    uint32 layer_count;
     vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
     std::vector<VkLayerProperties> available_layers(layer_count);
     vkEnumerateInstanceLayerProperties(&layer_count, available_layers.data());
@@ -83,14 +84,18 @@ void RHIVKContext::set_validation_callback(ValidationCallback callback) {
     g_validation_callback = std::move(callback);
 }
 
+UniquePtr<RHIVKContext> RHIVKContext::create_unique(bool enableValidation) {
+    return UniquePtr<RHIVKContext>(new RHIVKContext(enableValidation));
+}
+
 RHIVKContext::RHIVKContext(bool enable_validation)
-    : validation_enabled_(enable_validation || k_default_enable_validation) {
+    : validation_enabled_(enable_validation || k_default_enable_validation) 
+{
     create_instance();
     setup_debug_messenger();
     pick_physical_device();
     create_logical_device();
     create_command_pool();
-    m_rhi_graphics_queue = make_unique<RHIVKQueue>(m_graphics_queue, this);
 }
 
 RHIVKContext::~RHIVKContext() {
@@ -122,7 +127,7 @@ void RHIVKContext::create_instance() {
             throw std::runtime_error("Validation layers requested, but not available!");
         }
         enabled_layers = validation_layers;
-        create_info.enabledLayerCount = static_cast<uint32_t>(enabled_layers.size());
+        create_info.enabledLayerCount = static_cast<uint32>(enabled_layers.size());
         create_info.ppEnabledLayerNames = enabled_layers.data();
     } else {
         create_info.enabledLayerCount = 0;
@@ -145,7 +150,7 @@ void RHIVKContext::create_instance() {
 #endif
 
     // Query required instance extensions
-    uint32_t ext_count = 0;
+    uint32 ext_count = 0;
     std::vector<const char*> enabled_exts;
     vkEnumerateInstanceExtensionProperties(nullptr, &ext_count, nullptr);
     std::vector<VkExtensionProperties> available_exts(ext_count);
@@ -164,7 +169,7 @@ void RHIVKContext::create_instance() {
         enabled_exts.push_back("VK_EXT_debug_utils");
     }
 
-    create_info.enabledExtensionCount = static_cast<uint32_t>(enabled_exts.size());
+    create_info.enabledExtensionCount = static_cast<uint32>(enabled_exts.size());
     create_info.ppEnabledExtensionNames = enabled_exts.empty() ? nullptr : enabled_exts.data();
 
     VkDebugUtilsMessengerCreateInfoEXT debug_create_info{};
@@ -203,7 +208,7 @@ void RHIVKContext::setup_debug_messenger() {
 }
 
 void RHIVKContext::pick_physical_device() {
-    uint32_t device_count = 0;
+    uint32 device_count = 0;
     vkEnumeratePhysicalDevices(m_instance, &device_count, nullptr);
     if (device_count == 0) throw std::runtime_error("No Vulkan GPUs found");
     std::vector<VkPhysicalDevice> devices(device_count);
@@ -213,20 +218,21 @@ void RHIVKContext::pick_physical_device() {
 }
 
 void RHIVKContext::create_logical_device() {
-    uint32_t queue_family_count = 0;
+    uint32 queue_family_count = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(m_physical_device, &queue_family_count, nullptr);
     std::vector<VkQueueFamilyProperties> queue_families(queue_family_count);
     vkGetPhysicalDeviceQueueFamilyProperties(m_physical_device, &queue_family_count, queue_families.data());
-    for (uint32_t i = 0; i < queue_family_count; ++i) {
+    uint32 graphics_queue_family = 0;
+    for (uint32 i = 0; i < queue_family_count; ++i) {
         if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-            m_graphics_queue_family = i;
+            graphics_queue_family = i;
             break;
         }
     }
     float queue_priority = 1.0f;
     VkDeviceQueueCreateInfo queue_create_info{};
     queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queue_create_info.queueFamilyIndex = m_graphics_queue_family;
+    queue_create_info.queueFamilyIndex = graphics_queue_family;
     queue_create_info.queueCount = 1;
     queue_create_info.pQueuePriorities = &queue_priority;
 
@@ -238,7 +244,7 @@ void RHIVKContext::create_logical_device() {
     std::vector<const char*> enabled_layers;
     if (validation_enabled_) {
         enabled_layers = validation_layers;
-        create_info.enabledLayerCount = static_cast<uint32_t>(enabled_layers.size());
+        create_info.enabledLayerCount = static_cast<uint32>(enabled_layers.size());
         create_info.ppEnabledLayerNames = enabled_layers.data();
     } else {
         create_info.enabledLayerCount = 0;
@@ -247,19 +253,19 @@ void RHIVKContext::create_logical_device() {
 
     // Enable VK_KHR_swapchain device extension
     std::vector<const char*> device_extensions = { "VK_KHR_swapchain" };
-    create_info.enabledExtensionCount = static_cast<uint32_t>(device_extensions.size());
+    create_info.enabledExtensionCount = static_cast<uint32>(device_extensions.size());
     create_info.ppEnabledExtensionNames = device_extensions.data();
 
     if (vkCreateDevice(m_physical_device, &create_info, nullptr, &m_device) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create logical device");
     }
-    vkGetDeviceQueue(m_device, m_graphics_queue_family, 0, &m_graphics_queue);
+    m_rhi_graphics_queue = RHIVKQueue::create_unique(this, graphics_queue_family);
 }
 
 void RHIVKContext::create_command_pool() {
     VkCommandPoolCreateInfo pool_info{};
     pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    pool_info.queueFamilyIndex = m_graphics_queue_family;
+    pool_info.queueFamilyIndex = m_rhi_graphics_queue->get_vk_queue_family_index();
     pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     if (vkCreateCommandPool(m_device, &pool_info, nullptr, &m_command_pool) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create command pool");
@@ -267,6 +273,11 @@ void RHIVKContext::create_command_pool() {
 }
 
 RHIQueue* RHIVKContext::get_graphics_queue() {
+    return get_vk_graphics_queue();
+}
+
+RHIVKQueue *RHIVKContext::get_vk_graphics_queue()
+{
     return m_rhi_graphics_queue.get();
 }
 
@@ -282,61 +293,47 @@ UniquePtr<RHISemaphore> RHIVKContext::create_semaphore() {
     return create_vk_semaphore();
 }
 
-UniquePtr<RHISwapchain> RHIVKContext::create_swapchain(SDL_Window* window, uint32_t width, uint32_t height, uint32_t image_count) {
+UniquePtr<RHISwapchain> RHIVKContext::create_swapchain(SDL_Window* window, uint32 width, uint32 height, uint32 image_count) {
     return create_vk_swapchain(window, width, height, image_count);
 }
 
-UniquePtr<RHIBuffer> RHIVKContext::create_buffer(uint64_t size, BufferUsage usage, MemoryProperty mem_props)
+UniquePtr<RHIBuffer> RHIVKContext::create_buffer(uint64 size, RHIBufferUsage usage, RHIMemoryProperty mem_props)
 {
     return create_vk_buffer(size, usage, mem_props);
 }
 
+UniquePtr<RHIImage> RHIVKContext::create_image(uint32 width, uint32 height, RHIFormat format, RHIImageUsage usage, RHIMemoryProperty mem_props)
+{
+    return create_vk_image(width, height, format, usage, mem_props);
+}
+
 UniquePtr<RHIVKCommandBuffer> RHIVKContext::create_vk_command_buffer()
 {
-    VkCommandBufferAllocateInfo alloc_info{};
-    alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    alloc_info.commandPool = m_command_pool;
-    alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    alloc_info.commandBufferCount = 1;
-    VkCommandBuffer cmd_buffer;
-    if (vkAllocateCommandBuffers(m_device, &alloc_info, &cmd_buffer) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to allocate command buffer");
-    }
-    return make_unique<RHIVKCommandBuffer>(cmd_buffer, this);
+    return RHIVKCommandBuffer::create_unique(this);
 }
 
 UniquePtr<RHIVKFence> RHIVKContext::create_vk_fence()
 {
-    VkFenceCreateInfo fence_info{};
-    fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    fence_info.flags = 0;
-
-    VkFence fence;
-    if (vkCreateFence(m_device, &fence_info, nullptr, &fence) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create fence");
-    }
-    return make_unique<RHIVKFence>(fence, this);
+    return RHIVKFence::create_unique(this);
 }
 
 UniquePtr<RHIVKSemaphore> RHIVKContext::create_vk_semaphore()
 {
-    VkSemaphoreCreateInfo semaphore_info{};
-    semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
-    VkSemaphore semaphore;
-    if (vkCreateSemaphore(m_device, &semaphore_info, nullptr, &semaphore) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create semaphore");
-    }
-    return make_unique<RHIVKSemaphore>(semaphore, this);
+    return RHIVKSemaphore::create_unique(this);
 }
 
-UniquePtr<RHIVKSwapchain> RHIVKContext::create_vk_swapchain(SDL_Window* window, uint32_t width, uint32_t height, uint32_t image_count)
+UniquePtr<RHIVKSwapchain> RHIVKContext::create_vk_swapchain(SDL_Window* window, uint32 width, uint32 height, uint32 image_count)
 {
-    return make_unique<RHIVKSwapchain>(this, window, width, height, image_count);
+    return RHIVKSwapchain::create_unique(this, window, width, height, image_count);
 }
 
-UniquePtr<RHIVKBuffer> RHIVKContext::create_vk_buffer(uint64_t size, BufferUsage usage, MemoryProperty mem_props) {
-    return make_unique<RHIVKBuffer>(m_device, m_physical_device, size, usage, mem_props);
+UniquePtr<RHIVKBuffer> RHIVKContext::create_vk_buffer(uint64 size, RHIBufferUsage usage, RHIMemoryProperty mem_props) {
+    return RHIVKBuffer::create_unique(this, size, usage, mem_props);
+}
+
+UniquePtr<RHIVKImage> RHIVKContext::create_vk_image(uint32 width, uint32 height, RHIFormat format, RHIImageUsage usage, RHIMemoryProperty mem_props)
+{
+    return RHIVKImage::create_unique(this, width, height, format, usage, mem_props);
 }
 
 } // namespace rhi::vulkan

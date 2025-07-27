@@ -10,7 +10,7 @@ class RHIVKContext;
 
 class RHIVKImageView : public rhi::RHIImageView {
 public:
-    RHIVKImageView(VkImageView image_view, RHIVKImage* image, RHIVKContext* context);
+    static UniquePtr<RHIVKImageView> create_unique(RHIVKContext* context, RHIVKImage* image);
     ~RHIVKImageView() override;
 
     // RHIImageView interface
@@ -19,14 +19,18 @@ public:
     // Vulkan object accessors
     VkImageView get_vk() const { return m_image_view; }
     VkImage get_vk_image() const { return m_rhi_image->get_vk(); }
+    
+protected:
+    RHIVKImageView(RHIVKContext* context, RHIVKImage* image);
     RHIVKImageView(const RHIVKImageView&) = delete;
     RHIVKImageView& operator=(const RHIVKImageView&) = delete;
     RHIVKImageView(RHIVKImageView&&) = delete;
     RHIVKImageView& operator=(RHIVKImageView&&) = delete;
+
 private:
+    RHIVKContext* m_context;
     VkImageView m_image_view;
     RHIVKImage* m_rhi_image;
-    RHIVKContext* m_context;
 };
 
 } // namespace rhi::vulkan

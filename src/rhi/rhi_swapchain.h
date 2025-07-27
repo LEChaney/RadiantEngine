@@ -17,14 +17,6 @@ public:
         RHIFence* fence;
     };
 
-    RHISwapchain() = default;
-    virtual ~RHISwapchain() = default;
-
-    RHISwapchain(const RHISwapchain&) = delete;
-    RHISwapchain& operator=(const RHISwapchain&) = delete;
-    RHISwapchain(RHISwapchain&&) = delete;
-    RHISwapchain& operator=(RHISwapchain&&) = delete;
-
     virtual RHIFrame acquire_next_frame() = 0;
     virtual void present(const RHIFrame& frame) = 0;
     virtual uint32_t image_count() const = 0;
@@ -34,5 +26,14 @@ public:
     virtual RHIColorSpace get_color_space() const = 0;
     virtual RHISurfaceFormat get_surface_format() const = 0;
 
+    virtual ~RHISwapchain() = default;
+
+protected:
+    // Only derived context or implementation should create RHISwapchain objects
+    RHISwapchain() = default;
+    RHISwapchain(const RHISwapchain&) = delete;
+    RHISwapchain& operator=(const RHISwapchain&) = delete;
+    RHISwapchain(RHISwapchain&&) = delete;
+    RHISwapchain& operator=(RHISwapchain&&) = delete;
 };
 } // namespace rhi

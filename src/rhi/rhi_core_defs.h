@@ -1,41 +1,59 @@
 #pragma once
-#include <cstdint>
+#include "core/core_defs.h"
 
 namespace rhi {
 
-enum class BufferUsage : uint8_t {
+enum class RHIBufferUsage : uint32 {
     TransferSrc = 1,
     TransferDst = 1 << 1,
     Uniform     = 1 << 2,
     Vertex      = 1 << 3,
     Index       = 1 << 4,
-    // ... add more as needed (up to 8)
+    // ... add more as needed
 };
 
-enum class MemoryProperty : uint8_t {
+enum class RHIImageUsage : uint32 {
+    TransferSrc            = 1,
+    TransferDst            = 1 << 1,
+    Sampled                = 1 << 2,
+    Storage                = 1 << 3,
+    ColorAttachment        = 1 << 4,
+    DepthStencilAttachment = 1 << 5,
+    // ... add more as needed
+};
+
+enum class RHIMemoryProperty : uint32 {
     DeviceLocal     = 1,
     HostVisible     = 1 << 1,
     HostCoherent    = 1 << 2,
-    // ... add more as needed (up to 8)
+    // ... add more as needed
 };
 
-inline BufferUsage operator|(BufferUsage a, BufferUsage b) {
-    return static_cast<BufferUsage>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
+inline RHIBufferUsage operator|(RHIBufferUsage a, RHIBufferUsage b) {
+    return static_cast<RHIBufferUsage>(static_cast<uint32>(a) | static_cast<uint32>(b));
 }
 
-inline BufferUsage operator&(BufferUsage a, BufferUsage b) {
-    return static_cast<BufferUsage>(static_cast<uint8_t>(a) & static_cast<uint8_t>(b));
+inline RHIBufferUsage operator&(RHIBufferUsage a, RHIBufferUsage b) {
+    return static_cast<RHIBufferUsage>(static_cast<uint32>(a) & static_cast<uint32>(b));
 }
 
-inline MemoryProperty operator|(MemoryProperty a, MemoryProperty b) {
-    return static_cast<MemoryProperty>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
+inline RHIImageUsage operator|(RHIImageUsage a, RHIImageUsage b) {
+    return static_cast<RHIImageUsage>(static_cast<uint32>(a) | static_cast<uint32>(b));
 }
 
-inline MemoryProperty operator&(MemoryProperty a, MemoryProperty b) {
-    return static_cast<MemoryProperty>(static_cast<uint8_t>(a) & static_cast<uint8_t>(b));
+inline RHIImageUsage operator&(RHIImageUsage a, RHIImageUsage b) {
+    return static_cast<RHIImageUsage>(static_cast<uint32>(a) & static_cast<uint32>(b));
 }
 
-enum class ImageLayout {
+inline RHIMemoryProperty operator|(RHIMemoryProperty a, RHIMemoryProperty b) {
+    return static_cast<RHIMemoryProperty>(static_cast<uint32>(a) | static_cast<uint32>(b));
+}
+
+inline RHIMemoryProperty operator&(RHIMemoryProperty a, RHIMemoryProperty b) {
+    return static_cast<RHIMemoryProperty>(static_cast<uint32>(a) & static_cast<uint32>(b));
+}
+
+enum class RHIImageLayout {
     Undefined,
     General,
     TransferSrc,

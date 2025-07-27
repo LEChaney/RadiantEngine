@@ -17,13 +17,13 @@ namespace rhi {
 namespace vulkan {
 class RHIVKSwapchain : public RHISwapchain {
 public:
-    RHIVKSwapchain(RHIVKContext* context, SDL_Window* window, uint32_t width, uint32_t height, uint32_t image_count);
+    static UniquePtr<RHIVKSwapchain> create_unique(
+        RHIVKContext* context, 
+        SDL_Window* window, 
+        uint32_t width, 
+        uint32_t height, 
+        uint32_t image_count);
     ~RHIVKSwapchain() override;
-
-    RHIVKSwapchain(const RHIVKSwapchain&) = delete;
-    RHIVKSwapchain& operator=(const RHIVKSwapchain&) = delete;
-    RHIVKSwapchain(RHIVKSwapchain&&) = delete;
-    RHIVKSwapchain& operator=(RHIVKSwapchain&&) = delete;
 
     RHIFrame acquire_next_frame() override;
     void present(const RHIFrame& frame) override;
@@ -33,6 +33,18 @@ public:
     RHIFormat get_format() const override;
     RHIColorSpace get_color_space() const override;
     RHISurfaceFormat get_surface_format() const override;
+
+protected:
+    RHIVKSwapchain(RHIVKContext* 
+        context, 
+        SDL_Window* window, 
+        uint32_t width, 
+        uint32_t height, 
+        uint32_t image_count);
+    RHIVKSwapchain(const RHIVKSwapchain&) = delete;
+    RHIVKSwapchain& operator=(const RHIVKSwapchain&) = delete;
+    RHIVKSwapchain(RHIVKSwapchain&&) = delete;
+    RHIVKSwapchain& operator=(RHIVKSwapchain&&) = delete;
 
 private:
     RHIVKContext* m_rhi_context;

@@ -4,9 +4,11 @@ namespace rhi {
 
 class RHISemaphore {
 public:
-    RHISemaphore() = default;
     virtual ~RHISemaphore() = default;
 
+protected:
+    // Only derived context or implementation should create RHISemaphore objects
+    RHISemaphore() = default;
     RHISemaphore(const RHISemaphore&) = delete;
     RHISemaphore& operator=(const RHISemaphore&) = delete;
     RHISemaphore(RHISemaphore&&) = delete;

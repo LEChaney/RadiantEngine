@@ -1,6 +1,7 @@
 #include "rhi/vulkan/rhivk_swapchain.h"
 #include "rhi/vulkan/rhivk_context.h"
 #include "rhi/vulkan/rhivk_command_buffer.h"
+#include "rhi/vulkan/rhivk_queue.h"
 #include "rhi/vulkan/rhivk_image_view.h"
 #include "rhi/vulkan/rhivk_image.h"
 #include "rhi/vulkan/rhivk_semaphore.h"
@@ -14,13 +15,26 @@
 #include <SDL_vulkan.h>
 #include "rhivk_swapchain.h"
 
-namespace rhi {
-namespace vulkan {
+namespace rhi::vulkan {
 
+UniquePtr<RHIVKSwapchain> RHIVKSwapchain::create_unique(
+    RHIVKContext* context, 
+    SDL_Window* window, 
+    uint32_t width, 
+    uint32_t height, 
+    uint32_t image_count) 
+{
+    return UniquePtr<RHIVKSwapchain>(new RHIVKSwapchain(context, window, width, height, image_count));
+}
 
-RHIVKSwapchain::RHIVKSwapchain(RHIVKContext* context, SDL_Window* window, uint32_t width, uint32_t height, uint32_t image_count)
+RHIVKSwapchain::RHIVKSwapchain(
+    RHIVKContext* context, 
+    SDL_Window* window, 
+    uint32_t width, 
+    uint32_t height, 
+    uint32_t image_count
+)
     : m_rhi_context(context)
-    , m_surface(VK_NULL_HANDLE)
     , m_image_count(image_count) 
 {
     // Create swapchain surface using SDL
@@ -89,24 +103,19 @@ RHIVKSwapchain::RHIVKSwapchain(RHIVKContext* context, SDL_Window* window, uint32
     m_rhi_image_views.resize(image_count);
     m_rhi_command_buffers.resize(image_count);
     for (uint32_t i = 0; i < image_count; ++i) {
-        m_rhi_images[i] = make_unique<RHIVKImage>(images[i], vk_device, false); // swapchain owns the image
+        m_rhi_images[i] = RHIVKImage::create_unique(
+            m_rhi_context,
+            images[i],
+            width,
+            height,
+            to_rhi_format(m_surface_format.format),
+            false // swapchain owns the image
+        );
 
-        VkImageViewCreateInfo view_info{};
-        view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        view_info.image = images[i];
-        view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        view_info.format = m_surface_format.format;
-        view_info.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G,
-                                VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
-        view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        view_info.subresourceRange.baseMipLevel = 0;
-        view_info.subresourceRange.levelCount = 1;
-        view_info.subresourceRange.layerCount = 1;
-        VkImageView image_view;
-        VkResult view_result = vkCreateImageView(vk_device, &view_info, nullptr, &image_view);
-        ASSERT(view_result == VK_SUCCESS && "Failed to create image view for swapchain image");
-
-        m_rhi_image_views[i] = make_unique<RHIVKImageView>(image_view, m_rhi_images[i].get(), m_rhi_context);
+        m_rhi_image_views[i] = RHIVKImageView::create_unique(
+            m_rhi_context, 
+            m_rhi_images[i].get()
+        );
         m_rhi_command_buffers[i] = context->create_vk_command_buffer();
     }
     m_swapchain = swapchain;
@@ -116,34 +125,14 @@ RHIVKSwapchain::RHIVKSwapchain(RHIVKContext* context, SDL_Window* window, uint32
     m_used_rhi_acquire_semaphores.resize(m_image_count);
     m_free_rhi_acquire_semaphores.resize(m_image_count);
     for (uint32_t i = 0; i < m_image_count; ++i) {
-        /* TODO: Create semaphores using the context's factory method or move
-         * to RHIVKSemaphore construction */
-        VkSemaphoreCreateInfo semaphore_info{};
-        semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-        VkSemaphore semaphore;
-
-        VkResult result = vkCreateSemaphore(vk_device, &semaphore_info, nullptr, &semaphore);
-        ASSERT(result == VK_SUCCESS && "Failed to create semaphore for swapchain image acquisition");
-        m_used_rhi_acquire_semaphores[i] = make_unique<RHIVKSemaphore>(semaphore, m_rhi_context);
-
-        result = vkCreateSemaphore(vk_device, &semaphore_info, nullptr, &semaphore);
-        ASSERT(result == VK_SUCCESS && "Failed to create semaphore for swapchain image acquisition");
-        m_free_rhi_acquire_semaphores[i] = make_unique<RHIVKSemaphore>(semaphore, m_rhi_context);
+        m_used_rhi_acquire_semaphores[i] = RHIVKSemaphore::create_unique(m_rhi_context);
+        m_free_rhi_acquire_semaphores[i] = RHIVKSemaphore::create_unique(m_rhi_context);
     }
 
     // Initialize fences for synchronization
     m_rhi_fences.resize(m_image_count);
     for (uint32_t i = 0; i < m_image_count; ++i) {
-        /* TODO: Create fences using the context's factory method or move
-         * to RHIVKFence construction */
-        VkFenceCreateInfo fence_info{};
-        fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-        fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
-        VkFence fence;
-        VkResult result = vkCreateFence(vk_device, &fence_info, nullptr, &fence);
-        ASSERT(result == VK_SUCCESS && "Failed to create fence for swapchain image");
-        m_rhi_fences[i] = make_unique<RHIVKFence>(fence, m_rhi_context);
+        m_rhi_fences[i] = RHIVKFence::create_unique(m_rhi_context);
     }
 }
 
@@ -151,7 +140,7 @@ RHIVKSwapchain::~RHIVKSwapchain() {
     VkDevice vk_device = m_rhi_context->get_vk_device();
 
     // Wait for present operations to complete
-    vkQueueWaitIdle(m_rhi_context->get_vk_graphics_queue());
+    vkQueueWaitIdle(m_rhi_context->get_vk_graphics_queue()->get_vk());
 
     if (m_swapchain) {
         vkDestroySwapchainKHR(vk_device, m_swapchain, nullptr);
@@ -197,7 +186,7 @@ RHISwapchain::RHIFrame RHIVKSwapchain::acquire_next_frame() {
 
 void RHIVKSwapchain::present(const RHIFrame& frame) {
     // Submit the present to the queue
-    VkQueue queue = m_rhi_context->get_vk_graphics_queue();
+    VkQueue queue = m_rhi_context->get_vk_graphics_queue()->get_vk();
     VkPresentInfoKHR present_info{};
     present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     present_info.waitSemaphoreCount = 1;
@@ -222,13 +211,15 @@ RHIFormat RHIVKSwapchain::get_format() const
 {
     return to_rhi_format(m_surface_format.format);
 }
+
 RHIColorSpace RHIVKSwapchain::get_color_space() const
 {
     return to_rhi_color_space(m_surface_format.colorSpace);
 }
+
 RHISurfaceFormat RHIVKSwapchain::get_surface_format() const
 {
     return to_rhi_surface_format(m_surface_format);
 }
-} // namespace vulkan
-} // namespace rhi
+
+} // namespace rhi::vulkan

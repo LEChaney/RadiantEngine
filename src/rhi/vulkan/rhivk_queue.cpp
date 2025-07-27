@@ -7,8 +7,16 @@
 
 namespace rhi::vulkan {
 
-RHIVKQueue::RHIVKQueue(VkQueue queue, RHIVKContext* context)
-    : m_queue(queue), m_context(context) {}
+UniquePtr<RHIVKQueue> RHIVKQueue::create_unique(RHIVKContext* context, uint32 queue_family_index) {
+    return UniquePtr<RHIVKQueue>(new RHIVKQueue(context, queue_family_index));
+}
+
+RHIVKQueue::RHIVKQueue(RHIVKContext* context, uint32 queue_family_index)
+    : m_context(context), m_queue_family_index(queue_family_index)
+{
+    auto& device = context->get_vk_device();
+    vkGetDeviceQueue(device, m_queue_family_index, 0, &m_queue);
+}
 
 RHIVKQueue::~RHIVKQueue() {
     // No explicit cleanup needed, Vulkan device destruction handles queue destruction

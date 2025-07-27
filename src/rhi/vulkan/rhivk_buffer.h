@@ -1,22 +1,35 @@
 #pragma once
 #include "rhi/rhi_buffer.h"
 #include "rhi/vulkan/rhivk_core_defs.h"
+#include "core/core_defs.h"
 #include <vulkan/vulkan.h>
 
 namespace rhi::vulkan {
 
+class RHIVKContext;
+
 class RHIVKBuffer : public RHIBuffer {
 public:
-    RHIVKBuffer(VkDevice device, VkPhysicalDevice physicalDevice, uint64_t size, BufferUsage usage, MemoryProperty memProps);
+    static UniquePtr<RHIVKBuffer> create_unique(RHIVKContext* context, uint64 size, RHIBufferUsage usage, RHIMemoryProperty memProps);
     ~RHIVKBuffer() override;
+
     void* map() override;
     void unmap() override;
+
     VkBuffer get_vk() const { return m_buffer; }
+
+protected:
+    RHIVKBuffer(RHIVKContext* context, uint64 size, RHIBufferUsage usage, RHIMemoryProperty memProps);
+    RHIVKBuffer(const RHIVKBuffer&) = delete;
+    RHIVKBuffer& operator=(const RHIVKBuffer&) = delete;
+    RHIVKBuffer(RHIVKBuffer&&) = delete;
+    RHIVKBuffer& operator=(RHIVKBuffer&&) = delete;
+
 private:
-    VkDevice m_device;
+    RHIVKContext* m_context;
     VkBuffer m_buffer;
     VkDeviceMemory m_memory;
-    uint64_t m_size;
+    uint64 m_size;
 };
 
 } // namespace rhi::vulkan

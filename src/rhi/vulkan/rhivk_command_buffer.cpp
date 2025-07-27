@@ -8,8 +8,23 @@
 
 namespace rhi::vulkan {
 
-RHIVKCommandBuffer::RHIVKCommandBuffer(VkCommandBuffer cmd_buffer, RHIVKContext* context)
-    : m_cmd_buffer(cmd_buffer), m_context(context) {}
+UniquePtr<RHIVKCommandBuffer> RHIVKCommandBuffer::create_unique(RHIVKContext* context) {
+    return UniquePtr<RHIVKCommandBuffer>(new RHIVKCommandBuffer(context));
+}
+
+RHIVKCommandBuffer::RHIVKCommandBuffer(RHIVKContext* context)
+    : m_context(context) 
+{
+    VkCommandBufferAllocateInfo alloc_info{};
+    alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    alloc_info.commandPool = context->get_vk_command_pool();
+    alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    alloc_info.commandBufferCount = 1;
+
+    if (vkAllocateCommandBuffers(context->get_vk_device(), &alloc_info, &m_cmd_buffer) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to allocate command buffer");
+    }
+}
 
 RHIVKCommandBuffer::~RHIVKCommandBuffer() {
     if (m_cmd_buffer && m_context) {
@@ -21,7 +36,8 @@ RHIVKCommandBuffer::~RHIVKCommandBuffer() {
     }
 }
 
-void RHIVKCommandBuffer::begin() {
+void RHIVKCommandBuffer::begin()
+{
     VkCommandBufferBeginInfo begin_info{};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     vkBeginCommandBuffer(m_cmd_buffer, &begin_info);
@@ -45,7 +61,7 @@ void RHIVKCommandBuffer::reset()
     vkResetCommandBuffer(m_cmd_buffer, 0);
 }
 
-void RHIVKCommandBuffer::clear_color(rhi::RHIImage* image, const glm::vec4& color)
+void RHIVKCommandBuffer::clear_color(RHIImage* image, const glm::vec4& color)
 {
     VkImage vk_image = static_cast<RHIVKImage*>(image)->get_vk();
     VkClearColorValue clear_color{};
@@ -62,9 +78,9 @@ void RHIVKCommandBuffer::clear_color(rhi::RHIImage* image, const glm::vec4& colo
     vkCmdClearColorImage(m_cmd_buffer, vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_color, 1, &range);
 }
 
-void RHIVKCommandBuffer::transition_image_layout(RHIImage *image, ImageLayout new_layout)
+void RHIVKCommandBuffer::transition_image_layout(RHIImage *image, RHIImageLayout new_layout)
 {
-    ImageLayout old_layout;
+    RHIImageLayout old_layout;
     if (m_tracked_image_layouts.contains(image)) {
         old_layout = m_tracked_image_layouts[image];
     } else {
@@ -75,7 +91,7 @@ void RHIVKCommandBuffer::transition_image_layout(RHIImage *image, ImageLayout ne
     transition_image_layout(image, old_layout, new_layout);
 }
 
-void RHIVKCommandBuffer::transition_image_layout(rhi::RHIImage* image, ImageLayout old_layout, ImageLayout new_layout) {
+void RHIVKCommandBuffer::transition_image_layout(RHIImage* image, RHIImageLayout old_layout, RHIImageLayout new_layout) {
     if (old_layout == new_layout) {
         // No transition needed
         return;
@@ -86,14 +102,14 @@ void RHIVKCommandBuffer::transition_image_layout(rhi::RHIImage* image, ImageLayo
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     // Map RHI ImageLayout to Vulkan VkImageLayout
-    auto to_vk_layout = [](ImageLayout layout) {
+    auto to_vk_layout = [](RHIImageLayout layout) {
         switch (layout) {
-            case ImageLayout::Undefined: return VK_IMAGE_LAYOUT_UNDEFINED;
-            case ImageLayout::General: return VK_IMAGE_LAYOUT_GENERAL;
-            case ImageLayout::TransferSrc: return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-            case ImageLayout::TransferDst: return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-            case ImageLayout::ColorAttachment: return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            case ImageLayout::Present: return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+            case RHIImageLayout::Undefined: return VK_IMAGE_LAYOUT_UNDEFINED;
+            case RHIImageLayout::General: return VK_IMAGE_LAYOUT_GENERAL;
+            case RHIImageLayout::TransferSrc: return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+            case RHIImageLayout::TransferDst: return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            case RHIImageLayout::ColorAttachment: return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            case RHIImageLayout::Present: return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
             default: return VK_IMAGE_LAYOUT_UNDEFINED;
         }
     };
