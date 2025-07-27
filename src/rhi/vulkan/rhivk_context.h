@@ -30,7 +30,6 @@ public:
     RHIVKQueue* get_vk_graphics_queue();
 
     // Factory methods for creating RHI objects
-    // TODO: Move creation logic to constructors of RHI objects where possible
     UniquePtr<RHICommandBuffer> create_command_buffer() override;
     UniquePtr<RHIFence> create_fence() override;
     UniquePtr<RHISemaphore> create_semaphore() override;
