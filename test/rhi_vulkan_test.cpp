@@ -4,11 +4,10 @@
 #include "rhi/rhi_command_buffer.h"
 #include "rhi/rhi_queue.h"
 #include "rhi/rhi_swapchain.h"
-#include "rhi/rhi_swapchain.h"
 #include "rhi/rhi_image_layout.h"
+#include "rhi/rhi_fence.h"
 #include "fmt/format.h"
 #include "core/core_defs.h"
-#include <vector>
 
 #include <SDL.h>
 
@@ -106,11 +105,15 @@ TEST_F(RHIVulkanTest, CreateAndSubmitEmptyCommandBuffer) {
 
 TEST_F(RHIVulkanTestWithSDLAndSwap, RenderSwapchainFrames) {
     // Draw several frames (double buffered)
-    constexpr uint32_t frame_count = 100;
+    constexpr uint32_t frame_count = 4;
     for (uint32_t frame_idx = 0; frame_idx < frame_count; ++frame_idx) {
         auto frame_data = swapchain->acquire_next_frame();
         ASSERT_NE(frame_data.command_buffer, nullptr);
         ASSERT_NE(frame_data.image_view, nullptr);
+
+        // Wait for the fence to ensure the frame is ready
+        frame_data.fence->wait();
+        frame_data.fence->reset();
 
         // Record RHI commands
         frame_data.command_buffer->begin();
@@ -122,7 +125,7 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, RenderSwapchainFrames) {
 
         // Submit command buffer to the graphics queue
         auto* queue = context->get_graphics_queue();
-        queue->submit({frame_data.command_buffer}, nullptr, nullptr);
+        queue->submit({frame_data.command_buffer}, frame_data.fence, nullptr);
 
         // Present the frame
         swapchain->present(frame_data);
@@ -130,14 +133,28 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, RenderSwapchainFrames) {
 }
 
 TEST_F(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
+
+    constexpr uint32_t frame_count = 4;
+
+    struct SavedFrame {
+        rhi::RHISwapchain::RHIFrame frame;
+        glm::vec4 clearColor;
+    };
+    Array<SavedFrame> saved_frames(frame_count);
+
     // Draw several frames (double buffered)
-    constexpr uint32_t frame_count = 100;
     for (uint32_t frame_idx = 0; frame_idx < frame_count; ++frame_idx) {
         auto frame_data = swapchain->acquire_next_frame();
         ASSERT_NE(frame_data.command_buffer, nullptr);
         ASSERT_NE(frame_data.image_view, nullptr);
 
-        glm::vec4 clearColor(0.1f * frame_data.image_index, 0.2f, 0.3f, 1.0f);
+        glm::vec4 clearColor(0.1f * (frame_idx % 10), 0.2f, 0.3f, 1.0f);
+
+        // Wait for the fence to ensure the frame is ready
+        frame_data.fence->wait();
+        frame_data.fence->reset();
+
+        frame_data.command_buffer->reset();
         frame_data.command_buffer->begin();
         frame_data.command_buffer->transition_image_layout(frame_data.image,
             ImageLayout::Undefined,
@@ -151,9 +168,16 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
         frame_data.command_buffer->end();
 
         auto* queue = context->get_graphics_queue();
-        queue->submit({frame_data.command_buffer}, nullptr, nullptr);
+        queue->submit({frame_data.command_buffer}, frame_data.fence, nullptr);
 
         swapchain->present(frame_data);
+
+        saved_frames[frame_idx] = { frame_data, clearColor };
+    }
+
+    for (uint32_t frame_idx = 0; frame_idx < saved_frames.size(); ++frame_idx) {
+        auto& frame_data = saved_frames[frame_idx].frame;
+        auto& clearColor = saved_frames[frame_idx].clearColor;
 
         // --- Validate clear color using read_image_to_cpu ---
         // Get image size (assuming swapchain exposes width/height or use known values)

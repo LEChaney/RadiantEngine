@@ -17,6 +17,11 @@ public:
     RHIVKFence& operator=(RHIVKFence&&) = delete;
     
     const VkFence& get_vk() const { return m_fence; }
+
+    virtual void wait() override;
+    virtual void reset() override;
+    virtual bool is_signaled() const override;
+
 private:
     VkFence m_fence;
     RHIVKContext* m_context;

@@ -3,6 +3,7 @@
 #include "rhi/vulkan/rhivk_image_view.h"
 #include "rhi/vulkan/rhivk_buffer.h"
 #include <vulkan/vulkan.h>
+#include "rhivk_command_buffer.h"
 
 namespace rhi::vulkan {
 
@@ -27,6 +28,11 @@ void RHIVKCommandBuffer::begin() {
 
 void RHIVKCommandBuffer::end() {
     vkEndCommandBuffer(m_cmd_buffer);
+}
+
+void RHIVKCommandBuffer::reset()
+{
+    vkResetCommandBuffer(m_cmd_buffer, 0);
 }
 
 void RHIVKCommandBuffer::clear_color(rhi::RHIImage* image, const glm::vec4& color)

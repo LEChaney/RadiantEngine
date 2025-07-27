@@ -81,23 +81,40 @@ RHIVKSwapchain::RHIVKSwapchain(RHIVKContext* context, SDL_Window* window, uint32
         m_rhi_command_buffers[i] = context->create_vk_command_buffer();
     }
     m_swapchain = swapchain;
-    m_frame_index = 0;
+    m_image_index = 0;
 
     // Initialize semaphores for image acquisition
-    m_cur_image_acquire_semaphores.resize(m_image_count);
-    m_free_image_acquire_semaphores.resize(m_image_count);
+    m_used_rhi_acquire_semaphores.resize(m_image_count);
+    m_free_rhi_acquire_semaphores.resize(m_image_count);
     for (uint32_t i = 0; i < m_image_count; ++i) {
+        /* TODO: Create semaphores using the context's factory method or move
+         * to RHIVKSemaphore construction */
         VkSemaphoreCreateInfo semaphore_info{};
         semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
         VkSemaphore semaphore;
 
         VkResult result = vkCreateSemaphore(vk_device, &semaphore_info, nullptr, &semaphore);
         ASSERT(result == VK_SUCCESS && "Failed to create semaphore for swapchain image acquisition");
-        m_cur_image_acquire_semaphores[i] = make_unique<RHIVKSemaphore>(semaphore, m_rhi_context);
+        m_used_rhi_acquire_semaphores[i] = make_unique<RHIVKSemaphore>(semaphore, m_rhi_context);
 
         result = vkCreateSemaphore(vk_device, &semaphore_info, nullptr, &semaphore);
         ASSERT(result == VK_SUCCESS && "Failed to create semaphore for swapchain image acquisition");
-        m_free_image_acquire_semaphores[i] = make_unique<RHIVKSemaphore>(semaphore, m_rhi_context);
+        m_free_rhi_acquire_semaphores[i] = make_unique<RHIVKSemaphore>(semaphore, m_rhi_context);
+    }
+
+    // Initialize fences for synchronization
+    m_rhi_fences.resize(m_image_count);
+    for (uint32_t i = 0; i < m_image_count; ++i) {
+        /* TODO: Create fences using the context's factory method or move
+         * to RHIVKFence construction */
+        VkFenceCreateInfo fence_info{};
+        fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+        VkFence fence;
+        VkResult result = vkCreateFence(vk_device, &fence_info, nullptr, &fence);
+        ASSERT(result == VK_SUCCESS && "Failed to create fence for swapchain image");
+        m_rhi_fences[i] = make_unique<RHIVKFence>(fence, m_rhi_context);
     }
 }
 
@@ -119,28 +136,33 @@ RHIVKSwapchain::~RHIVKSwapchain() {
 RHISwapchain::RHIFrame RHIVKSwapchain::acquire_next_frame() {
     VkDevice device = m_rhi_context->get_vk_device();
 
-    uint32_t image_index = 0;
+    // This is a guess for the next image index and may change based on actual acquire result
+    m_image_index = (m_image_index + 1) % m_image_count;
+
+    // Acquire the next image from the swapchain using one of the free semaphores
+    auto& used_acquire_semaphore = m_free_rhi_acquire_semaphores[m_image_index];
     VkResult acquire_result = vkAcquireNextImageKHR(
         device,
         m_swapchain,
         UINT64_MAX, // timeout
-        m_free_image_acquire_semaphores[m_frame_index]->get_vk(),
+        used_acquire_semaphore->get_vk(),
         VK_NULL_HANDLE,
-        &image_index
+        &m_image_index
     );
     ASSERT(acquire_result == VK_SUCCESS || acquire_result == VK_SUBOPTIMAL_KHR);
 
-    // Swap semaphores for next acquire
+    // Swap used acquire semaphore with the one for the current image index to track semaphore usage.
     std::swap(
-        m_free_image_acquire_semaphores[m_frame_index],
-        m_cur_image_acquire_semaphores[m_frame_index]
+        used_acquire_semaphore,
+        m_used_rhi_acquire_semaphores[m_image_index]
     );
 
     return RHIFrame{
-        image_index,
-        m_rhi_images[image_index].get(),
-        m_rhi_image_views[image_index].get(),
-        m_rhi_command_buffers[image_index].get()
+        m_image_index,
+        m_rhi_images[m_image_index].get(),
+        m_rhi_image_views[m_image_index].get(),
+        m_rhi_command_buffers[m_image_index].get(),
+        m_rhi_fences[m_image_index].get()
     };
 }
 
@@ -150,7 +172,7 @@ void RHIVKSwapchain::present(const RHIFrame& frame) {
     VkPresentInfoKHR present_info{};
     present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     present_info.waitSemaphoreCount = 1;
-    present_info.pWaitSemaphores = &(m_cur_image_acquire_semaphores[m_frame_index]->get_vk());
+    present_info.pWaitSemaphores = &(m_used_rhi_acquire_semaphores[m_image_index]->get_vk());
     present_info.swapchainCount = 1;
     present_info.pSwapchains = &m_swapchain;
     present_info.pImageIndices = &frame.image_index;

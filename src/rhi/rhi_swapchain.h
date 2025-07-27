@@ -5,6 +5,7 @@ namespace rhi {
 class RHIImage;
 class RHIImageView;
 class RHICommandBuffer;
+class RHIFence;
 
 class RHISwapchain {
 public:
@@ -13,6 +14,7 @@ public:
         RHIImage* image;
         RHIImageView* image_view;
         RHICommandBuffer* command_buffer;
+        RHIFence* fence;
     };
 
     RHISwapchain() = default;
