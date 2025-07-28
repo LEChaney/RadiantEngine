@@ -85,6 +85,8 @@ CheckOptions:
     value: 'g_'
   - key: 'readability-identifier-naming.GlobalConstantPrefix'
     value: 'gk_'
+  - key: 'readability-function-cognitive-complexity.IgnoreMacros'
+    value: '1'
   # - key: 'cppcoreguidelines-avoid-magic-numbers.IgnoreEnums'
   #   value: '1'
   # - key: 'cppcoreguidelines-avoid-magic-numbers.IgnoreOctalLiterals'
