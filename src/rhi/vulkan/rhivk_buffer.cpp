@@ -32,8 +32,10 @@ RHIVKBuffer::RHIVKBuffer(RHIVKContext* context, uint64 size, RHIBufferUsageFlags
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     VmaAllocationCreateInfo allocInfo{};
-    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    allocInfo.usage = VMA_MEMORY_USAGE_AUTO; // TODO: Allow specifying this on creation
+    allocInfo.flags = 0;
     if ((memProps & RHIMemoryProperty::HostVisible) == RHIMemoryProperty::HostVisible) {
+        allocInfo.flags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT; // Needed to allow mapping when using VMA_MEMORY_USAGE_AUTO
         allocInfo.requiredFlags |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
     }
     if ((memProps & RHIMemoryProperty::HostCoherent) == RHIMemoryProperty::HostCoherent) {
