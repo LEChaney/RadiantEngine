@@ -20,7 +20,7 @@ using rhi::RHIImageView;
 using rhi::RHIImageLayout;
 
 // Helper to capture validation messages
-void ValidationMsgCollector(const char* msg, RHIVKContext::ValidationLevel level) {
+void validationMsgCollector(const char* msg, RHIVKContext::ValidationLevel level) {
     const char* levelStr = "INFO";
     if (level == RHIVKContext::ValidationLevel::Error) {
         levelStr = "ERROR";
@@ -29,30 +29,30 @@ void ValidationMsgCollector(const char* msg, RHIVKContext::ValidationLevel level
     } else {
         levelStr = "INFO";
     }
-    std::string formatted_msg = fmt::format("[Vk Validation][{}] {}", levelStr, msg);
-    GTEST_NONFATAL_FAILURE_(formatted_msg.c_str()); // Fail the test on validation errors
+    std::string formattedMsg = fmt::format("[Vk Validation][{}] {}", levelStr, msg);
+    GTEST_NONFATAL_FAILURE_(formattedMsg.c_str()); // Fail the test on validation errors
 }
 
 class RHIVulkanTest : public ::testing::Test {
 protected:
-    UniquePtr<RHIContext> context;
+    UniquePtr<RHIContext> m_context;
 
     void SetUp() override {
-        RHIVKContext::set_validation_callback(ValidationMsgCollector);
-        context = RHIVKContext::create_unique(true); // enable validation for test
-        ASSERT_NE(context, nullptr);
+        RHIVKContext::setValidationCallback(validationMsgCollector);
+        m_context = RHIVKContext::createUnique(true); // enable validation for test
+        ASSERT_NE(m_context, nullptr);
     }
 
     void TearDown() override {
-        RHIVKContext::set_validation_callback(nullptr);
+        RHIVKContext::setValidationCallback(nullptr);
     }
 };
 
 class RHIVulkanTestWithSDLAndSwap : public RHIVulkanTest {
 protected:
-    SDL_Window* window = nullptr;
-    UniquePtr<rhi::RHISwapchain> swapchain = nullptr;
-    const uint32_t buffer_count = 2; // double buffering
+    SDL_Window* m_window = nullptr;
+    UniquePtr<rhi::RHISwapchain> m_swapchain = nullptr;
+    const uint32_t k_bufferCount = 2; // double buffering
 
     void SetUp() override {
         RHIVulkanTest::SetUp();
@@ -61,21 +61,21 @@ protected:
         ASSERT_EQ(SDL_Init(SDL_INIT_VIDEO), 0);
 
         const int width = 640, height = 480;
-        window = SDL_CreateWindow(
+        m_window = SDL_CreateWindow(
             "RHI Vulkan Swapchain Test", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
             width, height, SDL_WINDOW_VULKAN | SDL_WINDOW_SHOWN);
-        ASSERT_NE(window, nullptr);
+        ASSERT_NE(m_window, nullptr);
 
-        // Create swapchain (API assumed: create_swapchain(SDL_Window*, width, height, buffer_count))
-        swapchain = context->create_swapchain(window, width, height, buffer_count);
-        ASSERT_NE(swapchain, nullptr);
-        EXPECT_EQ(swapchain->image_count(), buffer_count);
+        // Create swapchain (API assumed: createSwapchain(SDL_Window*, width, height, buffer_count))
+        m_swapchain = m_context->createSwapchain(m_window, width, height, k_bufferCount);
+        ASSERT_NE(m_swapchain, nullptr);
+        EXPECT_EQ(m_swapchain->imageCount(), k_bufferCount);
     }
 
     void TearDown() override {
-        if (window) {
-            SDL_DestroyWindow(window);
-            window = nullptr;
+        if (m_window) {
+            SDL_DestroyWindow(m_window);
+            m_window = nullptr;
         }
 
         SDL_Quit();
@@ -87,148 +87,148 @@ TEST_F(RHIVulkanTest, BasicInitTeardown) {
 }
 
 TEST_F(RHIVulkanTest, CreateContextAndGraphicsQueue) {
-    auto* queue = context->get_graphics_queue();
+    auto* queue = m_context->getGraphicsQueue();
     ASSERT_NE(queue, nullptr);
 }
 
 TEST_F(RHIVulkanTest, CreateAndSubmitEmptyCommandBuffer) {
-    auto* queue = context->get_graphics_queue();
+    auto* queue = m_context->getGraphicsQueue();
     ASSERT_NE(queue, nullptr);
-    auto cmd = context->create_command_buffer();
+    auto cmd = m_context->createCommandBuffer();
     ASSERT_NE(cmd, nullptr);
     cmd->begin();
     cmd->end();
     queue->submit({cmd.get()}, nullptr, nullptr);
-    queue->wait_idle();
+    queue->waitIdle();
 }
 
 TEST_F(RHIVulkanTestWithSDLAndSwap, RenderSwapchainFrames) {
     // Draw several frames (double buffered)
-    constexpr uint32_t frame_count = 4;
-    for (uint32_t frame_idx = 0; frame_idx < frame_count; ++frame_idx) {
-        auto frame_data = swapchain->acquire_next_frame();
-        ASSERT_NE(frame_data.command_buffer, nullptr);
-        ASSERT_NE(frame_data.image_view, nullptr);
+    constexpr uint32_t k_frameCount = 4;
+    for (uint32_t frameIdx = 0; frameIdx < k_frameCount; ++frameIdx) {
+        auto frameData = m_swapchain->acquireNextFrame();
+        ASSERT_NE(frameData.commandBuffer, nullptr);
+        ASSERT_NE(frameData.imageView, nullptr);
 
         // Wait for the fence to ensure the frame is ready
-        frame_data.fence->wait();
-        frame_data.fence->reset();
+        frameData.fence->wait();
+        frameData.fence->reset();
 
         // Record RHI commands
-        frame_data.command_buffer->begin();
-        frame_data.command_buffer->transition_image_layout(frame_data.image,
+        frameData.commandBuffer->begin();
+        frameData.commandBuffer->transitionImageLayout(frameData.image,
             RHIImageLayout::Present
         );
-        frame_data.command_buffer->end();
+        frameData.commandBuffer->end();
 
         // Submit command buffer to the graphics queue
-        auto* queue = context->get_graphics_queue();
-        queue->submit({frame_data.command_buffer}, frame_data.fence, nullptr);
+        auto* queue = m_context->getGraphicsQueue();
+        queue->submit({frameData.commandBuffer}, frameData.fence, nullptr);
 
         // Present the frame
-        swapchain->present(frame_data);
+        m_swapchain->present(frameData);
     }
 }
 
 TEST_F(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
     struct SavedFrame {
         rhi::RHISwapchain::RHIFrame frame;
-        glm::vec4 clear_color;
+        glm::vec4 clearColor;
     };
-    Array<SavedFrame> saved_frames(buffer_count);
+    Array<SavedFrame> savedFrames(k_bufferCount);
     
     // Draw several frames (double buffered)
-    constexpr uint32_t frame_count = 100;
-    for (uint32_t frame_idx = 0; frame_idx < frame_count; ++frame_idx) {
-        auto frame_data = swapchain->acquire_next_frame();
-        ASSERT_NE(frame_data.command_buffer, nullptr);
-        ASSERT_NE(frame_data.image, nullptr);
-        ASSERT_NE(frame_data.image_view, nullptr);
+    constexpr uint32_t k_frameCount = 100;
+    for (uint32_t frameIdx = 0; frameIdx < k_frameCount; ++frameIdx) {
+        auto frameData = m_swapchain->acquireNextFrame();
+        ASSERT_NE(frameData.commandBuffer, nullptr);
+        ASSERT_NE(frameData.image, nullptr);
+        ASSERT_NE(frameData.imageView, nullptr);
 
-        glm::vec4 clearColor(0.1f * (frame_idx % 10), 0.2f, 0.3f, 1.0f);
+        glm::vec4 clearColor(0.1f * (frameIdx % 10), 0.2f, 0.3f, 1.0f);
 
         // Wait for the fence to ensure the frame is ready
-        frame_data.fence->wait();
-        frame_data.fence->reset();
+        frameData.fence->wait();
+        frameData.fence->reset();
 
-        frame_data.command_buffer->reset();
-        frame_data.command_buffer->begin();
-        frame_data.command_buffer->transition_image_layout(frame_data.image,
+        frameData.commandBuffer->reset();
+        frameData.commandBuffer->begin();
+        frameData.commandBuffer->transitionImageLayout(frameData.image,
             RHIImageLayout::TransferDst
         );
-        frame_data.command_buffer->clear_color(frame_data.image, clearColor);
-        frame_data.command_buffer->transition_image_layout(frame_data.image,
+        frameData.commandBuffer->clearColor(frameData.image, clearColor);
+        frameData.commandBuffer->transitionImageLayout(frameData.image,
             RHIImageLayout::Present
         );
-        frame_data.command_buffer->end();
+        frameData.commandBuffer->end();
 
-        auto* queue = context->get_graphics_queue();
-        queue->submit({frame_data.command_buffer}, frame_data.fence, nullptr);
+        auto* queue = m_context->getGraphicsQueue();
+        queue->submit({frameData.commandBuffer}, frameData.fence, nullptr);
 
-        swapchain->present(frame_data);
+        m_swapchain->present(frameData);
 
-        saved_frames[frame_data.image_index % buffer_count] = { frame_data, clearColor };
+        savedFrames[frameData.imageIndex % k_bufferCount] = { frameData, clearColor };
     }
 
-    bool checked_at_least_one_frame = false;
+    bool checkedAtLeastOneFrame = false;
     // Determine channel order based on swapchain format
-    auto format = swapchain->get_format();
+    auto format = m_swapchain->getFormat();
     bool isBGRA = (format == rhi::RHIFormat::RHI_FORMAT_B8G8R8A8_UNORM ||
                    format == rhi::RHIFormat::RHI_FORMAT_B8G8R8A8_SRGB);
 
-    for (uint32_t frame_idx = 0; frame_idx < saved_frames.size(); ++frame_idx) {
-        auto& frame_data = saved_frames[frame_idx].frame;
-        auto& clear_color = saved_frames[frame_idx].clear_color;
+    for (uint32_t frameIdx = 0; frameIdx < savedFrames.size(); ++frameIdx) {
+        auto& frameData = savedFrames[frameIdx].frame;
+        auto& clearColor = savedFrames[frameIdx].clearColor;
 
-        if (!frame_data.image) {
+        if (!frameData.image) {
             continue; // Skip if no image was acquired
         }
 
         // --- Validate clear color using read_image_to_cpu ---
         // Get image size (assuming swapchain exposes width/height or use known values)
         uint32_t width = 640, height = 480;
-        std::vector<uint8_t> image_data;
-        bool read_back_ok = rhi::read_image_to_cpu(context.get(), frame_data.image, width, height, image_data);
-        ASSERT_TRUE(read_back_ok) << "Failed to read back image data from GPU";
-        ASSERT_EQ(image_data.size(), width * height * 4);
+        std::vector<uint8_t> imageData;
+        bool readBackOk = rhi::readImageToCpu(m_context.get(), frameData.image, width, height, imageData);
+        ASSERT_TRUE(readBackOk) << "Failed to read back image data from GPU";
+        ASSERT_EQ(imageData.size(), width * height * 4);
 
-        // Convert clear_color to uint8 RGBA
-        uint8_t expected_r = static_cast<uint8_t>(clear_color.r * 255.0f);
-        uint8_t expected_g = static_cast<uint8_t>(clear_color.g * 255.0f);
-        uint8_t expected_b = static_cast<uint8_t>(clear_color.b * 255.0f);
-        uint8_t expected_a = static_cast<uint8_t>(clear_color.a * 255.0f);
+        // Convert clearColor to uint8 RGBA
+        uint8_t expectedR = static_cast<uint8_t>(clearColor.r * 255.0f);
+        uint8_t expectedG = static_cast<uint8_t>(clearColor.g * 255.0f);
+        uint8_t expectedB = static_cast<uint8_t>(clearColor.b * 255.0f);
+        uint8_t expectedA = static_cast<uint8_t>(clearColor.a * 255.0f);
 
         // Check a few sample pixels (corners and center)
-        auto check_pixel = [&](uint32_t x, uint32_t y) {
+        auto checkPixel = [&](uint32_t x, uint32_t y) {
             size_t idx = (y * width + x) * 4;
             if (isBGRA) {
-                EXPECT_EQ(image_data[idx + 0], expected_b) 
+                EXPECT_EQ(imageData[idx + 0], expectedB) 
                     << fmt::format("Pixel ({},{}): B mismatch (BGRA)", x, y);
-                EXPECT_EQ(image_data[idx + 1], expected_g) 
+                EXPECT_EQ(imageData[idx + 1], expectedG) 
                     << fmt::format("Pixel ({},{}): G mismatch (BGRA)", x, y);
-                EXPECT_EQ(image_data[idx + 2], expected_r) 
+                EXPECT_EQ(imageData[idx + 2], expectedR) 
                     << fmt::format("Pixel ({},{}): R mismatch (BGRA)", x, y);
-                EXPECT_EQ(image_data[idx + 3], expected_a) 
+                EXPECT_EQ(imageData[idx + 3], expectedA) 
                     << fmt::format("Pixel ({},{}): A mismatch (BGRA)", x, y);
             } else {
-                EXPECT_EQ(image_data[idx + 0], expected_r) 
+                EXPECT_EQ(imageData[idx + 0], expectedR) 
                     << fmt::format("Pixel ({},{}): R mismatch (RGBA)", x, y);
-                EXPECT_EQ(image_data[idx + 1], expected_g) 
+                EXPECT_EQ(imageData[idx + 1], expectedG) 
                     << fmt::format("Pixel ({},{}): G mismatch (RGBA)", x, y);
-                EXPECT_EQ(image_data[idx + 2], expected_b) 
+                EXPECT_EQ(imageData[idx + 2], expectedB) 
                     << fmt::format("Pixel ({},{}): B mismatch (RGBA)", x, y);
-                EXPECT_EQ(image_data[idx + 3], expected_a) 
+                EXPECT_EQ(imageData[idx + 3], expectedA) 
                     << fmt::format("Pixel ({},{}): A mismatch (RGBA)", x, y);
             }
         };
-        check_pixel(0, 0);
-        check_pixel(width - 1, 0);
-        check_pixel(0, height - 1);
-        check_pixel(width - 1, height - 1);
-        check_pixel(width / 2, height / 2);
+        checkPixel(0, 0);
+        checkPixel(width - 1, 0);
+        checkPixel(0, height - 1);
+        checkPixel(width - 1, height - 1);
+        checkPixel(width / 2, height / 2);
 
-        checked_at_least_one_frame = true;
+        checkedAtLeastOneFrame = true;
     }
 
-    ASSERT_TRUE(checked_at_least_one_frame) << "No valid frames were tested";
+    ASSERT_TRUE(checkedAtLeastOneFrame) << "No valid frames were tested";
 }

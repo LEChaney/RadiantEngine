@@ -10,13 +10,13 @@ class RHIVKContext;
 
 class RHIVKBuffer : public RHIBuffer {
 public:
-    static UniquePtr<RHIVKBuffer> create_unique(RHIVKContext* context, uint64 size, RHIBufferUsage usage, RHIMemoryProperty memProps);
+    static UniquePtr<RHIVKBuffer> createUnique(RHIVKContext* context, uint64 size, RHIBufferUsage usage, RHIMemoryProperty memProps);
     ~RHIVKBuffer() override;
 
     void* map() override;
     void unmap() override;
 
-    VkBuffer get_vk() const { return m_buffer; }
+    VkBuffer getVk() const { return m_buffer; }
 
 protected:
     RHIVKBuffer(RHIVKContext* context, uint64 size, RHIBufferUsage usage, RHIMemoryProperty memProps);

@@ -3,24 +3,24 @@
 
 namespace rhi::vulkan {
 
-UniquePtr<RHIVKSemaphore> RHIVKSemaphore::create_unique(RHIVKContext* context) {
+UniquePtr<RHIVKSemaphore> RHIVKSemaphore::createUnique(RHIVKContext* context) {
     return UniquePtr<RHIVKSemaphore>(new RHIVKSemaphore(context));
 }
 
-RHIVKSemaphore::RHIVKSemaphore(RHIVKContext* context) 
-    : m_context(context) 
+RHIVKSemaphore::RHIVKSemaphore(RHIVKContext* context)
+    : m_context(context)
 {
-    VkSemaphoreCreateInfo create_info{};
-    create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    VkSemaphoreCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-    if (vkCreateSemaphore(m_context->get_vk_device(), &create_info, nullptr, &m_semaphore) != VK_SUCCESS) {
+    if (vkCreateSemaphore(m_context->getVkDevice(), &createInfo, nullptr, &m_semaphore) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create Vulkan semaphore");
     }
 }
 
 RHIVKSemaphore::~RHIVKSemaphore() {
     if (m_semaphore) {
-        vkDestroySemaphore(m_context->get_vk_device(), m_semaphore, nullptr);
+        vkDestroySemaphore(m_context->getVkDevice(), m_semaphore, nullptr);
     }
 }
 

@@ -5,7 +5,7 @@
 #include <future>
 #include <vulkan/vulkan.h>
 
-namespace parallel {
+namespace Parallel {
 
 // A simple task that records commands into a command buffer
 struct ParallelTask {
@@ -13,7 +13,7 @@ struct ParallelTask {
 };
 
 // Utility to run N tasks in parallel, each with its own command buffer
-inline void record_parallel(
+inline void recordParallel(
     const std::vector<ParallelTask>& tasks,
     const std::vector<VkCommandBuffer>& commandBuffers)
 {
@@ -24,9 +24,9 @@ inline void record_parallel(
             tasks[i].record(commandBuffers[i]);
         }));
     }
-    for (auto& f : futures) {
-        f.get();
+    for (auto& future : futures) {
+        future.get();
     }
 }
 
-} // namespace parallel
+} // namespace Parallel

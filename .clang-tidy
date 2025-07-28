@@ -49,7 +49,7 @@ Checks:
   # - '-readability-identifier-naming'
   - '-readability-identifier-length'
 
-HeaderFilterRegex: '.*\.(cpp|h)$'
+HeaderFilterRegex: '^(src|test)/.*\.(cpp|h)$'
 FormatStyle: file
 
 CheckOptions:

@@ -23,37 +23,37 @@ public:
     };
     using ValidationCallback = std::function<void(const char* message, ValidationLevel level)>;
     
-    static UniquePtr<RHIVKContext> create_unique(bool enableValidation = false);
+    static UniquePtr<RHIVKContext> createUnique(bool enableValidation = false);
     ~RHIVKContext() override;
 
-    RHIQueue* get_graphics_queue() override;
-    RHIVKQueue* get_vk_graphics_queue();
+    RHIQueue* getGraphicsQueue() override;
+    RHIVKQueue* getVkGraphicsQueue();
 
     // Factory methods for creating RHI objects
-    UniquePtr<RHICommandBuffer> create_command_buffer() override;
-    UniquePtr<RHIFence> create_fence() override;
-    UniquePtr<RHISemaphore> create_semaphore() override;
-    UniquePtr<RHISwapchain> create_swapchain(SDL_Window* window, uint32 width, uint32 height, uint32 buffer_count) override;
-    UniquePtr<RHIBuffer> create_buffer(uint64 size, RHIBufferUsage usage, RHIMemoryProperty mem_props) override;
-    UniquePtr<RHIImage> create_image(uint32 width, uint32 height, RHIFormat format, RHIImageUsage usage, RHIMemoryProperty mem_props) override;
+    UniquePtr<RHICommandBuffer> createCommandBuffer() override;
+    UniquePtr<RHIFence> createFence() override;
+    UniquePtr<RHISemaphore> createSemaphore() override;
+    UniquePtr<RHISwapchain> createSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 bufferCount) override;
+    UniquePtr<RHIBuffer> createBuffer(uint64 size, RHIBufferUsage usage, RHIMemoryProperty memProps) override;
+    UniquePtr<RHIImage> createImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsage usage, RHIMemoryProperty memProps) override;
 
     // Vulkan RHI factory methods
-    UniquePtr<RHIVKCommandBuffer> create_vk_command_buffer();
-    UniquePtr<RHIVKFence> create_vk_fence();
-    UniquePtr<RHIVKSemaphore> create_vk_semaphore();
-    UniquePtr<RHIVKSwapchain> create_vk_swapchain(SDL_Window* window, uint32 width, uint32 height, uint32 image_count);
-    UniquePtr<RHIVKBuffer> create_vk_buffer(uint64 size, RHIBufferUsage usage, RHIMemoryProperty mem_props);
-    // TODO: Finish implementation of create_vk_image
-    UniquePtr<RHIVKImage> create_vk_image(uint32 width, uint32 height, RHIFormat format, RHIImageUsage usage, RHIMemoryProperty mem_props);
+    UniquePtr<RHIVKCommandBuffer> createVkCommandBuffer();
+    UniquePtr<RHIVKFence> createVkFence();
+    UniquePtr<RHIVKSemaphore> createVkSemaphore();
+    UniquePtr<RHIVKSwapchain> createVkSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount);
+    UniquePtr<RHIVKBuffer> createVkBuffer(uint64 size, RHIBufferUsage usage, RHIMemoryProperty memProps);
+    // TODO: Finish implementation of createVkImage
+    UniquePtr<RHIVKImage> createVkImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsage usage, RHIMemoryProperty memProps);
 
     // Vulkan object accessors
-    const VkInstance& get_vk_instance() const { return m_instance; }
-    const VkPhysicalDevice& get_vk_physical_device() const { return m_physical_device; }
-    const VkDevice& get_vk_device() const { return m_device; }
-    const VkCommandPool& get_vk_command_pool() const { return m_command_pool; }
+    const VkInstance& getVkInstance() const { return m_instance; }
+    const VkPhysicalDevice& getVkPhysicalDevice() const { return m_physicalDevice; }
+    const VkDevice& getVkDevice() const { return m_device; }
+    const VkCommandPool& getVkCommandPool() const { return m_commandPool; }
 
     // Set a custom validation callback (thread-unsafe, for test/dev only)
-    static void set_validation_callback(ValidationCallback cb);
+    static void setValidationCallback(ValidationCallback cb);
 
 protected:
     RHIVKContext(bool enableValidation = false);
@@ -63,20 +63,20 @@ protected:
     RHIVKContext& operator=(RHIVKContext&&) = delete;
 
 private:
-    void create_instance();
-    void pick_physical_device();
-    void create_logical_device();
-    void create_command_pool();
-    void setup_debug_messenger();
-    bool validation_enabled_ = false;
+    void createInstance();
+    void pickPhysicalDevice();
+    void createLogicalDevice();
+    void createCommandPool();
+    void setupDebugMessenger();
+    bool m_validationEnabled = false;
 
     VkInstance m_instance{};
-    VkPhysicalDevice m_physical_device{};
+    VkPhysicalDevice m_physicalDevice{};
     VkDevice m_device{};
-    VkCommandPool m_command_pool{};
-    VkDebugUtilsMessengerEXT m_debug_messenger{};
+    VkCommandPool m_commandPool{};
+    VkDebugUtilsMessengerEXT m_debugMessenger{};
 
-    UniquePtr<RHIVKQueue> m_rhi_graphics_queue;
+    UniquePtr<RHIVKQueue> m_rhiGraphicsQueue;
 };
 
 } // namespace rhi::vulkan

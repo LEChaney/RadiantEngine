@@ -21,27 +21,27 @@ class SlotMapKvIterator {
 public:
     using Key = typename Container::Key;
     using difference_type = std::ptrdiff_t;
-    using reference_type = decltype(std::declval<Container>().template raw_data<Component>()[0]);
-    using value_type = std::pair<Key, reference_type>;
-    using pointer = value_type*;
-    using reference = value_type;
-    using iterator_category = std::forward_iterator_tag;
+    using ReferenceType = decltype(std::declval<Container>().template rawData<Component>()[0]);
+    using ValueType = std::pair<Key, ReferenceType>;
+    using Pointer = ValueType*;
+    using Reference = ValueType;
+    using IteratorCategory = std::forward_iterator_tag;
 
     SlotMapKvIterator(Container& container, size_t idx)
-        : container(container), idx(idx) {}
+        : m_container(container), m_idx(idx) {}
 
-    reference operator*() const {
-        uint32_t slot_index = container.packed_to_slot[idx];
-        Key key{slot_index, container.slots[slot_index].generation};
-        return value_type{key, container.template raw_data<Component>()[idx]};
+    Reference operator*() const {
+        uint32_t slotIndex = m_container.m_packedToSlot[m_idx];
+        Key key{slotIndex, m_container.m_slots[slotIndex].m_generation};
+        return ValueType{key, m_container.template rawData<Component>()[m_idx]};
     }
-    SlotMapKvIterator& operator++() { ++idx; return *this; }
-    SlotMapKvIterator operator++(int) { SlotMapKvIterator tmp = *this; ++idx; return tmp; }
-    bool operator==(const SlotMapKvIterator& other) const { return idx == other.idx; }
-    bool operator!=(const SlotMapKvIterator& other) const { return idx != other.idx; }
+    SlotMapKvIterator& operator++() { ++m_idx; return *this; }
+    SlotMapKvIterator operator++(int) { SlotMapKvIterator tmp = *this; ++m_idx; return tmp; }
+    bool operator==(const SlotMapKvIterator& other) const { return m_idx == other.m_idx; }
+    bool operator!=(const SlotMapKvIterator& other) const { return m_idx != other.m_idx; }
 private:
-    Container& container;
-    size_t idx;
+    Container& m_container;
+    size_t m_idx;
 };
 
 // SlotMapView: provides operator[] for a specific component type
@@ -51,10 +51,10 @@ public:
     using Key = typename SlotMap<Components...>::Key;
     using SlotMapType = SlotMap<Components...>;
 
-    SlotMapView(SlotMapType& in_slotmap) : slotmap(in_slotmap) {}
+    SlotMapView(SlotMapType& slotMap) : m_slotMap(slotMap) {}
 
     const Component& operator[](const Key& key) const {
-        auto* ptr = slotmap.get<Component>(key);
+        auto* ptr = m_slotMap.get<Component>(key);
         assert(ptr && "Invalid key access in SlotMapView");
         return *ptr;
     }
@@ -66,35 +66,35 @@ public:
     }
 
     // Optionally, expose raw data
-    const std::vector<Component>& raw_data() const {
-        return slotmap.template raw_data<Component>();
+    const std::vector<Component>& rawData() const {
+        return m_slotMap.template rawData<Component>();
     }
 
     // Range-based for loop support (key-value by default)
-    auto begin() { return SlotMapKvIterator<SlotMapType, Component>(slotmap, 0); }
-    auto end()   { return SlotMapKvIterator<SlotMapType, Component>(slotmap, slotmap.template raw_data<Component>().size()); }
-    auto begin() const { return SlotMapKvIterator<SlotMapType, Component>(const_cast<SlotMapType&>(slotmap), 0); }
-    auto end()   const { return SlotMapKvIterator<SlotMapType, Component>(const_cast<SlotMapType&>(slotmap), slotmap.template raw_data<Component>().size()); }
+    auto begin() { return SlotMapKvIterator<SlotMapType, Component>(m_slotMap, 0); }
+    auto end()   { return SlotMapKvIterator<SlotMapType, Component>(m_slotMap, m_slotMap.template rawData<Component>().size()); }
+    auto begin() const { return SlotMapKvIterator<SlotMapType, Component>(const_cast<SlotMapType&>(m_slotMap), 0); }
+    auto end()   const { return SlotMapKvIterator<SlotMapType, Component>(const_cast<SlotMapType&>(m_slotMap), m_slotMap.template rawData<Component>().size()); }
 
     // Raw data iteration
-    auto raw_begin() { return slotmap.template raw_data<Component>().begin(); }
-    auto raw_end()   { return slotmap.template raw_data<Component>().end(); }
-    auto raw_begin() const { return slotmap.template raw_data<Component>().begin(); }
-    auto raw_end()   const { return slotmap.template raw_data<Component>().end(); }
+    auto rawBegin() { return m_slotMap.template rawData<Component>().begin(); }
+    auto rawEnd()   { return m_slotMap.template rawData<Component>().end(); }
+    auto rawBegin() const { return m_slotMap.template rawData<Component>().begin(); }
+    auto rawEnd()   const { return m_slotMap.template rawData<Component>().end(); }
 
     // Key-value iterator support (explicit)
-    auto kv_begin() { return begin(); }
-    auto kv_end()   { return end(); }
+    auto kvBegin() { return begin(); }
+    auto kvEnd()   { return end(); }
 
 private:
-    SlotMapType& slotmap;
+    SlotMapType& m_slotMap;
 };
 
 template <typename... Components>
 class SlotMap {
 public:
     SlotMap() = default;
-    
+
     // Allow SlotMapView and iterator to access private members
     template <typename Component, typename... Cs>
     friend class SlotMapView;
@@ -102,11 +102,11 @@ public:
     friend class SlotMapKvIterator;
 
     struct Key {
-        uint32_t slot_index = 0xFFFFFFFF;
-        uint32_t generation = 0xFFFFFFFF;
+        uint32_t m_slotIndex = 0xFFFFFFFF;
+        uint32_t m_generation = 0xFFFFFFFF;
 
         bool operator==(const Key& other) const {
-            return slot_index == other.slot_index && generation == other.generation;
+            return m_slotIndex == other.m_slotIndex && m_generation == other.m_generation;
         }
 
         bool operator!=(const Key& other) const {
@@ -114,15 +114,15 @@ public:
         }
 
         bool operator<(const Key& other) const {
-            return std::tie(slot_index, generation) < std::tie(other.slot_index, other.generation);
+            return std::tie(m_slotIndex, m_generation) < std::tie(other.m_slotIndex, other.m_generation);
         }
 
-        bool is_null() const {
-            return slot_index == 0xFFFFFFFF && generation == 0xFFFFFFFF;
+        bool isNull() const {
+            return m_slotIndex == 0xFFFFFFFF && m_generation == 0xFFFFFFFF;
         }
 
         explicit operator bool() const {
-            return !is_null();
+            return !isNull();
         }
 
         static constexpr Key null() noexcept {
@@ -131,69 +131,69 @@ public:
     };
 
     struct Slot {
-        uint32_t packed_index = 0;
-        uint32_t generation   = 0;
+        uint32_t m_packedIndex = 0;
+        uint32_t m_generation   = 0;
     };
 
     // Add method: accepts any subset of component arguments, missing types are default constructed
     template <typename... Args>
     Key add(Args&&... args) {
         static_assert(sizeof...(Args) <= sizeof...(Components), "Too many arguments for SlotMap::add");
-        uint32_t slot_index;
-        if (!free_slots.empty()) {
-            slot_index = free_slots.back();
-            free_slots.pop_back();
+        uint32_t slotIndex;
+        if (!m_freeSlots.empty()) {
+            slotIndex = m_freeSlots.back();
+            m_freeSlots.pop_back();
         } else {
-            slot_index = (uint32_t)slots.size();
-            slots.push_back(Slot{});
+            slotIndex = (uint32_t)m_slots.size();
+            m_slots.push_back(Slot{});
         }
 
-        uint32_t packed_index = (uint32_t)std::get<0>(component_arrays).size();
+        uint32_t packedIndex = (uint32_t)std::get<0>(m_componentArrays).size();
 
-        insert_or_default_components(std::forward<Args>(args)...);
+        insertOrDefaultComponents(std::forward<Args>(args)...);
 
-        slots[slot_index].packed_index = packed_index;
-        packed_to_slot.push_back(slot_index);
-        return Key{slot_index, slots[slot_index].generation};
+        m_slots[slotIndex].m_packedIndex = packedIndex;
+        m_packedToSlot.push_back(slotIndex);
+        return Key{slotIndex, m_slots[slotIndex].m_generation};
     }
 
     void remove(const Key& key) {
-        if (!is_valid(key)) {
+        if (!isValid(key)) {
             return; // No-op if key is invalid
         }
 
-        uint32_t slot_index   = key.slot_index;
-        uint32_t packed_index = slots[slot_index].packed_index;
-        uint32_t last_index   = (uint32_t)std::get<0>(component_arrays).size() - 1;
+        uint32_t slotIndex   = key.m_slotIndex;
+        uint32_t packedIndex = m_slots[slotIndex].m_packedIndex;
+        uint32_t lastIndex   = (uint32_t)std::get<0>(m_componentArrays).size() - 1;
 
-        if (packed_index != last_index) {
-            move_components(packed_index, last_index);
-            uint32_t moved_slot_index            = packed_to_slot[last_index];
-            slots[moved_slot_index].packed_index = packed_index;
-            packed_to_slot[packed_index]         = moved_slot_index;
+        if (packedIndex != lastIndex) {
+            moveComponents(packedIndex, lastIndex);
+            uint32_t movedSlotIndex            = m_packedToSlot[lastIndex];
+            m_slots[movedSlotIndex].m_packedIndex = packedIndex;
+            m_packedToSlot[packedIndex]         = movedSlotIndex;
         }
 
-        pop_components();
-        packed_to_slot.pop_back();
+        popComponents();
+        m_packedToSlot.pop_back();
 
-        slots[slot_index].generation++;
-        free_slots.push_back(slot_index);
+        m_slots[slotIndex].m_generation++;
+        m_freeSlots.push_back(slotIndex);
     }
 
-    bool is_valid(const Key& key) const {
-        return key.slot_index < slots.size() && slots[key.slot_index].generation == key.generation;
+    bool isValid(const Key& key) const {
+        return key.m_slotIndex < m_slots.size() && m_slots[key.m_slotIndex].m_generation == key.m_generation;
     }
 
     template <typename Component>
     const Component* get(const Key& key) const {
-        static_assert(contains_type<Component, Components...>(), "Component type not found in SlotMap");
+        static_assert(containsType<Component, Components...>(), "Component type not found in SlotMap");
 
-        if (!is_valid(key)) {
+        if (!isValid(key)) {
             return nullptr;
         }
-        uint32_t packed_index = slots[key.slot_index].packed_index;
-        const auto& array     = std::get<std::vector<Component>>(component_arrays);
-        return &array[packed_index];
+        uint32_t packedIndex = m_slots[key.m_slotIndex].m_packedIndex;
+        const auto& array     = std::get<std::vector<Component>>(m_componentArrays);
+        return &array[packedIndex];
     }
 
     template <typename Component>
@@ -215,21 +215,21 @@ public:
     }
 
     template <typename Component>
-    const std::vector<Component>& raw_data() const {
-        static_assert(contains_type<Component, Components...>(), "Component type not found in SlotMap");
-        return std::get<std::vector<Component>>(component_arrays);
+    const std::vector<Component>& rawData() const {
+        static_assert(containsType<Component, Components...>(), "Component type not found in SlotMap");
+        return std::get<std::vector<Component>>(m_componentArrays);
     }
 
     // Get a view for a specific component type
     template <typename Component>
     SlotMapView<Component, Components...> view() {
-        static_assert(contains_type<Component, Components...>(), "Component type not found in SlotMap");
+        static_assert(containsType<Component, Components...>(), "Component type not found in SlotMap");
         return SlotMapView<Component, Components...>(*this);
     }
 
     template <typename Component>
     const SlotMapView<Component, Components...> view() const {
-        static_assert(contains_type<Component, Components...>(), "Component type not found in SlotMap");
+        static_assert(containsType<Component, Components...>(), "Component type not found in SlotMap");
         return SlotMapView<Component, Components...>(const_cast<SlotMap&>(*this));
     }
 
@@ -240,7 +240,7 @@ public:
     }
     auto end() {
         using Component = std::tuple_element_t<0, std::tuple<Components...>>;
-        return SlotMapKvIterator<SlotMap, Component>(*this, std::get<0>(component_arrays).size());
+        return SlotMapKvIterator<SlotMap, Component>(*this, std::get<0>(m_componentArrays).size());
     }
     auto begin() const {
         using Component = std::tuple_element_t<0, std::tuple<Components...>>;
@@ -248,76 +248,67 @@ public:
     }
     auto end() const {
         using Component = std::tuple_element_t<0, std::tuple<Components...>>;
-        return SlotMapKvIterator<SlotMap, Component>(const_cast<SlotMap&>(*this), std::get<0>(component_arrays).size());
+        return SlotMapKvIterator<SlotMap, Component>(const_cast<SlotMap&>(*this), std::get<0>(m_componentArrays).size());
     }
 
     // Raw data iteration
-    auto raw_begin() { return std::get<0>(component_arrays).begin(); }
-    auto raw_end()   { return std::get<0>(component_arrays).end(); }
-    auto raw_begin() const { return std::get<0>(component_arrays).begin(); }
-    auto raw_end()   const { return std::get<0>(component_arrays).end(); }
+    auto rawBegin() { return std::get<0>(m_componentArrays).begin(); }
+    auto rawEnd()   { return std::get<0>(m_componentArrays).end(); }
+    auto rawBegin() const { return std::get<0>(m_componentArrays).begin(); }
+    auto rawEnd()   const { return std::get<0>(m_componentArrays).end(); }
 
     // Key-value iterator support (explicit)
-    auto kv_begin() { return begin(); }
-    auto kv_end()   { return end(); }
+    auto kvBegin() { return begin(); }
+    auto kvEnd()   { return end(); }
 
 private:
-    std::vector<Slot>                      slots;
-    std::vector<uint32_t>                  free_slots;
-    std::tuple<std::vector<Components>...> component_arrays;
-    std::vector<uint32_t>                  packed_to_slot;
+    std::vector<Slot>                      m_slots;
+    std::vector<uint32_t>                  m_freeSlots;
+    std::tuple<std::vector<Components>...> m_componentArrays;
+    std::vector<uint32_t>                  m_packedToSlot;
 
     // Check if type is in pack
     template <typename T, typename... Ts>
-    static constexpr bool contains_type() {
+    static constexpr bool containsType() {
         return (std::is_same_v<T, Ts> || ...);
     }
-    
     // Helper: emplace provided args, default construct missing types
     template <typename... Args, std::size_t... Is>
-    void insert_or_default_components_impl(std::index_sequence<Is...>, Args&&... args) {
-        // For each component type, emplace arg if present, else default
-        (insert_one_component<Is, Args...>(std::forward<Args>(args)...), ...);
+    void insertOrDefaultComponentsImpl(std::index_sequence<Is...>, Args&&... args) {
+        (insertOneComponent<Is, Args...>(std::forward<Args>(args)...), ...);
     }
-    
     template <typename... Args>
-    void insert_or_default_components(Args&&... args) {
-        insert_or_default_components_impl(std::make_index_sequence<sizeof...(Components)>(), std::forward<Args>(args)...);
+    void insertOrDefaultComponents(Args&&... args) {
+        insertOrDefaultComponentsImpl(std::make_index_sequence<sizeof...(Components)>(), std::forward<Args>(args)...);
     }
-
     template <std::size_t I, typename... Args>
-    void insert_one_component(Args&&... args) {
+    void insertOneComponent(Args&&... args) {
         using Component = std::tuple_element_t<I, std::tuple<Components...>>;
         if constexpr (I < sizeof...(Args)) {
-            std::get<I>(component_arrays).emplace_back(std::get<I>(std::forward_as_tuple(std::forward<Args>(args)...)));
+            std::get<I>(m_componentArrays).emplace_back(std::get<I>(std::forward_as_tuple(std::forward<Args>(args)...)));
         } else {
-            std::get<I>(component_arrays).emplace_back();
+            std::get<I>(m_componentArrays).emplace_back();
         }
     }
-
     // Move helper
     template <std::size_t... Is>
-    void move_components_impl(uint32_t dst, uint32_t src, std::index_sequence<Is...>) {
-        (move_one(std::get<Is>(component_arrays), dst, src), ...);
+    void moveComponentsImpl(uint32_t dst, uint32_t src, std::index_sequence<Is...>) {
+        (moveOne(std::get<Is>(m_componentArrays), dst, src), ...);
     }
-
-    void move_components(uint32_t dst, uint32_t src) {
-        move_components_impl(dst, src, std::index_sequence_for<Components...>{});
+    void moveComponents(uint32_t dst, uint32_t src) {
+        moveComponentsImpl(dst, src, std::index_sequence_for<Components...>{});
     }
-
     template <typename Vec>
-    void move_one(Vec &vec, uint32_t dst, uint32_t src) {
+    void moveOne(Vec &vec, uint32_t dst, uint32_t src) {
         vec[dst] = std::move(vec[src]);
     }
-
     // Pop helper
     template <std::size_t... Is>
-    void pop_components_impl(std::index_sequence<Is...>) {
-        (std::get<Is>(component_arrays).pop_back(), ...);
+    void popComponentsImpl(std::index_sequence<Is...>) {
+        (std::get<Is>(m_componentArrays).pop_back(), ...);
     }
-
-    void pop_components() {
-        pop_components_impl(std::index_sequence_for<Components...>{});
+    void popComponents() {
+        popComponentsImpl(std::index_sequence_for<Components...>{});
     }
 };
 
@@ -325,6 +316,6 @@ template <typename KeyType>
 struct ankerl::unordered_dense::hash<KeyType> {
     using is_avalanching = void;
     auto operator()(const KeyType& h) const noexcept -> uint64_t {
-        return ankerl::unordered_dense::hash<uint64_t>()(static_cast<uint64_t>(h.generation) << 32 | h.slot_index);
+        return ankerl::unordered_dense::hash<uint64_t>()(static_cast<uint64_t>(h.m_generation) << 32 | h.m_slotIndex);
     }
 };

@@ -10,21 +10,21 @@ class RHIFence;
 class RHISwapchain {
 public:
     struct RHIFrame {
-        uint32_t image_index;
+        uint32_t imageIndex;
         RHIImage* image;
-        RHIImageView* image_view;
-        RHICommandBuffer* command_buffer;
+        RHIImageView* imageView;
+        RHICommandBuffer* commandBuffer;
         RHIFence* fence;
     };
 
-    virtual RHIFrame acquire_next_frame() = 0;
+    virtual RHIFrame acquireNextFrame() = 0;
     virtual void present(const RHIFrame& frame) = 0;
-    virtual uint32_t image_count() const = 0;
+    virtual uint32_t imageCount() const = 0;
     virtual void resize(uint32_t width, uint32_t height) = 0;
 
-    virtual RHIFormat get_format() const = 0;
-    virtual RHIColorSpace get_color_space() const = 0;
-    virtual RHISurfaceFormat get_surface_format() const = 0;
+    virtual RHIFormat getFormat() const = 0;
+    virtual RHIColorSpace getColorSpace() const = 0;
+    virtual RHISurfaceFormat getSurfaceFormat() const = 0;
 
     virtual ~RHISwapchain() = default;
 

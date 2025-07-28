@@ -5,32 +5,32 @@
 class TestSceneManagerObserver : public ISceneManagerObserver {
 public:
     std::vector<std::vector<SceneKey>> notifications;
-    void on_active_scenes_changed(const std::vector<SceneKey>& new_active_scenes) override {
+    void onActiveScenesChanged(const std::vector<SceneKey>& new_active_scenes) override {
         notifications.push_back(new_active_scenes);
     }
 };
 
 TEST(SceneManagerTest, AddRemoveScene) {
     SceneManager manager;
-    SceneKey s1 = manager.add_scene();
-    SceneKey s2 = manager.add_scene();
-    EXPECT_NE(manager.get_scene(s1), nullptr);
-    EXPECT_NE(manager.get_scene(s2), nullptr);
-    manager.remove_scene(s1);
-    EXPECT_EQ(manager.get_scene(s1), nullptr);
-    EXPECT_NE(manager.get_scene(s2), nullptr);
+    SceneKey s1 = manager.addScene();
+    SceneKey s2 = manager.addScene();
+    EXPECT_NE(manager.getScene(s1), nullptr);
+    EXPECT_NE(manager.getScene(s2), nullptr);
+    manager.removeScene(s1);
+    EXPECT_EQ(manager.getScene(s1), nullptr);
+    EXPECT_NE(manager.getScene(s2), nullptr);
 }
 
 TEST(SceneManagerTest, ActiveSceneSwitching) {
     SceneManager manager;
-    SceneKey s1 = manager.add_scene();
-    SceneKey s2 = manager.add_scene();
-    manager.set_active_scenes({s2});
-    const auto& active = manager.get_active_scenes();
+    SceneKey s1 = manager.addScene();
+    SceneKey s2 = manager.addScene();
+    manager.setActiveScenes({s2});
+    const auto& active = manager.getActiveScenes();
     ASSERT_EQ(active.size(), 1);
     EXPECT_EQ(active[0], s2);
-    manager.set_active_scenes({s1, s2});
-    const auto& active2 = manager.get_active_scenes();
+    manager.setActiveScenes({s1, s2});
+    const auto& active2 = manager.getActiveScenes();
     ASSERT_EQ(active2.size(), 2);
     EXPECT_EQ(active2[0], s1);
     EXPECT_EQ(active2[1], s2);
@@ -39,10 +39,10 @@ TEST(SceneManagerTest, ActiveSceneSwitching) {
 TEST(SceneManagerTest, ObserverNotification) {
     SceneManager manager;
     TestSceneManagerObserver observer;
-    manager.add_observer(&observer);
-    SceneKey s1 = manager.add_scene();
-    SceneKey s2 = manager.add_scene();
-    manager.set_active_scenes({s2});
-    manager.remove_scene(s2);
+    manager.addObserver(&observer);
+    SceneKey s1 = manager.addScene();
+    SceneKey s2 = manager.addScene();
+    manager.setActiveScenes({s2});
+    manager.removeScene(s2);
     EXPECT_FALSE(observer.notifications.empty());
 }

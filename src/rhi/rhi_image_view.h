@@ -8,7 +8,7 @@ class RHIImageView {
 public:
     virtual ~RHIImageView() = default;
 
-    virtual RHIImage* get_image() const = 0;
+    virtual RHIImage* getImage() const = 0;
 
 protected:
     // Only derived context or implementation should create RHIImageView objects

@@ -15,12 +15,14 @@
 namespace rhi::vulkan {
 
 namespace {
+// Global constant for default validation enable
 #ifdef _DEBUG
-constexpr bool k_default_enable_validation = true;
+constexpr bool gk_defaultEnableValidation = true;
 #else
-constexpr bool k_default_enable_validation = false;
+constexpr bool gk_defaultEnableValidation = false;
 #endif
-const std::vector<const char*> validation_layers = {
+// Global constant for validation layers
+const std::vector<const char*> gk_validationLayers = {
     "VK_LAYER_KHRONOS_validation"
 };
 
@@ -29,311 +31,297 @@ struct ValidationMsg {
     std::string message;
     RHIVKContext::ValidationLevel level;
 };
-static std::vector<ValidationMsg> g_validation_errors;
-static rhi::vulkan::RHIVKContext::ValidationCallback g_validation_callback = nullptr;
+// Global variable for validation errors
+std::vector<ValidationMsg> g_validationErrors;
+// Global variable for validation callback
+rhi::vulkan::RHIVKContext::ValidationCallback g_validationCallback = nullptr;
 
-VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
+VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT /*message_type*/,
-    const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
+    const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
     void* /*user_data*/) 
 {
     RHIVKContext::ValidationLevel level = RHIVKContext::ValidationLevel::Info;
-
-    const char* level_str = "INFO";
-    if (message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
+    const char* levelStr = "INFO";
+    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
         level = RHIVKContext::ValidationLevel::Error;
-        level_str = "ERROR";
-    } else if (message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
+        levelStr = "ERROR";
+    } else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
         level = RHIVKContext::ValidationLevel::Warning;
-        level_str = "WARNING";
+        levelStr = "WARNING";
     }
-
-    if (g_validation_callback) {
-        g_validation_callback(callback_data->pMessage, level);
+    if (g_validationCallback) {
+        g_validationCallback(callbackData->pMessage, level);
     } else {
-        std::cerr << fmt::format("[Vk Validation][{}] {}", level_str, callback_data->pMessage) << std::endl;
+        std::cerr << fmt::format("[Vk Validation][{}] {}", levelStr, callbackData->pMessage) << std::endl;
     }
     return VK_FALSE;
 }
 
-bool check_validation_layer_support() {
+bool checkValidationLayerSupport() {
     uint32 layer_count;
     vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
-    std::vector<VkLayerProperties> available_layers(layer_count);
-    vkEnumerateInstanceLayerProperties(&layer_count, available_layers.data());
-
-    for (const char* layer_name : validation_layers) {
+    std::vector<VkLayerProperties> availableLayers(layer_count);
+    vkEnumerateInstanceLayerProperties(&layer_count, availableLayers.data());
+    for (const char* layerName : gk_validationLayers) {
         bool found = false;
-        for (const auto& layer_properties : available_layers) {
-            if (strcmp(layer_name, layer_properties.layerName) == 0) {
+        for (const auto& layerProperties : availableLayers) {
+            if (strcmp(layerName, layerProperties.layerName) == 0) {
                 found = true;
                 break;
             }
         }
-
         if (!found) {
             return false;
         }
     }
-
     return true;
 }
 }
-void RHIVKContext::set_validation_callback(ValidationCallback callback) {
-    g_validation_callback = std::move(callback);
+void RHIVKContext::setValidationCallback(ValidationCallback callback) {
+    g_validationCallback = std::move(callback);
 }
 
-UniquePtr<RHIVKContext> RHIVKContext::create_unique(bool enableValidation) {
+UniquePtr<RHIVKContext> RHIVKContext::createUnique(bool enableValidation) {
     return UniquePtr<RHIVKContext>(new RHIVKContext(enableValidation));
 }
 
-RHIVKContext::RHIVKContext(bool enable_validation)
-    : validation_enabled_(enable_validation || k_default_enable_validation) 
+RHIVKContext::RHIVKContext(bool enableValidation)
+    : m_validationEnabled(enableValidation || gk_defaultEnableValidation) 
 {
-    create_instance();
-    setup_debug_messenger();
-    pick_physical_device();
-    create_logical_device();
-    create_command_pool();
+    createInstance();
+    setupDebugMessenger();
+    pickPhysicalDevice();
+    createLogicalDevice();
+    createCommandPool();
 }
 
 RHIVKContext::~RHIVKContext() {
-    if (m_command_pool) vkDestroyCommandPool(m_device, m_command_pool, nullptr);
+    if (m_commandPool) vkDestroyCommandPool(m_device, m_commandPool, nullptr);
     if (m_device) vkDestroyDevice(m_device, nullptr);
-    if (validation_enabled_ && m_debug_messenger) {
+    if (m_validationEnabled && m_debugMessenger) {
         auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(m_instance, "vkDestroyDebugUtilsMessengerEXT");
-        if (func) func(m_instance, m_debug_messenger, nullptr);
+        if (func) func(m_instance, m_debugMessenger, nullptr);
     }
     if (m_instance) vkDestroyInstance(m_instance, nullptr);
 }
 
-void RHIVKContext::create_instance() {
-    VkApplicationInfo app_info{};
-    app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    app_info.pApplicationName = "RHI Vulkan Test";
-    app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    app_info.pEngineName = "RadiantEngine";
-    app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    app_info.apiVersion = VK_API_VERSION_1_1;
+void RHIVKContext::createInstance() {
+    VkApplicationInfo appInfo{};
+    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    appInfo.pApplicationName = "RHI Vulkan Test";
+    appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+    appInfo.pEngineName = "RadiantEngine";
+    appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+    appInfo.apiVersion = VK_API_VERSION_1_1;
 
     VkInstanceCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    create_info.pApplicationInfo = &app_info;
+    create_info.pApplicationInfo = &appInfo;
 
-    std::vector<const char*> enabled_layers;
-    if (validation_enabled_) {
-        if (!check_validation_layer_support()) {
+    std::vector<const char*> enabledLayers;
+    if (m_validationEnabled) {
+        if (!checkValidationLayerSupport()) {
             throw std::runtime_error("Validation layers requested, but not available!");
         }
-        enabled_layers = validation_layers;
-        create_info.enabledLayerCount = static_cast<uint32>(enabled_layers.size());
-        create_info.ppEnabledLayerNames = enabled_layers.data();
+        enabledLayers = gk_validationLayers;
+        create_info.enabledLayerCount = static_cast<uint32>(enabledLayers.size());
+        create_info.ppEnabledLayerNames = enabledLayers.data();
     } else {
         create_info.enabledLayerCount = 0;
         create_info.ppEnabledLayerNames = nullptr;
     }
     
     // Always enable platform surface extensions
-    std::vector<const char*> surface_exts;
-    surface_exts.push_back("VK_KHR_surface");
+    std::vector<const char*> surfaceExts;
+    surfaceExts.push_back("VK_KHR_surface");
 #ifdef _WIN32
-    surface_exts.push_back("VK_KHR_win32_surface");
+    surfaceExts.push_back("VK_KHR_win32_surface");
 #elif defined(__linux__)
-    surface_exts.push_back("VK_KHR_xcb_surface");
-    surface_exts.push_back("VK_KHR_xlib_surface");
-    surface_exts.push_back("VK_KHR_wayland_surface");
+    surfaceExts.push_back("VK_KHR_xcb_surface");
+    surfaceExts.push_back("VK_KHR_xlib_surface");
+    surfaceExts.push_back("VK_KHR_wayland_surface");
 #elif defined(__APPLE__)
-    surface_exts.push_back("VK_EXT_metal_surface");
+    surfaceExts.push_back("VK_EXT_metal_surface");
 #elif defined(__ANDROID__)
-    surface_exts.push_back("VK_KHR_android_surface");
+    surfaceExts.push_back("VK_KHR_android_surface");
 #endif
 
     // Query required instance extensions
-    uint32 ext_count = 0;
-    std::vector<const char*> enabled_exts;
-    vkEnumerateInstanceExtensionProperties(nullptr, &ext_count, nullptr);
-    std::vector<VkExtensionProperties> available_exts(ext_count);
-    vkEnumerateInstanceExtensionProperties(nullptr, &ext_count, available_exts.data());
-    for (const auto& surface_ext : surface_exts) {
-        if (std::find_if(available_exts.begin(), available_exts.end(),
-                         [&surface_ext](const VkExtensionProperties& ext) {
-                             return strcmp(ext.extensionName, surface_ext) == 0;
-                         }) != available_exts.end()) {
-            enabled_exts.push_back(surface_ext);
+    uint32 extCount = 0;
+    std::vector<const char*> enabledExts;
+    vkEnumerateInstanceExtensionProperties(nullptr, &extCount, nullptr);
+    std::vector<VkExtensionProperties> availableExts(extCount);
+    vkEnumerateInstanceExtensionProperties(nullptr, &extCount, availableExts.data());
+    for (const auto& surfaceExt : surfaceExts) {
+        if (std::find_if(availableExts.begin(), availableExts.end(),
+                         [&surfaceExt](const VkExtensionProperties& ext) {
+                             return strcmp(ext.extensionName, surfaceExt) == 0;
+                         }) != availableExts.end()) {
+            enabledExts.push_back(surfaceExt);
         }
     }
-
     // Enable debug utils if validation is enabled
-    if (validation_enabled_) {
-        enabled_exts.push_back("VK_EXT_debug_utils");
+    if (m_validationEnabled) {
+        enabledExts.push_back("VK_EXT_debug_utils");
     }
+    create_info.enabledExtensionCount = static_cast<uint32>(enabledExts.size());
+    create_info.ppEnabledExtensionNames = enabledExts.empty() ? nullptr : enabledExts.data();
 
-    create_info.enabledExtensionCount = static_cast<uint32>(enabled_exts.size());
-    create_info.ppEnabledExtensionNames = enabled_exts.empty() ? nullptr : enabled_exts.data();
-
-    VkDebugUtilsMessengerCreateInfoEXT debug_create_info{};
-    if (validation_enabled_) {
-        debug_create_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-        debug_create_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
+    if (m_validationEnabled) {
+        debugCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+        debugCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
                                            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-        debug_create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+        debugCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
                                        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                                        VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-        debug_create_info.pfnUserCallback = debug_callback;
-        create_info.pNext = &debug_create_info;
+        debugCreateInfo.pfnUserCallback = debugCallback;
+        create_info.pNext = &debugCreateInfo;
     } else {
         create_info.pNext = nullptr;
     }
-
     if (vkCreateInstance(&create_info, nullptr, &m_instance) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create Vulkan instance");
     }
 }
 
-void RHIVKContext::setup_debug_messenger() {
-    if (!validation_enabled_) return;
-    VkDebugUtilsMessengerCreateInfoEXT create_info{};
-    create_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-    create_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+void RHIVKContext::setupDebugMessenger() {
+    if (!m_validationEnabled) return;
+    VkDebugUtilsMessengerCreateInfoEXT createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
                                  VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-    create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+    createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
                              VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                              VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    create_info.pfnUserCallback = debug_callback;
+    createInfo.pfnUserCallback = debugCallback;
     auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(m_instance, "vkCreateDebugUtilsMessengerEXT");
-    if (func && func(m_instance, &create_info, nullptr, &m_debug_messenger) != VK_SUCCESS) {
+    if (func && func(m_instance, &createInfo, nullptr, &m_debugMessenger) != VK_SUCCESS) {
         throw std::runtime_error("Failed to set up debug messenger!");
     }
 }
 
-void RHIVKContext::pick_physical_device() {
-    uint32 device_count = 0;
-    vkEnumeratePhysicalDevices(m_instance, &device_count, nullptr);
-    if (device_count == 0) throw std::runtime_error("No Vulkan GPUs found");
-    std::vector<VkPhysicalDevice> devices(device_count);
-    vkEnumeratePhysicalDevices(m_instance, &device_count, devices.data());
+void RHIVKContext::pickPhysicalDevice() {
+    uint32 deviceCount = 0;
+    vkEnumeratePhysicalDevices(m_instance, &deviceCount, nullptr);
+    if (deviceCount == 0) throw std::runtime_error("No Vulkan GPUs found");
+    std::vector<VkPhysicalDevice> devices(deviceCount);
+    vkEnumeratePhysicalDevices(m_instance, &deviceCount, devices.data());
     // Just pick the first device for now
-    m_physical_device = devices[0];
+    m_physicalDevice = devices[0];
 }
 
-void RHIVKContext::create_logical_device() {
-    uint32 queue_family_count = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(m_physical_device, &queue_family_count, nullptr);
-    std::vector<VkQueueFamilyProperties> queue_families(queue_family_count);
-    vkGetPhysicalDeviceQueueFamilyProperties(m_physical_device, &queue_family_count, queue_families.data());
-    uint32 graphics_queue_family = 0;
-    for (uint32 i = 0; i < queue_family_count; ++i) {
-        if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-            graphics_queue_family = i;
+void RHIVKContext::createLogicalDevice() {
+    uint32 queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &queueFamilyCount, nullptr);
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &queueFamilyCount, queueFamilies.data());
+    uint32 graphicsQueueFamily = 0;
+    for (uint32 i = 0; i < queueFamilyCount; ++i) {
+        if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+            graphicsQueueFamily = i;
             break;
         }
     }
-    float queue_priority = 1.0f;
-    VkDeviceQueueCreateInfo queue_create_info{};
-    queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queue_create_info.queueFamilyIndex = graphics_queue_family;
-    queue_create_info.queueCount = 1;
-    queue_create_info.pQueuePriorities = &queue_priority;
+    const float queuePriority = 1.0f;
+    VkDeviceQueueCreateInfo queueCreateInfo{};
+    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueCreateInfo.queueFamilyIndex = graphicsQueueFamily;
+    queueCreateInfo.queueCount = 1;
+    queueCreateInfo.pQueuePriorities = &queuePriority;
 
-    VkDeviceCreateInfo create_info{};
-    create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    create_info.queueCreateInfoCount = 1;
-    create_info.pQueueCreateInfos = &queue_create_info;
+    VkDeviceCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    createInfo.queueCreateInfoCount = 1;
+    createInfo.pQueueCreateInfos = &queueCreateInfo;
 
-    std::vector<const char*> enabled_layers;
-    if (validation_enabled_) {
-        enabled_layers = validation_layers;
-        create_info.enabledLayerCount = static_cast<uint32>(enabled_layers.size());
-        create_info.ppEnabledLayerNames = enabled_layers.data();
+    std::vector<const char*> enabledLayers;
+    if (m_validationEnabled) {
+        enabledLayers = gk_validationLayers;
+        createInfo.enabledLayerCount = static_cast<uint32>(enabledLayers.size());
+        createInfo.ppEnabledLayerNames = enabledLayers.data();
     } else {
-        create_info.enabledLayerCount = 0;
-        create_info.ppEnabledLayerNames = nullptr;
+        createInfo.enabledLayerCount = 0;
+        createInfo.ppEnabledLayerNames = nullptr;
     }
 
     // Enable VK_KHR_swapchain device extension
-    std::vector<const char*> device_extensions = { "VK_KHR_swapchain" };
-    create_info.enabledExtensionCount = static_cast<uint32>(device_extensions.size());
-    create_info.ppEnabledExtensionNames = device_extensions.data();
+    std::vector<const char*> deviceExtensions = { "VK_KHR_swapchain" };
+    createInfo.enabledExtensionCount = static_cast<uint32>(deviceExtensions.size());
+    createInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
-    if (vkCreateDevice(m_physical_device, &create_info, nullptr, &m_device) != VK_SUCCESS) {
+    if (vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create logical device");
     }
-    m_rhi_graphics_queue = RHIVKQueue::create_unique(this, graphics_queue_family);
+    m_rhiGraphicsQueue = RHIVKQueue::createUnique(this, graphicsQueueFamily);
 }
 
-void RHIVKContext::create_command_pool() {
-    VkCommandPoolCreateInfo pool_info{};
-    pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    pool_info.queueFamilyIndex = m_rhi_graphics_queue->get_vk_queue_family_index();
-    pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    if (vkCreateCommandPool(m_device, &pool_info, nullptr, &m_command_pool) != VK_SUCCESS) {
+void RHIVKContext::createCommandPool() {
+    VkCommandPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    poolInfo.queueFamilyIndex = m_rhiGraphicsQueue->getVkQueueFamilyIndex();
+    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    if (vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_commandPool) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create command pool");
     }
 }
 
-RHIQueue* RHIVKContext::get_graphics_queue() {
-    return get_vk_graphics_queue();
+RHIQueue* RHIVKContext::getGraphicsQueue() {
+    return getVkGraphicsQueue();
 }
 
-RHIVKQueue *RHIVKContext::get_vk_graphics_queue()
-{
-    return m_rhi_graphics_queue.get();
+RHIVKQueue* RHIVKContext::getVkGraphicsQueue() {
+    return m_rhiGraphicsQueue.get();
 }
 
-UniquePtr<RHICommandBuffer> RHIVKContext::create_command_buffer() {
-    return create_vk_command_buffer();
+UniquePtr<RHICommandBuffer> RHIVKContext::createCommandBuffer() {
+    return createVkCommandBuffer();
 }
 
-UniquePtr<RHIFence> RHIVKContext::create_fence() {
-    return create_vk_fence();
+UniquePtr<RHIFence> RHIVKContext::createFence() {
+    return createVkFence();
 }
 
-UniquePtr<RHISemaphore> RHIVKContext::create_semaphore() {
-    return create_vk_semaphore();
+UniquePtr<RHISemaphore> RHIVKContext::createSemaphore() {
+    return createVkSemaphore();
 }
 
-UniquePtr<RHISwapchain> RHIVKContext::create_swapchain(SDL_Window* window, uint32 width, uint32 height, uint32 image_count) {
-    return create_vk_swapchain(window, width, height, image_count);
+UniquePtr<RHISwapchain> RHIVKContext::createSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount) {
+    return createVkSwapchain(window, width, height, imageCount);
 }
 
-UniquePtr<RHIBuffer> RHIVKContext::create_buffer(uint64 size, RHIBufferUsage usage, RHIMemoryProperty mem_props)
-{
-    return create_vk_buffer(size, usage, mem_props);
+UniquePtr<RHIBuffer> RHIVKContext::createBuffer(uint64 size, RHIBufferUsage usage, RHIMemoryProperty memProps) {
+    return createVkBuffer(size, usage, memProps);
 }
 
-UniquePtr<RHIImage> RHIVKContext::create_image(uint32 width, uint32 height, RHIFormat format, RHIImageUsage usage, RHIMemoryProperty mem_props)
-{
-    return create_vk_image(width, height, format, usage, mem_props);
+UniquePtr<RHIImage> RHIVKContext::createImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsage usage, RHIMemoryProperty memProps) {
+    return createVkImage(width, height, format, usage, memProps);
 }
 
-UniquePtr<RHIVKCommandBuffer> RHIVKContext::create_vk_command_buffer()
-{
-    return RHIVKCommandBuffer::create_unique(this);
+UniquePtr<RHIVKCommandBuffer> RHIVKContext::createVkCommandBuffer() {
+    return RHIVKCommandBuffer::createUnique(this);
 }
 
-UniquePtr<RHIVKFence> RHIVKContext::create_vk_fence()
-{
-    return RHIVKFence::create_unique(this);
+UniquePtr<RHIVKFence> RHIVKContext::createVkFence() {
+    return RHIVKFence::createUnique(this);
 }
 
-UniquePtr<RHIVKSemaphore> RHIVKContext::create_vk_semaphore()
-{
-    return RHIVKSemaphore::create_unique(this);
+UniquePtr<RHIVKSemaphore> RHIVKContext::createVkSemaphore() {
+    return RHIVKSemaphore::createUnique(this);
 }
 
-UniquePtr<RHIVKSwapchain> RHIVKContext::create_vk_swapchain(SDL_Window* window, uint32 width, uint32 height, uint32 image_count)
-{
-    return RHIVKSwapchain::create_unique(this, window, width, height, image_count);
+UniquePtr<RHIVKSwapchain> RHIVKContext::createVkSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount) {
+    return RHIVKSwapchain::createUnique(this, window, width, height, imageCount);
 }
 
-UniquePtr<RHIVKBuffer> RHIVKContext::create_vk_buffer(uint64 size, RHIBufferUsage usage, RHIMemoryProperty mem_props) {
-    return RHIVKBuffer::create_unique(this, size, usage, mem_props);
+UniquePtr<RHIVKBuffer> RHIVKContext::createVkBuffer(uint64 size, RHIBufferUsage usage, RHIMemoryProperty memProps) {
+    return RHIVKBuffer::createUnique(this, size, usage, memProps);
 }
 
-UniquePtr<RHIVKImage> RHIVKContext::create_vk_image(uint32 width, uint32 height, RHIFormat format, RHIImageUsage usage, RHIMemoryProperty mem_props)
-{
-    return RHIVKImage::create_unique(this, width, height, format, usage, mem_props);
+UniquePtr<RHIVKImage> RHIVKContext::createVkImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsage usage, RHIMemoryProperty memProps) {
+    return RHIVKImage::createUnique(this, width, height, format, usage, memProps);
 }
 
 } // namespace rhi::vulkan

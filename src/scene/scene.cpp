@@ -6,11 +6,11 @@
 // Scene implementation
 Scene::Scene() {
     // Create root node
-    root_key = nodes.add(SceneNode{
-        SceneNodeKey::null(), // parent_key
-        {},                   // children_keys
-        glm::mat4(1.0f),      // local_transform
-        glm::mat4(1.0f),      // world_tansform
+    rootKey = nodes.add(SceneNode{
+        SceneNodeKey::null(), // parentKey
+        {},                   // childrenKeys
+        glm::mat4(1.0f),      // localTransform
+        glm::mat4(1.0f),      // worldTransform
         false,                // dirty
         "root"                // name
     });
@@ -18,115 +18,115 @@ Scene::Scene() {
 
 Scene::~Scene() = default;
 
-SceneNodeKey Scene::add_node(SceneNodeKey parent_key, const std::string& name) {
-    if (parent_key.is_null()) {
-        parent_key = root_key;
+SceneNodeKey Scene::addNode(SceneNodeKey parentKey, const std::string& name) {
+    if (parentKey.isNull()) {
+        parentKey = rootKey;
     }
 
-    SceneNodeKey new_node_key = nodes.add();
-    SceneNode& new_node = nodes[new_node_key];
-    new_node.parent_key = parent_key;
-    new_node.name = name;
-    new_node.dirty = true; // New nodes are always dirty initially
+    SceneNodeKey newNodeKey = nodes.add();
+    SceneNode& newNode = nodes[newNodeKey];
+    newNode.parentKey = parentKey;
+    newNode.name = name;
+    newNode.dirty = true; // New nodes are always dirty initially
 
-    SceneNode& parent_node = nodes[parent_key];
-    parent_node.children_keys.push_back(new_node_key);
+    SceneNode& parentNode = nodes[parentKey];
+    parentNode.childrenKeys.push_back(newNodeKey);
 
-    if (!parent_node.dirty) {
+    if (!parentNode.dirty) {
         // Top of a dirty tree, so insert into minimal dirty set
-        minimal_dirty_set.insert(new_node_key);
+        minimalDirtySet.insert(newNodeKey);
     }
 
-    return new_node_key;
+    return newNodeKey;
 }
 
-void Scene::remove_node(SceneNodeKey node_key, bool remove_all_descendants)
+void Scene::removeNode(SceneNodeKey nodeKey, bool removeAllDescendants)
 {
-    assert(!node_key.is_null() && "Node key cannot be null");
-    assert(node_key != root_key && "Cannot remove root node");
+    assert(!nodeKey.isNull() && "Node key cannot be null");
+    assert(nodeKey != rootKey && "Cannot remove root node");
 
-    SceneNode& node = nodes[node_key];
+    SceneNode& node = nodes[nodeKey];
 
-    SceneNodeKey parent_key = node.parent_key;
-    SceneNode& parent_node = nodes[parent_key];
+    SceneNodeKey parentKey = node.parentKey;
+    SceneNode& parentNode = nodes[parentKey];
 
-    if (remove_all_descendants) {
+    if (removeAllDescendants) {
         // Remove all descendants recursively
-        // Use a copy of children_keys to avoid modifying the vector while iterating
-        std::vector<SceneNodeKey> children_keys_copy = node.children_keys;
-        for (SceneNodeKey child_key : children_keys_copy) {
-            remove_node(child_key, true);
+        // Use a copy of childrenKeys to avoid modifying the vector while iterating
+        std::vector<SceneNodeKey> childrenKeysCopy = node.childrenKeys;
+        for (SceneNodeKey childKey : childrenKeysCopy) {
+            removeNode(childKey, true);
         }
     }
 
-    // Remove node from parent's children_keys
-    auto& siblings = parent_node.children_keys;
-    auto it = std::find(siblings.begin(), siblings.end(), node_key);
+    // Remove node from parent's childrenKeys
+    auto& siblings = parentNode.childrenKeys;
+    auto it = std::find(siblings.begin(), siblings.end(), nodeKey);
     if (it != siblings.end()) {
         std::swap(*it, siblings.back());
         siblings.pop_back();
     }
 
     // Patch children to parent
-    for (SceneNodeKey child_key : node.children_keys) {
-        SceneNode& child_node = nodes[child_key];
-        child_node.parent_key = parent_key;
-        parent_node.children_keys.push_back(child_key);
+    for (SceneNodeKey childKey : node.childrenKeys) {
+        SceneNode& childNode = nodes[childKey];
+        childNode.parentKey = parentKey;
+        parentNode.childrenKeys.push_back(childKey);
         // Mark child as dirty since its parent is changing
-        mark_dirty(child_key);
+        markDirty(childKey);
     }
 
     // Update internal state tracking
-    minimal_dirty_set.erase(node_key);
-    changed_nodes.erase(node_key);
-    removed_nodes.insert(node_key);
+    minimalDirtySet.erase(nodeKey);
+    changedNodes.erase(nodeKey);
+    removedNodes.insert(nodeKey);
 
     // Remove node from slotmap
-    nodes.remove(node_key);
+    nodes.remove(nodeKey);
 }
 
-void Scene::attach_node(SceneNodeKey node_key, SceneNodeKey new_parent_key) {
-    assert(!node_key.is_null() && "Node key cannot be null");
-    assert(!new_parent_key.is_null() && "New parent key cannot be null");
-    assert(node_key != root_key && "Cannot attach root node to another parent");
+void Scene::attachNode(SceneNodeKey nodeKey, SceneNodeKey newParentKey) {
+    assert(!nodeKey.isNull() && "Node key cannot be null");
+    assert(!newParentKey.isNull() && "New parent key cannot be null");
+    assert(nodeKey != rootKey && "Cannot attach root node to another parent");
 
-    SceneNode& node = nodes[node_key];
-    SceneNodeKey old_parent_key = node.parent_key;
-    SceneNode& old_parent = nodes[old_parent_key];
-    auto& siblings = old_parent.children_keys;
-    // Remove node_key from siblings using swap-and-pop for efficiency
-    auto it = std::find(siblings.begin(), siblings.end(), node_key);
+    SceneNode& node = nodes[nodeKey];
+    SceneNodeKey oldParentKey = node.parentKey;
+    SceneNode& oldParent = nodes[oldParentKey];
+    auto& siblings = oldParent.childrenKeys;
+    // Remove nodeKey from siblings using swap-and-pop for efficiency
+    auto it = std::find(siblings.begin(), siblings.end(), nodeKey);
     if (it != siblings.end()) {
         std::swap(*it, siblings.back());
         siblings.pop_back();
     }
-    node.parent_key = new_parent_key;
-    SceneNode& new_parent = nodes[new_parent_key];
-    new_parent.children_keys.push_back(node_key);
+    node.parentKey = newParentKey;
+    SceneNode& newParent = nodes[newParentKey];
+    newParent.childrenKeys.push_back(nodeKey);
 
     // Mark the node and its descendants as dirty
-    mark_dirty(node_key);
+    markDirty(nodeKey);
 }
 
-void Scene::detach_node(SceneNodeKey node_key)
+void Scene::detachNode(SceneNodeKey nodeKey)
 {
-    attach_node(node_key, root_key);
+    attachNode(nodeKey, rootKey);
 }
 
-SceneNodeKey Scene::get_root_key() const
+SceneNodeKey Scene::getRootKey() const
 {
-    return root_key;
+    return rootKey;
 }
 
-SceneNodeKey Scene::get_parent_key(SceneNodeKey node_key) const {
-    return nodes.get<SceneNode>(node_key)->parent_key;
+SceneNodeKey Scene::getParentKey(SceneNodeKey nodeKey) const {
+    return nodes.get<SceneNode>(nodeKey)->parentKey;
 }
 
-const std::vector<SceneNodeKey>& Scene::get_children_keys(SceneNodeKey node_key) const {
-    return nodes.get<SceneNode>(node_key)->children_keys;
+const std::vector<SceneNodeKey>& Scene::getChildrenKeys(SceneNodeKey nodeKey) const {
+    return nodes.get<SceneNode>(nodeKey)->childrenKeys;
 }
 
-SceneNodeKey Scene::find_node_by_name(const std::string &name) const
+SceneNodeKey Scene::findNodeByName(const std::string &name) const
 {
     for (const auto& [key, node] : nodes) {
         if (node.name == name) {
@@ -136,231 +136,231 @@ SceneNodeKey Scene::find_node_by_name(const std::string &name) const
     return SceneNodeKey::null(); // Not found
 }
 
-const SceneNode* Scene::get_node(SceneNodeKey node_key) const
+const SceneNode* Scene::getNode(SceneNodeKey nodeKey) const
 {
-    return nodes.get<SceneNode>(node_key);
+    return nodes.get<SceneNode>(nodeKey);
 }
 
-SceneNode* Scene::get_node(SceneNodeKey node_key)
+SceneNode* Scene::getNode(SceneNodeKey nodeKey)
 {
-    return const_cast<SceneNode*>(static_cast<const Scene*>(this)->get_node(node_key));
+    return const_cast<SceneNode*>(static_cast<const Scene*>(this)->getNode(nodeKey));
 }
 
-glm::mat4 Scene::get_local_transform(SceneNodeKey node_key) const
+glm::mat4 Scene::getLocalTransform(SceneNodeKey nodeKey) const
 {
-    return nodes[node_key].local_transform;
+    return nodes[nodeKey].localTransform;
 }
 
-glm::mat4 Scene::get_world_transform(SceneNodeKey node_key, bool update_if_dirty)
+glm::mat4 Scene::getWorldTransform(SceneNodeKey nodeKey, bool updateIfDirty)
 {
-    SceneNode& node = nodes[node_key];
-    if (update_if_dirty && node.dirty) {
-        propagate_transforms_to(node_key);
+    SceneNode& node = nodes[nodeKey];
+    if (updateIfDirty && node.dirty) {
+        propagateTransformsTo(nodeKey);
     }
-    return node.world_tansform;
+    return node.worldTransform;
 }
 
-glm::mat4 Scene::get_world_transform(SceneNodeKey node_key, bool update_if_dirty) const
+glm::mat4 Scene::getWorldTransform(SceneNodeKey nodeKey, bool updateIfDirty) const
 {
-    const SceneNode& node = nodes[node_key];
-    if (update_if_dirty && node.dirty) {
+    const SceneNode& node = nodes[nodeKey];
+    if (updateIfDirty && node.dirty) {
         assert(false && 
-               "This should not be called with update_if_dirty=true on const Scene, "
+               "This should not be called with updateIfDirty=true on const Scene, "
                "use non-const version to update transforms");
     }
-    return node.world_tansform;
+    return node.worldTransform;
 }
 
-void Scene::set_local_transform(SceneNodeKey node_key, const glm::mat4& local) {
-    SceneNode& node = nodes[node_key];
-    if (node.local_transform == local) {
+void Scene::setLocalTransform(SceneNodeKey nodeKey, const glm::mat4& local) {
+    SceneNode& node = nodes[nodeKey];
+    if (node.localTransform == local) {
         return; // No change, no need to dirty
     }
-    node.local_transform = local;
+    node.localTransform = local;
 
     // Mark the node and all descendants as dirty
     // Skip updating dirty state if already dirty; covered by parent if so.
     // If node isn't dirty, parent also can't be dirty, so covered check 
     // isn't needed either.
-    mark_dirty(node_key, true, true);
+    markDirty(nodeKey, true, true);
 }
 
-void Scene::set_world_transform(SceneNodeKey node_key, const glm::mat4 &world)
+void Scene::setWorldTransform(SceneNodeKey nodeKey, const glm::mat4 &world)
 {
-    SceneNode& node = nodes[node_key];
-    if (node.world_tansform == world && !node.dirty) {
+    SceneNode& node = nodes[nodeKey];
+    if (node.worldTransform == world && !node.dirty) {
         // No change, no need to dirty
         return;
     }
 
     // Ensure the parent world transform is up to date
-    SceneNodeKey parent_key = node.parent_key;
-    propagate_transforms_to(parent_key);
+    SceneNodeKey parentKey = node.parentKey;
+    propagateTransformsTo(parentKey);
 
     // Compute the local transform based on the parent world
     // P * L = W -> L = P^-1 * W
-    glm::mat4 parent_world = parent_key.is_null() ? 
+    glm::mat4 parentWorld = parentKey.isNull() ? 
         glm::mat4(1.0f) : 
-        nodes[parent_key].world_tansform;
-    node.local_transform = glm::inverse(parent_world) * world;
+        nodes[parentKey].worldTransform;
+    node.localTransform = glm::inverse(parentWorld) * world;
 
     // Update world transform and mark as changed
-    if (node.world_tansform != world) {
-        node.world_tansform = world;
-        changed_nodes.insert(node_key);
+    if (node.worldTransform != world) {
+        node.worldTransform = world;
+        changedNodes.insert(nodeKey);
     }
 
     // Clear dirty state on this node and mark all descendants as dirty
     node.dirty = false;
-    minimal_dirty_set.erase(node_key);
-    for (const auto& child_key : node.children_keys) {
+    minimalDirtySet.erase(nodeKey);
+    for (const auto& childKey : node.childrenKeys) {
         // We CAN'T skip update on already dirty children, as they will need
         // to be added to the minimal dirty set still. We can skip the covered check
         // though, since the parent node is clean.
-        mark_dirty(child_key, false, true);
+        markDirty(childKey, false, true);
     }
 }
 
-void Scene::mark_dirty(SceneNodeKey node_key, 
-    bool skip_update_if_dirty, 
-    bool skip_covered_check)
+void Scene::markDirty(SceneNodeKey nodeKey, 
+    bool skipUpdateIfDirty, 
+    bool skipCoveredCheck)
 {
-    SceneNode& node = nodes[node_key];
-    if (skip_update_if_dirty && node.dirty) {
+    SceneNode& node = nodes[nodeKey];
+    if (skipUpdateIfDirty && node.dirty) {
         return;
     }
 
-    mark_dirty_recursive(node_key);
+    markDirtyRecursive(nodeKey);
 
     // Add to minimal dirty set if not already covered by parent.
-    if (skip_covered_check ||
-        node.parent_key.is_null() ||
-        !nodes[node.parent_key].dirty) 
+    if (skipCoveredCheck ||
+        node.parentKey.isNull() ||
+        !nodes[node.parentKey].dirty) 
     {
-        minimal_dirty_set.insert(node_key);
+        minimalDirtySet.insert(nodeKey);
     }
 }
 
-void Scene::mark_dirty_recursive(SceneNodeKey node_key) {
-    SceneNode& node = nodes[node_key];
+void Scene::markDirtyRecursive(SceneNodeKey nodeKey) {
+    SceneNode& node = nodes[nodeKey];
     if (node.dirty) {
         // Remove from minimal dirty set if already dirty; 
         // descendants are already covered by ancestor.
-        minimal_dirty_set.erase(node_key);
+        minimalDirtySet.erase(nodeKey);
         return;
     }
 
     node.dirty = true;
-    for (const auto& child_key : node.children_keys) {
-        mark_dirty_recursive(child_key);
+    for (const auto& childKey : node.childrenKeys) {
+        markDirtyRecursive(childKey);
     }
 }
 
-void Scene::propagate_subtree(SceneNodeKey node_key, const glm::mat4& parent_world, SceneNodeKeySet& changed_nodes) {
-    SceneNode& node = nodes[node_key];
-    glm::mat4 prev_world = node.world_tansform;
-    node.world_tansform = parent_world * node.local_transform;
+void Scene::propagateSubtree(SceneNodeKey nodeKey, const glm::mat4& parentWorld, SceneNodeKeySet& changedNodes) {
+    SceneNode& node = nodes[nodeKey];
+    glm::mat4 prevWorld = node.worldTransform;
+    node.worldTransform = parentWorld * node.localTransform;
     node.dirty = false;
-    if (node.world_tansform != prev_world) {
-        changed_nodes.insert(node_key);
+    if (node.worldTransform != prevWorld) {
+        changedNodes.insert(nodeKey);
     }
-    for (const auto& child_key : node.children_keys) {
-        propagate_subtree(child_key, node.world_tansform, changed_nodes);
+    for (const auto& childKey : node.childrenKeys) {
+        propagateSubtree(childKey, node.worldTransform, changedNodes);
     }
 }
 
-void Scene::propagate_transforms_to(SceneNodeKey target_key)
+void Scene::propagateTransformsTo(SceneNodeKey targetKey)
 {
-    if (target_key.is_null() || !nodes[target_key].dirty) {
+    if (targetKey.isNull() || !nodes[targetKey].dirty) {
         return; // Nothing to propagate
     }
 
-    // Propogate to parent first
-    propagate_transforms_to(nodes[target_key].parent_key);
+    // Propagate to parent first
+    propagateTransformsTo(nodes[targetKey].parentKey);
     
     // The parents world transform is now up to date,
     // so we can use it to compute the targets world transform
-    SceneNode& target_node = nodes[target_key];
-    SceneNodeKey parent_key = target_node.parent_key;
-    glm::mat4 prev_world = target_node.world_tansform;
-    glm::mat4 parent_world = parent_key.is_null() ? 
+    SceneNode& targetNode = nodes[targetKey];
+    SceneNodeKey parentKey = targetNode.parentKey;
+    glm::mat4 prevWorld = targetNode.worldTransform;
+    glm::mat4 parentWorld = parentKey.isNull() ? 
         glm::mat4(1.0f) : 
-        nodes[parent_key].world_tansform;
-    target_node.world_tansform = parent_world * target_node.local_transform;
+        nodes[parentKey].worldTransform;
+    targetNode.worldTransform = parentWorld * targetNode.localTransform;
 
     // If the world transform has changed, add to changed nodes
-    if (target_node.world_tansform != prev_world) {
-        changed_nodes.insert(target_key);
+    if (targetNode.worldTransform != prevWorld) {
+        changedNodes.insert(targetKey);
     }
 
     // Set dirty state to false for the target node
-    target_node.dirty = false;
+    targetNode.dirty = false;
     
-    // Propogate down minimal dirty set state to children, 
+    // Propagate down minimal dirty set state to children, 
     // since they're still dirty and need to be covered
-    if (minimal_dirty_set.erase(target_key)) {
-        for (const auto& child_key : target_node.children_keys) {
-            minimal_dirty_set.insert(child_key);
+    if (minimalDirtySet.erase(targetKey)) {
+        for (const auto& childKey : targetNode.childrenKeys) {
+            minimalDirtySet.insert(childKey);
         }
     }
 }
 
-void Scene::propagate_transforms() {
+void Scene::propagateTransforms() {
     // Propagate transforms for all minimal dirty roots
-    for (SceneNodeKey dirty_key : minimal_dirty_set) {
-        glm::mat4 parent_world = glm::mat4(1.0f);
-        SceneNodeKey parent_key = nodes[dirty_key].parent_key;
-        if (!parent_key.is_null()) {
-            parent_world = nodes[parent_key].world_tansform;
+    for (SceneNodeKey dirtyKey : minimalDirtySet) {
+        glm::mat4 parentWorld = glm::mat4(1.0f);
+        SceneNodeKey parentKey = nodes[dirtyKey].parentKey;
+        if (!parentKey.isNull()) {
+            parentWorld = nodes[parentKey].worldTransform;
         }
-        propagate_subtree(dirty_key, parent_world, changed_nodes);
+        propagateSubtree(dirtyKey, parentWorld, changedNodes);
     }
-    minimal_dirty_set.clear();
+    minimalDirtySet.clear();
 }
 
-void Scene::finalize_and_notify() {
-    propagate_transforms();
+void Scene::finalizeAndNotify() {
+    propagateTransforms();
     // Notify observers of changed nodes
     for (auto* observer : observers) {
         assert(observer && "Observer should not be null");
-        if (!changed_nodes.empty()) {
-            observer->on_scene_nodes_changed(changed_nodes);
+        if (!changedNodes.empty()) {
+            observer->onSceneNodesChanged(changedNodes);
         }
-        if (!removed_nodes.empty()) {
-            observer->on_scene_nodes_removed(removed_nodes);
+        if (!removedNodes.empty()) {
+            observer->onSceneNodesRemoved(removedNodes);
         }
     }
-    changed_nodes.clear();
+    changedNodes.clear();
 }
 
 // Observer registration implementations
-void Scene::add_observer(ISceneObserver* observer) {
+void Scene::addObserver(ISceneObserver* observer) {
     if (observer && std::find(observers.begin(), observers.end(), observer) == observers.end()) {
         observers.push_back(observer);
     }
 }
 
-void Scene::remove_observer(ISceneObserver* observer) {
+void Scene::removeObserver(ISceneObserver* observer) {
     auto it = std::remove(observers.begin(), observers.end(), observer);
     if (it != observers.end()) {
         observers.erase(it, observers.end());
     }
 }
 
-bool Scene::is_node_dirty(SceneNodeKey node_key) const
+bool Scene::isNodeDirty(SceneNodeKey nodeKey) const
 {
-    return nodes[node_key].dirty;
+    return nodes[nodeKey].dirty;
 }
 
-const SceneNodeKeySet &Scene::get_minimal_dirty_set() const
+const SceneNodeKeySet &Scene::getMinimalDirtySet() const
 {
-    return minimal_dirty_set;
+    return minimalDirtySet;
 }
 
-const SceneNodeKeySet& Scene::get_changed_nodes() const {
-    return changed_nodes;
+const SceneNodeKeySet& Scene::getChangedNodes() const {
+    return changedNodes;
 }
 
-const SceneNodeKeySet& Scene::get_removed_nodes() const {
-    return removed_nodes;
+const SceneNodeKeySet& Scene::getRemovedNodes() const {
+    return removedNodes;
 }

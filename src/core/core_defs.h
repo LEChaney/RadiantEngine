@@ -19,14 +19,14 @@ using uint64 = uint64_t;
 template<typename T>
 using Array = std::vector<T>;
 
-template<typename T, std::size_t Sz>
-using StaticArray = std::array<T, Sz>;
+template<typename T, std::size_t sz>
+using StaticArray = std::array<T, sz>;
 
 template<typename T>
 using UniquePtr = std::unique_ptr<T>;
 
 template<typename T, typename... Args>
-inline auto make_unique(Args&&... args) {
+inline auto makeUnique(Args&&... args) {
     return std::make_unique<T>(std::forward<Args>(args)...);
 }
 
@@ -34,7 +34,7 @@ template<typename T>
 using SharedPtr = std::shared_ptr<T>;
 
 template<typename T, typename... Args>
-inline auto make_shared(Args&&... args) {
+inline auto makeShared(Args&&... args) {
     return std::make_shared<T>(std::forward<Args>(args)...);
 }
 

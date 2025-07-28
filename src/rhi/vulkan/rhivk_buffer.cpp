@@ -5,15 +5,16 @@
 
 namespace rhi::vulkan {
 
-UniquePtr<RHIVKBuffer> RHIVKBuffer::create_unique(RHIVKContext *context, uint64 size, RHIBufferUsage usage, RHIMemoryProperty memProps) {
+
+UniquePtr<RHIVKBuffer> RHIVKBuffer::createUnique(RHIVKContext *context, uint64 size, RHIBufferUsage usage, RHIMemoryProperty memProps) {
     return UniquePtr<RHIVKBuffer>(new RHIVKBuffer(context, size, usage, memProps));
 }
 
 RHIVKBuffer::RHIVKBuffer(RHIVKContext* context, uint64 size, RHIBufferUsage usage, RHIMemoryProperty memProps)
     : m_context(context), m_size(size)
 {
-    auto& device = m_context->get_vk_device();
-    auto& physicalDevice = m_context->get_vk_physical_device();
+    auto& device = m_context->getVkDevice();
+    auto& physicalDevice = m_context->getVkPhysicalDevice();
 
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -53,7 +54,7 @@ RHIVKBuffer::RHIVKBuffer(RHIVKContext* context, uint64 size, RHIBufferUsage usag
 }
 
 RHIVKBuffer::~RHIVKBuffer() {
-    auto& device = m_context->get_vk_device();
+    auto& device = m_context->getVkDevice();
     if (m_buffer) {
         vkDestroyBuffer(device, m_buffer, nullptr);
     }
@@ -65,12 +66,12 @@ RHIVKBuffer::~RHIVKBuffer() {
 void *RHIVKBuffer::map()
 {
     void* data = nullptr;
-    vkMapMemory(m_context->get_vk_device(), m_memory, 0, m_size, 0, &data);
+    vkMapMemory(m_context->getVkDevice(), m_memory, 0, m_size, 0, &data);
     return data;
 }
 
 void RHIVKBuffer::unmap() {
-    vkUnmapMemory(m_context->get_vk_device(), m_memory);
+    vkUnmapMemory(m_context->getVkDevice(), m_memory);
 }
 
 } // namespace rhi::vulkan

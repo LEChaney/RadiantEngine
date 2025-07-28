@@ -10,10 +10,10 @@ class RHIVKContext;
 
 class RHIVKSemaphore : public RHISemaphore {
 public:
-    static UniquePtr<RHIVKSemaphore> create_unique(RHIVKContext* context);
+    static UniquePtr<RHIVKSemaphore> createUnique(RHIVKContext* context);
     ~RHIVKSemaphore();
 
-    const VkSemaphore& get_vk() const { return m_semaphore; }
+    const VkSemaphore& getVk() const { return m_semaphore; }
     
 protected:
     RHIVKSemaphore(RHIVKContext* context);

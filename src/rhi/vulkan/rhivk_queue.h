@@ -10,18 +10,18 @@ class RHIVKContext;
 
 class RHIVKQueue : public RHIQueue {
 public:
-    static UniquePtr<RHIVKQueue> create_unique(RHIVKContext* context, uint32 queue_family_index);
+    static UniquePtr<RHIVKQueue> createUnique(RHIVKContext* context, uint32 queueFamilyIndex);
     ~RHIVKQueue() override;
 
-    void submit(const Array<RHICommandBuffer*>& command_buffers, RHIFence* fence, RHISemaphore* wait_semaphore) override;
-    void wait_idle() override;
-    void submit_and_wait(RHICommandBuffer* cmd) override;
+    void submit(const Array<RHICommandBuffer*>& commandBuffers, RHIFence* fence, RHISemaphore* waitSemaphore) override;
+    void waitIdle() override;
+    void submitAndWait(RHICommandBuffer* cmd) override;
 
-    VkQueue get_vk() const { return m_queue; }
-    uint32 get_vk_queue_family_index() const { return m_queue_family_index; }
+    VkQueue getVk() const { return m_queue; }
+    uint32 getVkQueueFamilyIndex() const { return m_queueFamilyIndex; }
     
 protected:
-    RHIVKQueue(RHIVKContext* context, uint32 queue_family_index);
+    RHIVKQueue(RHIVKContext* context, uint32 queueFamilyIndex);
     RHIVKQueue(const RHIVKQueue&) = delete;
     RHIVKQueue& operator=(const RHIVKQueue&) = delete;
     RHIVKQueue(RHIVKQueue&&) = delete;
@@ -29,7 +29,7 @@ protected:
 
 private:
     VkQueue m_queue;
-    uint32 m_queue_family_index;
+    uint32 m_queueFamilyIndex;
     RHIVKContext* m_context;
 };
 

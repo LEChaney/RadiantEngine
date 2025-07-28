@@ -10,13 +10,13 @@ class RHIContext;
 // Returns true on success, false on failure.
 // TODO: Add format and other parameters as needed
 // This function assumes the image is in a format compatible with RGBA8 readback.
-bool read_image_to_cpu(
+bool readImageToCpu(
     RHIContext* context, 
     RHIImage* image, 
     uint32 width, 
     uint32 height, 
-    Array<uint8>& out_data,
-    bool restore_layout = false
+    Array<uint8>& outData,
+    bool restoreLayout = false
 );
 
 } // namespace rhi

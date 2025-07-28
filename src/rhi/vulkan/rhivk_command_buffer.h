@@ -17,20 +17,20 @@ class RHIVKContext;
 
 class RHIVKCommandBuffer : public RHICommandBuffer {
 public:
-    static UniquePtr<RHIVKCommandBuffer> create_unique(RHIVKContext* context);
+    static UniquePtr<RHIVKCommandBuffer> createUnique(RHIVKContext* context);
     ~RHIVKCommandBuffer() override;
 
     void begin() override;
     void end() override;
     void reset() override;
-    void clear_color(RHIImage* image, const glm::vec4& color) override;
+    void clearColor(RHIImage* image, const glm::vec4& color) override;
     // Transition image layout using internal layout tracking for old layout
-    void transition_image_layout(RHIImage* image, RHIImageLayout new_layout) override;
+    void transitionImageLayout(RHIImage* image, RHIImageLayout newLayout) override;
     // Transition image layout with explicit old layout
-    void transition_image_layout(RHIImage* image, RHIImageLayout old_layout, RHIImageLayout new_layout) override;
-    void copy_image_to_buffer(RHIImage* image, RHIBuffer* buffer, uint32_t width, uint32_t height) override;
+    void transitionImageLayout(RHIImage* image, RHIImageLayout oldLayout, RHIImageLayout newLayout) override;
+    void copyImageToBuffer(RHIImage* image, RHIBuffer* buffer, uint32_t width, uint32_t height) override;
 
-    VkCommandBuffer get_vk() const { return m_cmd_buffer; }
+    VkCommandBuffer getVk() const { return m_cmdBuffer; }
 
 protected:
     RHIVKCommandBuffer(RHIVKContext* context);
@@ -40,9 +40,9 @@ protected:
     RHIVKCommandBuffer& operator=(RHIVKCommandBuffer&&) = delete;
     
 private:
-    VkCommandBuffer m_cmd_buffer;
+    VkCommandBuffer m_cmdBuffer;
     RHIVKContext* m_context;
-    Map<rhi::RHIImage*, RHIImageLayout> m_tracked_image_layouts;
+    Map<rhi::RHIImage*, RHIImageLayout> m_trackedImageLayouts;
 };
 
 } // namespace rhi::vulkan

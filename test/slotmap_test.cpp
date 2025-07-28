@@ -9,7 +9,7 @@ struct Velocity { float dx=0, dy=0; };
 TEST(SlotMapTest, AddAndGetSingleComponent) {
     SlotMap<Position> sm;
     auto h = sm.add(Position{1.0f, 2.0f});
-    ASSERT_TRUE(sm.is_valid(h));
+    ASSERT_TRUE(sm.isValid(h));
     auto* pos = sm.get<Position>(h);
     ASSERT_NE(pos, nullptr);
     EXPECT_FLOAT_EQ(pos->x, 1.0f);
@@ -19,7 +19,7 @@ TEST(SlotMapTest, AddAndGetSingleComponent) {
 TEST(SlotMapTest, AddAndGetMultipleComponents) {
     SlotMap<Position, Velocity> sm;
     auto h = sm.add(Position{1.0f, 2.0f}, Velocity{0.5f, 0.6f});
-    ASSERT_TRUE(sm.is_valid(h));
+    ASSERT_TRUE(sm.isValid(h));
     auto* pos = sm.get<Position>(h);
     auto* vel = sm.get<Velocity>(h);
     ASSERT_NE(pos, nullptr);
@@ -32,7 +32,7 @@ TEST(SlotMapTest, RemoveInvalidatesKey) {
     SlotMap<Position> sm;
     auto h = sm.add(Position{1.0f, 2.0f});
     sm.remove(h);
-    EXPECT_FALSE(sm.is_valid(h));
+    EXPECT_FALSE(sm.isValid(h));
     EXPECT_EQ(sm.get<Position>(h), nullptr);
 }
 
@@ -41,20 +41,20 @@ TEST(SlotMapTest, ReuseSlotAfterRemove) {
     auto h1 = sm.add(Position{1.0f, 2.0f});
     sm.remove(h1);
     auto h2 = sm.add(Position{3.0f, 4.0f});
-    ASSERT_TRUE(sm.is_valid(h2));
+    ASSERT_TRUE(sm.isValid(h2));
     auto* pos = sm.get<Position>(h2);
     ASSERT_NE(pos, nullptr);
     EXPECT_FLOAT_EQ(pos->x, 3.0f);
     EXPECT_FLOAT_EQ(pos->y, 4.0f);
-    EXPECT_FALSE(sm.is_valid(h1));
+    EXPECT_FALSE(sm.isValid(h1));
 }
 
 TEST(SlotMapTest, RawDataAccess) {
     SlotMap<Position, Velocity> sm;
     sm.add(Position{1, 2}, Velocity{3, 4});
     sm.add(Position{5, 6}, Velocity{7, 8});
-    const auto& positions = sm.raw_data<Position>();
-    const auto& velocities = sm.raw_data<Velocity>();
+    const auto& positions = sm.rawData<Position>();
+    const auto& velocities = sm.rawData<Velocity>();
     ASSERT_EQ(positions.size(), 2u);
     ASSERT_EQ(velocities.size(), 2u);
     EXPECT_EQ(positions[0].x, 1);
@@ -68,13 +68,13 @@ TEST(SlotMapTest, KeyValidityAfterMultipleAddRemove) {
     auto h3 = sm.add(Position{9, 10}, Velocity{11, 12});
 
     // All keys should be valid
-    ASSERT_TRUE(sm.is_valid(h1));
-    ASSERT_TRUE(sm.is_valid(h2));
-    ASSERT_TRUE(sm.is_valid(h3));
+    ASSERT_TRUE(sm.isValid(h1));
+    ASSERT_TRUE(sm.isValid(h2));
+    ASSERT_TRUE(sm.isValid(h3));
 
     // Remove the second key
     sm.remove(h2);
-    EXPECT_FALSE(sm.is_valid(h2));
+    EXPECT_FALSE(sm.isValid(h2));
     EXPECT_EQ(sm.get<Position>(h2), nullptr);
     EXPECT_EQ(sm.get<Velocity>(h2), nullptr);
 
@@ -99,12 +99,12 @@ TEST(SlotMapTest, KeyValidityAfterMultipleAddRemove) {
 
     // Remove h1, check validity
     sm.remove(h1);
-    EXPECT_FALSE(sm.is_valid(h1));
+    EXPECT_FALSE(sm.isValid(h1));
     EXPECT_EQ(sm.get<Position>(h1), nullptr);
     EXPECT_EQ(sm.get<Velocity>(h1), nullptr);
 
     // h3 should still be valid
-    ASSERT_TRUE(sm.is_valid(h3));
+    ASSERT_TRUE(sm.isValid(h3));
     pos3 = sm.get<Position>(h3);
     vel3 = sm.get<Velocity>(h3);
     ASSERT_NE(pos3, nullptr);
@@ -121,11 +121,11 @@ TEST(SlotMapTest, RemoveInvalidKeyIsNoOp) {
     auto h2 = sm.add(Position{5, 6}, Velocity{7, 8});
     sm.remove(h1);
     // h1 is now invalid
-    EXPECT_FALSE(sm.is_valid(h1));
+    EXPECT_FALSE(sm.isValid(h1));
     // Removing again should not throw or assert (should be a no-op)
     sm.remove(h1);
     // h2 should still be valid
-    EXPECT_TRUE(sm.is_valid(h2));
+    EXPECT_TRUE(sm.isValid(h2));
     auto* pos2 = sm.get<Position>(h2);
     auto* vel2 = sm.get<Velocity>(h2);
     ASSERT_NE(pos2, nullptr);
@@ -143,9 +143,9 @@ TEST(SlotMapTest, NullKeyProperties) {
     // Null key should not be valid in any slotmap
     SlotMap<Position> sm;
     auto h = sm.add(Position{1, 2});
-    EXPECT_FALSE(sm.is_valid(Key::null()));
-    // Null key should be detected by is_null()
-    EXPECT_TRUE(Key::null().is_null());
+    EXPECT_FALSE(sm.isValid(Key::null()));
+    // Null key should be detected by isNull()
+    EXPECT_TRUE(Key::null().isNull());
     // Null key should convert to false in boolean context
     EXPECT_FALSE(static_cast<bool>(Key::null()));
     // Null key should not be equal to a valid key
@@ -159,7 +159,7 @@ TEST(SlotMapTest, NullKeyProperties) {
 TEST(SlotMapTest, SlotMapViewSingleComponent) {
     SlotMap<Position> sm;
     auto h = sm.add(Position{10.0f, 20.0f});
-    ASSERT_TRUE(sm.is_valid(h));
+    ASSERT_TRUE(sm.isValid(h));
     auto view = sm.view<Position>();
     Position& pos = view[h];
     EXPECT_FLOAT_EQ(pos.x, 10.0f);
@@ -171,7 +171,7 @@ TEST(SlotMapTest, SlotMapViewSingleComponent) {
     EXPECT_FLOAT_EQ(cpos.x, 10.0f);
     EXPECT_FLOAT_EQ(cpos.y, 20.0f);
     // Raw data
-    const auto& data = view.raw_data();
+    const auto& data = view.rawData();
     ASSERT_EQ(data.size(), 1u);
     EXPECT_FLOAT_EQ(data[0].x, 10.0f);
     EXPECT_FLOAT_EQ(data[0].y, 20.0f);
@@ -180,38 +180,38 @@ TEST(SlotMapTest, SlotMapViewSingleComponent) {
 TEST(SlotMapTest, SlotMapViewMultipleComponents) {
     SlotMap<Position, Velocity> sm;
     auto h = sm.add(Position{5.0f, 6.0f}, Velocity{7.0f, 8.0f});
-    ASSERT_TRUE(sm.is_valid(h));
-    auto pos_view = sm.view<Position>();
-    auto vel_view = sm.view<Velocity>();
-    Position& pos = pos_view[h];
-    Velocity& vel = vel_view[h];
+    ASSERT_TRUE(sm.isValid(h));
+    auto posView = sm.view<Position>();
+    auto velView = sm.view<Velocity>();
+    Position& pos = posView[h];
+    Velocity& vel = velView[h];
     EXPECT_FLOAT_EQ(pos.x, 5.0f);
     EXPECT_FLOAT_EQ(pos.y, 6.0f);
     EXPECT_FLOAT_EQ(vel.dx, 7.0f);
     EXPECT_FLOAT_EQ(vel.dy, 8.0f);
     // Const version
     const auto& csm = sm;
-    auto cpos_view = csm.view<Position>();
-    auto cvel_view = csm.view<Velocity>();
-    const Position& cpos = cpos_view[h];
-    const Velocity& cvel = cvel_view[h];
+    auto cposView = csm.view<Position>();
+    auto cvelView = csm.view<Velocity>();
+    const Position& cpos = cposView[h];
+    const Velocity& cvel = cvelView[h];
     EXPECT_FLOAT_EQ(cpos.x, 5.0f);
     EXPECT_FLOAT_EQ(cpos.y, 6.0f);
     EXPECT_FLOAT_EQ(cvel.dx, 7.0f);
     EXPECT_FLOAT_EQ(cvel.dy, 8.0f);
     // Raw data
-    const auto& pos_data = pos_view.raw_data();
-    const auto& vel_data = vel_view.raw_data();
-    ASSERT_EQ(pos_data.size(), 1u);
-    ASSERT_EQ(vel_data.size(), 1u);
-    EXPECT_FLOAT_EQ(pos_data[0].x, 5.0f);
-    EXPECT_FLOAT_EQ(vel_data[0].dx, 7.0f);
+    const auto& posData = posView.rawData();
+    const auto& velData = velView.rawData();
+    ASSERT_EQ(posData.size(), 1u);
+    ASSERT_EQ(velData.size(), 1u);
+    EXPECT_FLOAT_EQ(posData[0].x, 5.0f);
+    EXPECT_FLOAT_EQ(velData[0].dx, 7.0f);
 }
 
 TEST(SlotMapTest, OperatorIndexFirstComponentMultipleTypes) {
     SlotMap<Position, Velocity> sm;
     auto h = sm.add(Position{5.0f, 6.0f}, Velocity{7.0f, 8.0f});
-    ASSERT_TRUE(sm.is_valid(h));
+    ASSERT_TRUE(sm.isValid(h));
     // operator[] returns first component (Position)
     Position& pos = sm[h];
     EXPECT_FLOAT_EQ(pos.x, 5.0f);
@@ -237,7 +237,7 @@ TEST(SlotMapTest, KeyValueIterationSingleComponent) {
     for (const auto& [key, pos] : sm) {
         found.push_back(pos);
         keys.push_back(key);
-        EXPECT_TRUE(sm.is_valid(key));
+        EXPECT_TRUE(sm.isValid(key));
     }
     ASSERT_EQ(found.size(), 2u);
     EXPECT_FLOAT_EQ(found[0].x, 1.0f);
@@ -255,7 +255,7 @@ TEST(SlotMapTest, KeyValueIterationMultipleComponents) {
     for (const auto& [key, pos] : sm) {
         found.push_back(pos);
         keys.push_back(key);
-        EXPECT_TRUE(sm.is_valid(key));
+        EXPECT_TRUE(sm.isValid(key));
     }
     ASSERT_EQ(found.size(), 2u);
     EXPECT_EQ(found[0].x + found[1].x, 6);
@@ -273,7 +273,7 @@ TEST(SlotMapTest, KeyValueIterationSlotMapView) {
     for (const auto& [key, vel] : view) {
         found.push_back(vel);
         keys.push_back(key);
-        EXPECT_TRUE(sm.is_valid(key));
+        EXPECT_TRUE(sm.isValid(key));
     }
     ASSERT_EQ(found.size(), 2u);
     EXPECT_EQ(found[0].dx + found[1].dx, 100);
@@ -286,7 +286,7 @@ TEST(SlotMapTest, RawDataIterationStillWorks) {
     sm.add(Position{1,2});
     sm.add(Position{3,4});
     std::vector<float> xs;
-    for (auto it = sm.raw_begin(); it != sm.raw_end(); ++it) {
+    for (auto it = sm.rawBegin(); it != sm.rawEnd(); ++it) {
         xs.push_back(it->x);
     }
     ASSERT_EQ(xs.size(), 2u);
@@ -304,7 +304,7 @@ TEST(SlotMapTest, ConstKeyValueIterationSlotMap) {
     for (const auto& [key, pos] : csm) {
         found.push_back(pos);
         keys.push_back(key);
-        EXPECT_TRUE(csm.is_valid(key));
+        EXPECT_TRUE(csm.isValid(key));
     }
     ASSERT_EQ(found.size(), 2u);
     EXPECT_EQ(found[0].x + found[1].x, 6);
@@ -323,7 +323,7 @@ TEST(SlotMapTest, ConstKeyValueIterationSlotMapView) {
     for (const auto& [key, vel] : cview) {
         found.push_back(vel);
         keys.push_back(key);
-        EXPECT_TRUE(csm.is_valid(key));
+        EXPECT_TRUE(csm.isValid(key));
     }
     ASSERT_EQ(found.size(), 2u);
     EXPECT_EQ(found[0].dx + found[1].dx, 100);
@@ -334,7 +334,7 @@ TEST(SlotMapTest, ConstKeyValueIterationSlotMapView) {
 TEST(SlotMapTest, AddDefaultConstructAllComponents) {
     SlotMap<Position, Velocity> sm;
     auto h = sm.add();
-    ASSERT_TRUE(sm.is_valid(h));
+    ASSERT_TRUE(sm.isValid(h));
     auto* pos = sm.get<Position>(h);
     auto* vel = sm.get<Velocity>(h);
     ASSERT_NE(pos, nullptr);
@@ -348,7 +348,7 @@ TEST(SlotMapTest, AddDefaultConstructAllComponents) {
 TEST(SlotMapTest, AddDefaultConstructMissingComponents) {
     SlotMap<Position, Velocity> sm;
     auto h = sm.add(Position{1.5f, 2.5f});
-    ASSERT_TRUE(sm.is_valid(h));
+    ASSERT_TRUE(sm.isValid(h));
     auto* pos = sm.get<Position>(h);
     auto* vel = sm.get<Velocity>(h);
     ASSERT_NE(pos, nullptr);

@@ -8,26 +8,26 @@ class RHIVKContext;
 
 class RHIVKImage : public RHIImage {
 public:
-    static UniquePtr<RHIVKImage> create_unique(
+    static UniquePtr<RHIVKImage> createUnique(
         RHIVKContext* context, 
         uint32 width, 
         uint32 height, 
         RHIFormat format, 
         RHIImageUsage usage, 
-        RHIMemoryProperty mem_props
+        RHIMemoryProperty memProps
     );
-    static UniquePtr<RHIVKImage> create_unique(
+    static UniquePtr<RHIVKImage> createUnique(
         RHIVKContext* context,
         VkImage image,
         uint32 width,
         uint32 height,
         RHIFormat format,
-        bool owns_image = true
+        bool ownsImage = true
     );
         
     ~RHIVKImage() override;
 
-    VkImage get_vk() const { return m_image; }
+    VkImage getVk() const { return m_image; }
     
 protected:
     RHIVKImage(
@@ -36,7 +36,7 @@ protected:
         uint32 height,
         RHIFormat format,
         RHIImageUsage usage,
-        RHIMemoryProperty mem_props
+        RHIMemoryProperty memProps
     );
     RHIVKImage(
         RHIVKContext* context,
@@ -44,7 +44,7 @@ protected:
         uint32 width,
         uint32 height,
         RHIFormat format,
-        bool owns_image = true
+        bool ownsImage = true
     );
     RHIVKImage(const RHIVKImage&) = delete;
     RHIVKImage& operator=(const RHIVKImage&) = delete;
@@ -54,7 +54,7 @@ protected:
 private:
     VkImage m_image;
     RHIVKContext* m_context;
-    bool m_owns_image; // If true, this class will manage the Vulkan image's lifetime
+    bool m_ownsImage; // If true, this class will manage the Vulkan image's lifetime
 };
 
 } // namespace rhi::vulkan

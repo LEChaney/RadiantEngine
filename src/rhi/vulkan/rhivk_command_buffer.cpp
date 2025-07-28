@@ -8,101 +8,102 @@
 
 namespace rhi::vulkan {
 
-UniquePtr<RHIVKCommandBuffer> RHIVKCommandBuffer::create_unique(RHIVKContext* context) {
+
+UniquePtr<RHIVKCommandBuffer> RHIVKCommandBuffer::createUnique(RHIVKContext* context) {
     return UniquePtr<RHIVKCommandBuffer>(new RHIVKCommandBuffer(context));
 }
 
 RHIVKCommandBuffer::RHIVKCommandBuffer(RHIVKContext* context)
     : m_context(context) 
 {
-    VkCommandBufferAllocateInfo alloc_info{};
-    alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    alloc_info.commandPool = context->get_vk_command_pool();
-    alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    alloc_info.commandBufferCount = 1;
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandPool = context->getVkCommandPool();
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandBufferCount = 1;
 
-    if (vkAllocateCommandBuffers(context->get_vk_device(), &alloc_info, &m_cmd_buffer) != VK_SUCCESS) {
+    if (vkAllocateCommandBuffers(context->getVkDevice(), &allocInfo, &m_cmdBuffer) != VK_SUCCESS) {
         throw std::runtime_error("Failed to allocate command buffer");
     }
 }
 
 RHIVKCommandBuffer::~RHIVKCommandBuffer() {
-    if (m_cmd_buffer && m_context) {
+    if (m_cmdBuffer && m_context) {
         vkFreeCommandBuffers(
-            m_context->get_vk_device(), 
-            m_context->get_vk_command_pool(), 
+            m_context->getVkDevice(), 
+            m_context->getVkCommandPool(), 
             1, 
-            &m_cmd_buffer);
+            &m_cmdBuffer);
     }
 }
 
 void RHIVKCommandBuffer::begin()
 {
-    VkCommandBufferBeginInfo begin_info{};
-    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    vkBeginCommandBuffer(m_cmd_buffer, &begin_info);
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    vkBeginCommandBuffer(m_cmdBuffer, &beginInfo);
 }
 
 void RHIVKCommandBuffer::end() {
-    vkEndCommandBuffer(m_cmd_buffer);
+    vkEndCommandBuffer(m_cmdBuffer);
 
     // After ending the command buffer, we can flush the tracked image layout states,
     // and store the last known layouts on the images.
-    for (const auto& [image, layout] : m_tracked_image_layouts) {
+    for (const auto& [image, layout] : m_trackedImageLayouts) {
         // TODO: Thread safety: How should this be handled? The image storage is really just convenience for tracking.
         // In a multi-threaded context, we might just not want to do this.
-        image->last_known_layout = layout;
+        image->m_lastKnownLayout = layout;
     }
-    m_tracked_image_layouts.clear();
+    m_trackedImageLayouts.clear();
 }
 
 void RHIVKCommandBuffer::reset()
 {
-    vkResetCommandBuffer(m_cmd_buffer, 0);
+    vkResetCommandBuffer(m_cmdBuffer, 0);
 }
 
-void RHIVKCommandBuffer::clear_color(RHIImage* image, const glm::vec4& color)
+void RHIVKCommandBuffer::clearColor(RHIImage* image, const glm::vec4& color)
 {
-    VkImage vk_image = static_cast<RHIVKImage*>(image)->get_vk();
-    VkClearColorValue clear_color{};
-    clear_color.float32[0] = color.r;
-    clear_color.float32[1] = color.g;
-    clear_color.float32[2] = color.b;
-    clear_color.float32[3] = color.a;
+    VkImage vkImage = static_cast<RHIVKImage*>(image)->getVk();
+    VkClearColorValue clearColor{};
+    clearColor.float32[0] = color.r;
+    clearColor.float32[1] = color.g;
+    clearColor.float32[2] = color.b;
+    clearColor.float32[3] = color.a;
     VkImageSubresourceRange range{};
     range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     range.baseMipLevel = 0;
     range.levelCount = 1;
     range.baseArrayLayer = 0;
     range.layerCount = 1;
-    vkCmdClearColorImage(m_cmd_buffer, vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_color, 1, &range);
+    vkCmdClearColorImage(m_cmdBuffer, vkImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearColor, 1, &range);
 }
 
-void RHIVKCommandBuffer::transition_image_layout(RHIImage *image, RHIImageLayout new_layout)
+void RHIVKCommandBuffer::transitionImageLayout(RHIImage *image, RHIImageLayout newLayout)
 {
-    RHIImageLayout old_layout;
-    if (m_tracked_image_layouts.contains(image)) {
-        old_layout = m_tracked_image_layouts[image];
+    RHIImageLayout oldLayout;
+    if (m_trackedImageLayouts.contains(image)) {
+        oldLayout = m_trackedImageLayouts[image];
     } else {
         // TODO: Assert if not main thread, this is not thread-safe
-        old_layout = image->last_known_layout;
+        oldLayout = image->m_lastKnownLayout;
     }
 
-    transition_image_layout(image, old_layout, new_layout);
+    transitionImageLayout(image, oldLayout, newLayout);
 }
 
-void RHIVKCommandBuffer::transition_image_layout(RHIImage* image, RHIImageLayout old_layout, RHIImageLayout new_layout) {
-    if (old_layout == new_layout) {
+void RHIVKCommandBuffer::transitionImageLayout(RHIImage* image, RHIImageLayout oldLayout, RHIImageLayout newLayout) {
+    if (oldLayout == newLayout) {
         // No transition needed
         return;
     }
 
-    VkImage vk_image = static_cast<RHIVKImage*>(image)->get_vk();
+    VkImage vkImage = static_cast<RHIVKImage*>(image)->getVk();
 
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     // Map RHI ImageLayout to Vulkan VkImageLayout
-    auto to_vk_layout = [](RHIImageLayout layout) {
+    auto toVkLayout = [](RHIImageLayout layout) {
         switch (layout) {
             case RHIImageLayout::Undefined: return VK_IMAGE_LAYOUT_UNDEFINED;
             case RHIImageLayout::General: return VK_IMAGE_LAYOUT_GENERAL;
@@ -113,11 +114,11 @@ void RHIVKCommandBuffer::transition_image_layout(RHIImage* image, RHIImageLayout
             default: return VK_IMAGE_LAYOUT_UNDEFINED;
         }
     };
-    barrier.oldLayout = to_vk_layout(old_layout);
-    barrier.newLayout = to_vk_layout(new_layout);
+    barrier.oldLayout = toVkLayout(oldLayout);
+    barrier.newLayout = toVkLayout(newLayout);
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image = vk_image;
+    barrier.image = vkImage;
     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = 1;
@@ -126,17 +127,17 @@ void RHIVKCommandBuffer::transition_image_layout(RHIImage* image, RHIImageLayout
     barrier.srcAccessMask = 0; // For simplicity, could be improved
     barrier.dstAccessMask = 0;
     vkCmdPipelineBarrier(
-        m_cmd_buffer,
+        m_cmdBuffer,
         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
         0, 0, nullptr, 0, nullptr, 1, &barrier);
 
-    m_tracked_image_layouts[image] = new_layout;
+    m_trackedImageLayouts[image] = newLayout;
 }
 
-void RHIVKCommandBuffer::copy_image_to_buffer(rhi::RHIImage* image, rhi::RHIBuffer* buffer, uint32_t width, uint32_t height) {
-    VkImage vk_image = static_cast<RHIVKImage*>(image)->get_vk();
-    VkBuffer vk_buffer = static_cast<RHIVKBuffer*>(buffer)->get_vk();
+void RHIVKCommandBuffer::copyImageToBuffer(rhi::RHIImage* image, rhi::RHIBuffer* buffer, uint32_t width, uint32_t height) {
+    VkImage vkImage = static_cast<RHIVKImage*>(image)->getVk();
+    VkBuffer vkBuffer = static_cast<RHIVKBuffer*>(buffer)->getVk();
     VkBufferImageCopy region{};
     region.bufferOffset = 0;
     region.bufferRowLength = 0;
@@ -147,7 +148,7 @@ void RHIVKCommandBuffer::copy_image_to_buffer(rhi::RHIImage* image, rhi::RHIBuff
     region.imageSubresource.layerCount = 1;
     region.imageOffset = {0, 0, 0};
     region.imageExtent = {width, height, 1};
-    vkCmdCopyImageToBuffer(m_cmd_buffer, vk_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, vk_buffer, 1, &region);
+    vkCmdCopyImageToBuffer(m_cmdBuffer, vkImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, vkBuffer, 1, &region);
 }
 
 } // namespace rhi::vulkan

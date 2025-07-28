@@ -7,53 +7,52 @@
 
 namespace rhi::vulkan {
 
-UniquePtr<RHIVKQueue> RHIVKQueue::create_unique(RHIVKContext* context, uint32 queue_family_index) {
-    return UniquePtr<RHIVKQueue>(new RHIVKQueue(context, queue_family_index));
+UniquePtr<RHIVKQueue> RHIVKQueue::createUnique(RHIVKContext* context, uint32 queueFamilyIndex) {
+    return UniquePtr<RHIVKQueue>(new RHIVKQueue(context, queueFamilyIndex));
 }
 
-RHIVKQueue::RHIVKQueue(RHIVKContext* context, uint32 queue_family_index)
-    : m_context(context), m_queue_family_index(queue_family_index)
+RHIVKQueue::RHIVKQueue(RHIVKContext* context, uint32 queueFamilyIndex)
+    : m_context(context), m_queueFamilyIndex(queueFamilyIndex)
 {
-    auto& device = context->get_vk_device();
-    vkGetDeviceQueue(device, m_queue_family_index, 0, &m_queue);
+    auto& device = context->getVkDevice();
+    vkGetDeviceQueue(device, m_queueFamilyIndex, 0, &m_queue);
 }
 
 RHIVKQueue::~RHIVKQueue() {
     // No explicit cleanup needed, Vulkan device destruction handles queue destruction
 }
 
-void RHIVKQueue::submit(const Array<RHICommandBuffer*>& command_buffers, RHIFence* fence, RHISemaphore* wait_semaphore) {
-    Array<VkCommandBuffer> vk_cmds;
-    for (auto* cmd : command_buffers) {
-        auto* vk_cmd = static_cast<RHIVKCommandBuffer*>(cmd);
-        vk_cmds.push_back(vk_cmd->get_vk());
+void RHIVKQueue::submit(const Array<RHICommandBuffer*>& commandBuffers, RHIFence* fence, RHISemaphore* waitSemaphore) {
+    Array<VkCommandBuffer> vkCmds;
+    for (auto* cmd : commandBuffers) {
+        auto* vkCmd = static_cast<RHIVKCommandBuffer*>(cmd);
+        vkCmds.push_back(vkCmd->getVk());
     }
-    VkSubmitInfo submit_info{};
-    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submit_info.commandBufferCount = static_cast<uint32_t>(vk_cmds.size());
-    submit_info.pCommandBuffers = vk_cmds.data();
-    if (wait_semaphore) {
-        VkSemaphore vk_wait_semaphore = static_cast<RHIVKSemaphore*>(wait_semaphore)->get_vk();
-        submit_info.waitSemaphoreCount = 1;
-        submit_info.pWaitSemaphores = &vk_wait_semaphore;
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = static_cast<uint32_t>(vkCmds.size());
+    submitInfo.pCommandBuffers = vkCmds.data();
+    if (waitSemaphore) {
+        VkSemaphore vkWaitSemaphore = static_cast<RHIVKSemaphore*>(waitSemaphore)->getVk();
+        submitInfo.waitSemaphoreCount = 1;
+        submitInfo.pWaitSemaphores = &vkWaitSemaphore;
     }
-    VkFence vk_fence = fence ? static_cast<RHIVKFence*>(fence)->get_vk() : VK_NULL_HANDLE;
-    vkQueueSubmit(m_queue, 1, &submit_info, vk_fence);
+    VkFence vkFence = fence ? static_cast<RHIVKFence*>(fence)->getVk() : VK_NULL_HANDLE;
+    vkQueueSubmit(m_queue, 1, &submitInfo, vkFence);
 }
 
-void RHIVKQueue::wait_idle() {
+void RHIVKQueue::waitIdle() {
     vkQueueWaitIdle(m_queue);
 }
 
-
-void RHIVKQueue::submit_and_wait(RHICommandBuffer* cmd) {
-    auto* vk_cmd = static_cast<RHIVKCommandBuffer*>(cmd);
-    VkCommandBuffer vk_cmd_buf = vk_cmd->get_vk();
-    VkSubmitInfo submit_info{};
-    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &vk_cmd_buf;
-    vkQueueSubmit(m_queue, 1, &submit_info, VK_NULL_HANDLE);
+void RHIVKQueue::submitAndWait(RHICommandBuffer* cmd) {
+    auto* vkCmd = static_cast<RHIVKCommandBuffer*>(cmd);
+    VkCommandBuffer vkCmdBuf = vkCmd->getVk();
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &vkCmdBuf;
+    vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE);
     vkQueueWaitIdle(m_queue);
 }
 

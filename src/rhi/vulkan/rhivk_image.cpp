@@ -5,26 +5,26 @@
 
 namespace rhi::vulkan {
 
-UniquePtr<RHIVKImage> RHIVKImage::create_unique(
-    RHIVKContext* context, 
-    uint32 width, 
-    uint32 height, 
-    RHIFormat format, 
-    RHIImageUsage usage, 
-    RHIMemoryProperty mem_props) 
+UniquePtr<RHIVKImage> RHIVKImage::createUnique(
+    RHIVKContext* context,
+    uint32 width,
+    uint32 height,
+    RHIFormat format,
+    RHIImageUsage usage,
+    RHIMemoryProperty memProps)
 {
-    return UniquePtr<RHIVKImage>(new RHIVKImage(context, width, height, format, usage, mem_props));
+    return UniquePtr<RHIVKImage>(new RHIVKImage(context, width, height, format, usage, memProps));
 }
 
-UniquePtr<RHIVKImage> RHIVKImage::create_unique(
+UniquePtr<RHIVKImage> RHIVKImage::createUnique(
     RHIVKContext* context,
     VkImage image,
     uint32 width,
     uint32 height,
     RHIFormat format,
-    bool owns_image) 
+    bool ownsImage)
 {
-    return UniquePtr<RHIVKImage>(new RHIVKImage(context, image, width, height, format, owns_image));
+    return UniquePtr<RHIVKImage>(new RHIVKImage(context, image, width, height, format, ownsImage));
 }
 
 RHIVKImage::RHIVKImage(
@@ -33,10 +33,9 @@ RHIVKImage::RHIVKImage(
     uint32 height,
     RHIFormat format,
     RHIImageUsage usage,
-    RHIMemoryProperty mem_props
-)
+    RHIMemoryProperty memProps)
     : RHIImage(width, height, format)
-    , m_context(context), m_owns_image(true)
+    , m_context(context), m_ownsImage(true)
 {
     // Vulkan image creation logic goes here
     // For example, create VkImage and allocate memory
@@ -47,17 +46,16 @@ RHIVKImage::RHIVKImage(
     RHIVKContext* context,
     VkImage image,
     uint32 width,
-    uint32 height, 
-    RHIFormat format, 
-    bool owns_image
-)
+    uint32 height,
+    RHIFormat format,
+    bool ownsImage)
     : RHIImage(width, height, format)
-    , m_image(image), m_context(context), m_owns_image(owns_image)
+    , m_image(image), m_context(context), m_ownsImage(ownsImage)
 {}
 
 RHIVKImage::~RHIVKImage() {
-    if (m_owns_image && m_image && m_context) {
-        vkDestroyImage(m_context->get_vk_device(), m_image, nullptr);
+    if (m_ownsImage && m_image && m_context) {
+        vkDestroyImage(m_context->getVkDevice(), m_image, nullptr);
     }
 }
 

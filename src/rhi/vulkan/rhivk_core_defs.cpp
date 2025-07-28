@@ -1,7 +1,7 @@
 #include "rhivk_core_defs.h"
 
 namespace rhi::vulkan {
-const Map<RHIFormat, VkFormat> g_rhi_to_vk_format = {
+const Map<RHIFormat, VkFormat> g_rhiToVkFormat = {
     {RHIFormat::RHI_FORMAT_UNDEFINED, VK_FORMAT_UNDEFINED},
     {RHIFormat::RHI_FORMAT_R4G4_UNORM_PACK8, VK_FORMAT_R4G4_UNORM_PACK8},
     {RHIFormat::RHI_FORMAT_R4G4B4A4_UNORM_PACK16, VK_FORMAT_R4G4B4A4_UNORM_PACK16},
@@ -254,18 +254,18 @@ const Map<RHIFormat, VkFormat> g_rhi_to_vk_format = {
     {RHIFormat::RHI_FORMAT_R16G16_SFIXED5_NV, VK_FORMAT_R16G16_SFIXED5_NV}
 };
 
-Map<VkFormat, RHIFormat> create_vk_to_rhi_format_map()
+Map<VkFormat, RHIFormat> createVkToRhiFormatMap()
 {
     Map<VkFormat, RHIFormat> map;
-    for (const auto& pair : g_rhi_to_vk_format) {
+    for (const auto& pair : g_rhiToVkFormat) {
         map[pair.second] = pair.first;
     }
     return map;
 }
 
-const Map<VkFormat, RHIFormat> g_vk_to_rhi_format = create_vk_to_rhi_format_map();
+const Map<VkFormat, RHIFormat> g_vkToRhiFormat = createVkToRhiFormatMap();
 
-const Map<RHIColorSpace, VkColorSpaceKHR> color_space_map = {
+const Map<RHIColorSpace, VkColorSpaceKHR> colorSpaceMap = {
     {RHIColorSpace::RHI_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR},
     {RHIColorSpace::RHI_COLOR_SPACE_DISPLAY_P3_NONLINEAR_EXT, VK_COLOR_SPACE_DISPLAY_P3_NONLINEAR_EXT},
     {RHIColorSpace::RHI_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT, VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT},
@@ -284,64 +284,64 @@ const Map<RHIColorSpace, VkColorSpaceKHR> color_space_map = {
     {RHIColorSpace::RHI_COLOR_SPACE_DISPLAY_NATIVE_AMD, VK_COLOR_SPACE_DISPLAY_NATIVE_AMD},
 };
 
-Map<VkColorSpaceKHR, RHIColorSpace> create_vk_to_rhi_color_map()
+Map<VkColorSpaceKHR, RHIColorSpace> createVkToRhiColorMap()
 {
     Map<VkColorSpaceKHR, RHIColorSpace> map;
-    for (const auto& pair : color_space_map) {
+    for (const auto& pair : colorSpaceMap) {
         map[pair.second] = pair.first;
     }
     return map;
 }
 
-VkFormat to_vk_format(RHIFormat fmt)
+VkFormat toVkFormat(RHIFormat fmt)
 {
-    auto it = g_rhi_to_vk_format.find(fmt);
-    if (it != g_rhi_to_vk_format.end()) {
+    auto it = g_rhiToVkFormat.find(fmt);
+    if (it != g_rhiToVkFormat.end()) {
         return it->second;
     }
     return VK_FORMAT_UNDEFINED;
 }
 
-RHIFormat to_rhi_format(VkFormat fmt)
+RHIFormat toRhiFormat(VkFormat fmt)
 {
-    auto it = g_vk_to_rhi_format.find(fmt);
-    if (it != g_vk_to_rhi_format.end()) {
+    auto it = g_vkToRhiFormat.find(fmt);
+    if (it != g_vkToRhiFormat.end()) {
         return it->second;
     }
     return RHIFormat::RHI_FORMAT_UNDEFINED;
 }
 
-VkColorSpaceKHR to_vk_color_space(RHIColorSpace cs)
+VkColorSpaceKHR toVkColorSpace(RHIColorSpace cs)
 {
-    auto it = color_space_map.find(cs);
-    if (it != color_space_map.end()) {
+    auto it = colorSpaceMap.find(cs);
+    if (it != colorSpaceMap.end()) {
         return it->second;
     }
     return VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 }
 
-RHIColorSpace to_rhi_color_space(VkColorSpaceKHR cs)
+RHIColorSpace toRhiColorSpace(VkColorSpaceKHR cs)
 {
-    auto it = create_vk_to_rhi_color_map().find(cs);
-    if (it != create_vk_to_rhi_color_map().end()) {
+    auto it = createVkToRhiColorMap().find(cs);
+    if (it != createVkToRhiColorMap().end()) {
         return it->second;
     }
     return RHIColorSpace::RHI_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 }
 
-VkSurfaceFormatKHR to_vk_surface_format(const RHISurfaceFormat &fmt)
+VkSurfaceFormatKHR toVkSurfaceFormat(const RHISurfaceFormat &fmt)
 {
     VkSurfaceFormatKHR vkfmt{};
-    vkfmt.format = to_vk_format(fmt.format);
-    vkfmt.colorSpace = to_vk_color_space(fmt.color_space);
+    vkfmt.format = toVkFormat(fmt.format);
+    vkfmt.colorSpace = toVkColorSpace(fmt.color_space);
     return vkfmt;
 }
 
-RHISurfaceFormat to_rhi_surface_format(const VkSurfaceFormatKHR &vkfmt)
+RHISurfaceFormat toRhiSurfaceFormat(const VkSurfaceFormatKHR &vkfmt)
 {
     RHISurfaceFormat fmt{};
-    fmt.format = to_rhi_format(vkfmt.format);
-    fmt.color_space = to_rhi_color_space(vkfmt.colorSpace);
+    fmt.format = toRhiFormat(vkfmt.format);
+    fmt.color_space = toRhiColorSpace(vkfmt.colorSpace);
     return fmt;
 }
 

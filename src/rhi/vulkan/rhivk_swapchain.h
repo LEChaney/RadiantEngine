@@ -2,7 +2,6 @@
 // TODO: Forward declarations
 #include "rhi/vulkan/rhivk_context.h"
 #include "rhi/vulkan/rhivk_command_buffer.h"
-#include "rhi/vulkan/rhivk_swapchain.h"
 #include "rhi/vulkan/rhivk_image_view.h"
 #include "rhi/vulkan/rhivk_image.h"
 #include "rhi/vulkan/rhivk_semaphore.h"
@@ -13,26 +12,27 @@
 
 class SDL_Window;
 
-namespace rhi {
-namespace vulkan {
+namespace rhi::vulkan {
 class RHIVKSwapchain : public RHISwapchain {
 public:
-    static UniquePtr<RHIVKSwapchain> create_unique(
+
+    static UniquePtr<RHIVKSwapchain> createUnique(
         RHIVKContext* context, 
         SDL_Window* window, 
         uint32_t width, 
         uint32_t height, 
-        uint32_t image_count);
+        uint32_t imageCount);
     ~RHIVKSwapchain() override;
 
-    RHIFrame acquire_next_frame() override;
+    RHIFrame acquireNextFrame() override;
     void present(const RHIFrame& frame) override;
-    uint32_t image_count() const override;
+    uint32_t imageCount() const override;
     void resize(uint32_t width, uint32_t height) override;
 
-    RHIFormat get_format() const override;
-    RHIColorSpace get_color_space() const override;
-    RHISurfaceFormat get_surface_format() const override;
+    RHIFormat getFormat() const override;
+    RHIColorSpace getColorSpace() const override;
+    RHISurfaceFormat getSurfaceFormat() const override;
+
 
 protected:
     RHIVKSwapchain(RHIVKContext* 
@@ -40,25 +40,24 @@ protected:
         SDL_Window* window, 
         uint32_t width, 
         uint32_t height, 
-        uint32_t image_count);
+        uint32_t imageCount);
     RHIVKSwapchain(const RHIVKSwapchain&) = delete;
     RHIVKSwapchain& operator=(const RHIVKSwapchain&) = delete;
     RHIVKSwapchain(RHIVKSwapchain&&) = delete;
     RHIVKSwapchain& operator=(RHIVKSwapchain&&) = delete;
 
 private:
-    RHIVKContext* m_rhi_context;
-    Array<UniquePtr<RHIVKCommandBuffer>> m_rhi_command_buffers;
-    Array<UniquePtr<RHIVKImage>> m_rhi_images;
-    Array<UniquePtr<RHIVKImageView>> m_rhi_image_views;
-    Array<UniquePtr<RHIVKSemaphore>> m_used_rhi_acquire_semaphores;
-    Array<UniquePtr<RHIVKSemaphore>> m_free_rhi_acquire_semaphores;
-    Array<UniquePtr<RHIVKFence>> m_rhi_fences;
+    RHIVKContext* m_rhiContext;
+    Array<UniquePtr<RHIVKCommandBuffer>> m_rhiCommandBuffers;
+    Array<UniquePtr<RHIVKImage>> m_rhiImages;
+    Array<UniquePtr<RHIVKImageView>> m_rhiImageViews;
+    Array<UniquePtr<RHIVKSemaphore>> m_usedRhiAcquireSemaphores;
+    Array<UniquePtr<RHIVKSemaphore>> m_freeRhiAcquireSemaphores;
+    Array<UniquePtr<RHIVKFence>> m_rhiFences;
     VkSurfaceKHR m_surface;
-    VkSurfaceFormatKHR m_surface_format;
+    VkSurfaceFormatKHR m_surfaceFormat;
     VkSwapchainKHR m_swapchain;
-    uint32_t m_image_count;
-    uint32_t m_image_index;
+    uint32_t m_imageCount;
+    uint32_t m_imageIndex;
 };
-} // namespace vulkan
-} // namespace rhi
+} // namespace rhi::vulkan

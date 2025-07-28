@@ -8,14 +8,14 @@ namespace rhi::vulkan {
 
 class RHIVKFence : public rhi::RHIFence {
 public:
-    static UniquePtr<RHIVKFence> create_unique(RHIVKContext* context);
+    static UniquePtr<RHIVKFence> createUnique(RHIVKContext* context);
     ~RHIVKFence();
 
-    const VkFence& get_vk() const { return m_fence; }
+    const VkFence& getVk() const { return m_fence; }
 
     void wait() override;
     void reset() override;
-    bool is_signaled() const override;
+    bool isSignaled() const override;
 
 protected:
     RHIVKFence(RHIVKContext* context);

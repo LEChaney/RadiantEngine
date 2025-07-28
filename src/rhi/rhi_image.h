@@ -7,13 +7,13 @@ class RHIImage {
 public:  
     virtual ~RHIImage() = default;
 
-    uint32 get_width() const { return m_width; }
-    uint32 get_height() const { return m_height; }
-    RHIFormat get_format() const { return m_format; }
+    uint32 getWidth() const { return m_width; }
+    uint32 getHeight() const { return m_height; }
+    RHIFormat getFormat() const { return m_format; }
 
     // Track last submitted layout for image, useful for tracking
     // the current layout at the start of command buffer recording.
-    RHIImageLayout last_known_layout = RHIImageLayout::Undefined;
+    RHIImageLayout m_lastKnownLayout = RHIImageLayout::Undefined;
 
 protected:
     // Only derived context or implementation should create RHIImage objects
