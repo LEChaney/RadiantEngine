@@ -115,7 +115,7 @@ RHIVKSwapchain::RHIVKSwapchain(
             m_rhiContext,
             m_rhiImages[i].get()
         );
-        m_rhiCommandBuffers[i] = context->createVkCommandBuffer();
+        m_rhiCommandBuffers[i] = context->createRhiVkCommandBuffer();
     }
     m_swapchain = swapchain;
     m_imageIndex = 0;

@@ -7,10 +7,14 @@
 #include "rhi/vulkan/rhivk_semaphore.h"
 #include "rhi/vulkan/rhivk_core_defs.h"
 #include "rhi/rhi_swapchain.h"
+#include "rhivk_context.h"
+
+#define VMA_IMPLEMENTATION
+#include "vk_mem_alloc.h"
+
 #include "fmt/format.h"
 #include <iostream>
 #include <cstring>
-#include "rhivk_context.h"
 
 namespace rhi::vulkan {
 
@@ -88,16 +92,27 @@ UniquePtr<RHIVKContext> RHIVKContext::createUnique(bool enableValidation) {
 }
 
 RHIVKContext::RHIVKContext(bool enableValidation)
-    : m_validationEnabled(enableValidation || gk_defaultEnableValidation) 
+    : m_validationEnabled(enableValidation || gk_defaultEnableValidation)
 {
     createInstance();
     setupDebugMessenger();
     pickPhysicalDevice();
     createLogicalDevice();
     createCommandPool();
+
+    // Create VMA allocator
+    VmaAllocatorCreateInfo allocatorInfo{};
+    allocatorInfo.physicalDevice = m_physicalDevice;
+    allocatorInfo.device = m_device;
+    allocatorInfo.instance = m_instance;
+    vmaCreateAllocator(&allocatorInfo, &m_vmaAllocator);
 }
 
 RHIVKContext::~RHIVKContext() {
+    if (m_vmaAllocator) {
+        vmaDestroyAllocator(m_vmaAllocator);
+        m_vmaAllocator = VK_NULL_HANDLE;
+    }
     if (m_commandPool) vkDestroyCommandPool(m_device, m_commandPool, nullptr);
     if (m_device) vkDestroyDevice(m_device, nullptr);
     if (m_validationEnabled && m_debugMessenger) {
@@ -277,50 +292,50 @@ RHIVKQueue* RHIVKContext::getVkGraphicsQueue() {
 }
 
 UniquePtr<RHICommandBuffer> RHIVKContext::createCommandBuffer() {
-    return createVkCommandBuffer();
+    return createRhiVkCommandBuffer();
 }
 
 UniquePtr<RHIFence> RHIVKContext::createFence() {
-    return createVkFence();
+    return createRhiVkFence();
 }
 
 UniquePtr<RHISemaphore> RHIVKContext::createSemaphore() {
-    return createVkSemaphore();
+    return createRhiVkSemaphore();
 }
 
 UniquePtr<RHISwapchain> RHIVKContext::createSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount) {
-    return createVkSwapchain(window, width, height, imageCount);
+    return createRhiVkSwapchain(window, width, height, imageCount);
 }
 
 UniquePtr<RHIBuffer> RHIVKContext::createBuffer(uint64 size, RHIBufferUsage usage, RHIMemoryProperty memProps) {
-    return createVkBuffer(size, usage, memProps);
+    return createRhiVkBuffer(size, usage, memProps);
 }
 
 UniquePtr<RHIImage> RHIVKContext::createImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsage usage, RHIMemoryProperty memProps) {
-    return createVkImage(width, height, format, usage, memProps);
+    return createRhiVkImage(width, height, format, usage, memProps);
 }
 
-UniquePtr<RHIVKCommandBuffer> RHIVKContext::createVkCommandBuffer() {
+UniquePtr<RHIVKCommandBuffer> RHIVKContext::createRhiVkCommandBuffer() {
     return RHIVKCommandBuffer::createUnique(this);
 }
 
-UniquePtr<RHIVKFence> RHIVKContext::createVkFence() {
+UniquePtr<RHIVKFence> RHIVKContext::createRhiVkFence() {
     return RHIVKFence::createUnique(this);
 }
 
-UniquePtr<RHIVKSemaphore> RHIVKContext::createVkSemaphore() {
+UniquePtr<RHIVKSemaphore> RHIVKContext::createRhiVkSemaphore() {
     return RHIVKSemaphore::createUnique(this);
 }
 
-UniquePtr<RHIVKSwapchain> RHIVKContext::createVkSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount) {
+UniquePtr<RHIVKSwapchain> RHIVKContext::createRhiVkSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount) {
     return RHIVKSwapchain::createUnique(this, window, width, height, imageCount);
 }
 
-UniquePtr<RHIVKBuffer> RHIVKContext::createVkBuffer(uint64 size, RHIBufferUsage usage, RHIMemoryProperty memProps) {
+UniquePtr<RHIVKBuffer> RHIVKContext::createRhiVkBuffer(uint64 size, RHIBufferUsage usage, RHIMemoryProperty memProps) {
     return RHIVKBuffer::createUnique(this, size, usage, memProps);
 }
 
-UniquePtr<RHIVKImage> RHIVKContext::createVkImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsage usage, RHIMemoryProperty memProps) {
+UniquePtr<RHIVKImage> RHIVKContext::createRhiVkImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsage usage, RHIMemoryProperty memProps) {
     return RHIVKImage::createUnique(this, width, height, format, usage, memProps);
 }
 

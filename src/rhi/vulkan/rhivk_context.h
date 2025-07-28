@@ -1,4 +1,5 @@
 #pragma once
+#include <vk_mem_alloc.h>
 #include "rhi/rhi_context.h"
 #include "core/core_defs.h"
 #include <vulkan/vulkan.h>
@@ -33,18 +34,18 @@ public:
     UniquePtr<RHICommandBuffer> createCommandBuffer() override;
     UniquePtr<RHIFence> createFence() override;
     UniquePtr<RHISemaphore> createSemaphore() override;
-    UniquePtr<RHISwapchain> createSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 bufferCount) override;
+    UniquePtr<RHISwapchain> createSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount) override;
     UniquePtr<RHIBuffer> createBuffer(uint64 size, RHIBufferUsage usage, RHIMemoryProperty memProps) override;
     UniquePtr<RHIImage> createImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsage usage, RHIMemoryProperty memProps) override;
 
     // Vulkan RHI factory methods
-    UniquePtr<RHIVKCommandBuffer> createVkCommandBuffer();
-    UniquePtr<RHIVKFence> createVkFence();
-    UniquePtr<RHIVKSemaphore> createVkSemaphore();
-    UniquePtr<RHIVKSwapchain> createVkSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount);
-    UniquePtr<RHIVKBuffer> createVkBuffer(uint64 size, RHIBufferUsage usage, RHIMemoryProperty memProps);
-    // TODO: Finish implementation of createVkImage
-    UniquePtr<RHIVKImage> createVkImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsage usage, RHIMemoryProperty memProps);
+    UniquePtr<RHIVKCommandBuffer> createRhiVkCommandBuffer();
+    UniquePtr<RHIVKFence> createRhiVkFence();
+    UniquePtr<RHIVKSemaphore> createRhiVkSemaphore();
+    UniquePtr<RHIVKSwapchain> createRhiVkSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount);
+    UniquePtr<RHIVKBuffer> createRhiVkBuffer(uint64 size, RHIBufferUsage usage, RHIMemoryProperty memProps);
+    // TODO: Finish implementation of createRhiVkImage
+    UniquePtr<RHIVKImage> createRhiVkImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsage usage, RHIMemoryProperty memProps);
 
     // Vulkan object accessors
     const VkInstance& getVkInstance() const { return m_instance; }
@@ -52,8 +53,11 @@ public:
     const VkDevice& getVkDevice() const { return m_device; }
     const VkCommandPool& getVkCommandPool() const { return m_commandPool; }
 
+    // VMA allocator accessors
+    VmaAllocator getVmaAllocator() const { return m_vmaAllocator; }
+
     // Set a custom validation callback (thread-unsafe, for test/dev only)
-    static void setValidationCallback(ValidationCallback cb);
+    static void setValidationCallback(ValidationCallback callback);
 
 protected:
     RHIVKContext(bool enableValidation = false);
@@ -68,13 +72,14 @@ private:
     void createLogicalDevice();
     void createCommandPool();
     void setupDebugMessenger();
+    
     bool m_validationEnabled = false;
-
     VkInstance m_instance{};
     VkPhysicalDevice m_physicalDevice{};
     VkDevice m_device{};
     VkCommandPool m_commandPool{};
     VkDebugUtilsMessengerEXT m_debugMessenger{};
+    VmaAllocator m_vmaAllocator = VK_NULL_HANDLE;
 
     UniquePtr<RHIVKQueue> m_rhiGraphicsQueue;
 };

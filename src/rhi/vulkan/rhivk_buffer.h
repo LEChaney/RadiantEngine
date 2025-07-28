@@ -2,6 +2,7 @@
 #include "rhi/rhi_buffer.h"
 #include "rhi/vulkan/rhivk_core_defs.h"
 #include "core/core_defs.h"
+#include "vk_mem_alloc.h"
 #include <vulkan/vulkan.h>
 
 namespace rhi::vulkan {
@@ -26,10 +27,11 @@ protected:
     RHIVKBuffer& operator=(RHIVKBuffer&&) = delete;
 
 private:
-    RHIVKContext* m_context;
-    VkBuffer m_buffer;
-    VkDeviceMemory m_memory;
-    uint64 m_size;
+    RHIVKContext* m_context = nullptr;
+    VkBuffer m_buffer = VK_NULL_HANDLE;
+    VmaAllocation m_allocation = VK_NULL_HANDLE;
+    VkDeviceMemory m_memory = VK_NULL_HANDLE;
+    uint64 m_size = 0;
 };
 
 } // namespace rhi::vulkan

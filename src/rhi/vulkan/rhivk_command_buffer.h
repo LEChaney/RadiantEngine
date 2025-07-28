@@ -20,6 +20,11 @@ public:
     static UniquePtr<RHIVKCommandBuffer> createUnique(RHIVKContext* context);
     ~RHIVKCommandBuffer() override;
 
+    RHIVKCommandBuffer(const RHIVKCommandBuffer&) = delete;
+    RHIVKCommandBuffer& operator=(const RHIVKCommandBuffer&) = delete;
+    RHIVKCommandBuffer(RHIVKCommandBuffer&&) = delete;
+    RHIVKCommandBuffer& operator=(RHIVKCommandBuffer&&) = delete;
+
     void begin() override;
     void end() override;
     void reset() override;
@@ -34,15 +39,10 @@ public:
 
 protected:
     RHIVKCommandBuffer(RHIVKContext* context);
-    RHIVKCommandBuffer(const RHIVKCommandBuffer&) = delete;
-    RHIVKCommandBuffer& operator=(const RHIVKCommandBuffer&) = delete;
-    RHIVKCommandBuffer(RHIVKCommandBuffer&&) = delete;
-    RHIVKCommandBuffer& operator=(RHIVKCommandBuffer&&) = delete;
     
-private:
-    VkCommandBuffer m_cmdBuffer;
-    RHIVKContext* m_context;
-    Map<rhi::RHIImage*, RHIImageLayout> m_trackedImageLayouts;
+    VkCommandBuffer m_cmdBuffer = VK_NULL_HANDLE;
+    RHIVKContext* m_context = nullptr;
+    Map<rhi::RHIImage*, RHIImageLayout> m_trackedImageLayouts{};
 };
 
 } // namespace rhi::vulkan
