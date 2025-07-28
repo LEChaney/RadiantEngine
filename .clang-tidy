@@ -35,6 +35,7 @@ Checks:
   # - '-misc-static-assert'
   # - '-misc-unused-parameters'
   # - '-modernize-use-auto'
+  - '-modernize-use-designated-initializers'
   - '-modernize-use-nodiscard'
   # - '-modernize-use-using'
   - '-modernize-use-trailing-return-type'
