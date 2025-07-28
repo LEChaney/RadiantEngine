@@ -6,10 +6,12 @@
 #include "glm/vec4.hpp"
 #include <vulkan/vulkan.h>
 
-class rhi::RHIImage;
-class rhi::RHIBuffer;
+namespace rhi {
 
-namespace rhi::vulkan {
+class RHIImage;
+class RHIBuffer;
+
+namespace vulkan {
 
 class RHIVKContext;
 
@@ -44,3 +46,4 @@ private:
 };
 
 } // namespace rhi::vulkan
+} // namespace rhi
