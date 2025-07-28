@@ -38,6 +38,7 @@ Checks:
   # - '-modernize-use-using'
   - '-modernize-use-trailing-return-type'
   # - '-performance-enum-size'
+  - '-readability-uppercase-literal-suffix'
   # - '-readability-braces-around-statements'
   # - '-readability-function-cognitive-complexity'
   - '-readability-implicit-bool-conversion'
