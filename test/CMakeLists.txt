@@ -104,7 +104,7 @@ add_executable(rhi_vulkan_test
 set_property(TARGET rhi_vulkan_test PROPERTY CXX_STANDARD 20)
 set_target_properties(rhi_vulkan_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${TEST_OUTPUT_DIRECTORY}")
 target_include_directories(rhi_vulkan_test PRIVATE "${CMAKE_SOURCE_DIR}/src")
-target_link_libraries(rhi_vulkan_test PRIVATE GTest::gtest GTest::gtest_main Vulkan::Vulkan fmt::fmt SDL2::SDL2 glm unordered_dense)
+target_link_libraries(rhi_vulkan_test PRIVATE GTest::gtest GTest::gtest_main Vulkan::Vulkan fmt::fmt SDL2::SDL2 glm unordered_dense vma)
 if (WIN32)
   add_custom_command(TARGET rhi_vulkan_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:rhi_vulkan_test> $<TARGET_FILE_DIR:rhi_vulkan_test>
