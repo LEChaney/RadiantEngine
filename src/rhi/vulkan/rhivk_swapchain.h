@@ -47,17 +47,17 @@ protected:
     RHIVKSwapchain& operator=(RHIVKSwapchain&&) = delete;
 
 private:
-    RHIVKContext* m_rhiContext;
+    RHIVKContext* m_rhiContext = nullptr;
     Array<UniquePtr<RHIVKCommandBuffer>> m_rhiCommandBuffers;
     Array<UniquePtr<RHIVKImage>> m_rhiImages;
     Array<UniquePtr<RHIVKImageView>> m_rhiImageViews;
     Array<UniquePtr<RHIVKSemaphore>> m_usedRhiAcquireSemaphores;
     Array<UniquePtr<RHIVKSemaphore>> m_freeRhiAcquireSemaphores;
     Array<UniquePtr<RHIVKFence>> m_rhiFences;
-    VkSurfaceKHR m_surface;
-    VkSurfaceFormatKHR m_surfaceFormat;
-    VkSwapchainKHR m_swapchain;
-    uint32_t m_imageCount;
-    uint32_t m_imageIndex;
+    VkSurfaceKHR m_surface = VK_NULL_HANDLE;
+    VkSurfaceFormatKHR m_surfaceFormat = {};
+    VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
+    uint32_t m_imageCount = 0;
+    uint32_t m_imageIndex = 0;
 };
 } // namespace rhi::vulkan

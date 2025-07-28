@@ -51,9 +51,9 @@ RHIVKSwapchain::RHIVKSwapchain(
 
     // Preferred formats in order (Hardcoded for now)
     // TODO: Support HDR formats and more flexible format selection
-    const VkSurfaceFormatKHR preferredFormats[] = {
-        { VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR },
-        { VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR },
+    const StaticArray<VkSurfaceFormatKHR, 2> preferredFormats = {
+        VkSurfaceFormatKHR{ VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR },
+        VkSurfaceFormatKHR{ VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR },
     };
 
     m_surfaceFormat = formats[0];
@@ -66,7 +66,9 @@ RHIVKSwapchain::RHIVKSwapchain(
                 break;
             }
         }
-        if (found) break;
+        if (found) {
+            break;
+        }
     }
 
     VkSwapchainCreateInfoKHR swapchainInfo{};

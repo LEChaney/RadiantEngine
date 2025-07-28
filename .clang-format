@@ -30,9 +30,9 @@ SpaceInEmptyParentheses: false
 PointerAlignment: Left
 AlignAfterOpenBracket: DontAlign
 AllowAllParametersOfDeclarationOnNextLine : false
-AllowAllArgumentsOnNextLine: true
-BinPackParameters: false
-BinPackArguments: false
+AllowAllArgumentsOnNextLine: false
+BinPackParameters: true
+BinPackArguments: true
 AlwaysBreakTemplateDeclarations: Yes
 NamespaceIndentation: None
 AccessModifierOffset: -4

@@ -18,10 +18,6 @@ RHIVKQueue::RHIVKQueue(RHIVKContext* context, uint32 queueFamilyIndex)
     vkGetDeviceQueue(device, m_queueFamilyIndex, 0, &m_queue);
 }
 
-RHIVKQueue::~RHIVKQueue() {
-    // No explicit cleanup needed, Vulkan device destruction handles queue destruction
-}
-
 void RHIVKQueue::submit(const Array<RHICommandBuffer*>& commandBuffers, RHIFence* fence, RHISemaphore* waitSemaphore) {
     Array<VkCommandBuffer> vkCmds;
     for (auto* cmd : commandBuffers) {

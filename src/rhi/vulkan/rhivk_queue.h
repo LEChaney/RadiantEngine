@@ -11,7 +11,7 @@ class RHIVKContext;
 class RHIVKQueue : public RHIQueue {
 public:
     static UniquePtr<RHIVKQueue> createUnique(RHIVKContext* context, uint32 queueFamilyIndex);
-    ~RHIVKQueue() override;
+    ~RHIVKQueue() = default;
 
     void submit(const Array<RHICommandBuffer*>& commandBuffers, RHIFence* fence, RHISemaphore* waitSemaphore) override;
     void waitIdle() override;
@@ -28,9 +28,9 @@ protected:
     RHIVKQueue& operator=(RHIVKQueue&&) = delete;
 
 private:
-    VkQueue m_queue;
-    uint32 m_queueFamilyIndex;
-    RHIVKContext* m_context;
+    VkQueue m_queue = VK_NULL_HANDLE;
+    uint32 m_queueFamilyIndex = 0;
+    RHIVKContext* m_context = nullptr;
 };
 
 } // namespace rhi::vulkan

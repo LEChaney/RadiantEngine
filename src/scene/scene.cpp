@@ -1,5 +1,6 @@
 #include "scene.h"
-#include <cassert>
+#include "core/core_defs.h"
+#include <algorithm>
 
 // SceneNode and SceneNodeKey are defined in scene.h
 
@@ -42,8 +43,8 @@ SceneNodeKey Scene::addNode(SceneNodeKey parentKey, const std::string& name) {
 
 void Scene::removeNode(SceneNodeKey nodeKey, bool removeAllDescendants)
 {
-    assert(!nodeKey.isNull() && "Node key cannot be null");
-    assert(nodeKey != rootKey && "Cannot remove root node");
+    ASSERT(!nodeKey.isNull() && "Node key cannot be null");
+    ASSERT(nodeKey != rootKey && "Cannot remove root node");
 
     SceneNode& node = nodes[nodeKey];
 
@@ -61,7 +62,7 @@ void Scene::removeNode(SceneNodeKey nodeKey, bool removeAllDescendants)
 
     // Remove node from parent's childrenKeys
     auto& siblings = parentNode.childrenKeys;
-    auto it = std::find(siblings.begin(), siblings.end(), nodeKey);
+    auto it = std::ranges::find(siblings, nodeKey);
     if (it != siblings.end()) {
         std::swap(*it, siblings.back());
         siblings.pop_back();
@@ -86,16 +87,16 @@ void Scene::removeNode(SceneNodeKey nodeKey, bool removeAllDescendants)
 }
 
 void Scene::attachNode(SceneNodeKey nodeKey, SceneNodeKey newParentKey) {
-    assert(!nodeKey.isNull() && "Node key cannot be null");
-    assert(!newParentKey.isNull() && "New parent key cannot be null");
-    assert(nodeKey != rootKey && "Cannot attach root node to another parent");
+    ASSERT(!nodeKey.isNull() && "Node key cannot be null");
+    ASSERT(!newParentKey.isNull() && "New parent key cannot be null");
+    ASSERT(nodeKey != rootKey && "Cannot attach root node to another parent");
 
     SceneNode& node = nodes[nodeKey];
     SceneNodeKey oldParentKey = node.parentKey;
     SceneNode& oldParent = nodes[oldParentKey];
     auto& siblings = oldParent.childrenKeys;
     // Remove nodeKey from siblings using swap-and-pop for efficiency
-    auto it = std::find(siblings.begin(), siblings.end(), nodeKey);
+    auto it = std::ranges::find(siblings, nodeKey);
     if (it != siblings.end()) {
         std::swap(*it, siblings.back());
         siblings.pop_back();
@@ -164,7 +165,7 @@ glm::mat4 Scene::getWorldTransform(SceneNodeKey nodeKey, bool updateIfDirty) con
 {
     const SceneNode& node = nodes[nodeKey];
     if (updateIfDirty && node.dirty) {
-        assert(false && 
+        ASSERT(false && 
                "This should not be called with updateIfDirty=true on const Scene, "
                "use non-const version to update transforms");
     }
@@ -322,7 +323,7 @@ void Scene::finalizeAndNotify() {
     propagateTransforms();
     // Notify observers of changed nodes
     for (auto* observer : observers) {
-        assert(observer && "Observer should not be null");
+        ASSERT(observer && "Observer should not be null");
         if (!changedNodes.empty()) {
             observer->onSceneNodesChanged(changedNodes);
         }
@@ -335,15 +336,15 @@ void Scene::finalizeAndNotify() {
 
 // Observer registration implementations
 void Scene::addObserver(ISceneObserver* observer) {
-    if (observer && std::find(observers.begin(), observers.end(), observer) == observers.end()) {
+    if (observer && std::ranges::find(observers, observer) == observers.end()) {
         observers.push_back(observer);
     }
 }
 
 void Scene::removeObserver(ISceneObserver* observer) {
-    auto it = std::remove(observers.begin(), observers.end(), observer);
-    if (it != observers.end()) {
-        observers.erase(it, observers.end());
+    auto [begin, end] = std::ranges::remove(observers, observer);
+    if (begin != end) {
+        observers.erase(begin, end);
     }
 }
 

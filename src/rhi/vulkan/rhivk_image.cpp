@@ -10,8 +10,8 @@ UniquePtr<RHIVKImage> RHIVKImage::createUnique(
     uint32 width,
     uint32 height,
     RHIFormat format,
-    RHIImageUsage usage,
-    RHIMemoryProperty memProps)
+    RHIImageUsageFlags usage,
+    RHIMemoryPropertyFlags memProps)
 {
     return UniquePtr<RHIVKImage>(new RHIVKImage(context, width, height, format, usage, memProps));
 }
@@ -32,8 +32,8 @@ RHIVKImage::RHIVKImage(
     uint32 width,
     uint32 height,
     RHIFormat format,
-    RHIImageUsage usage,
-    RHIMemoryProperty memProps)
+    RHIImageUsageFlags usage,
+    RHIMemoryPropertyFlags memProps)
     : RHIImage(width, height, format)
     , m_context(context), m_ownsImage(true)
 {

@@ -7,11 +7,11 @@
 namespace rhi::vulkan {
 
 
-UniquePtr<RHIVKBuffer> RHIVKBuffer::createUnique(RHIVKContext *context, uint64 size, RHIBufferUsage usage, RHIMemoryProperty memProps) {
+UniquePtr<RHIVKBuffer> RHIVKBuffer::createUnique(RHIVKContext *context, uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps) {
     return UniquePtr<RHIVKBuffer>(new RHIVKBuffer(context, size, usage, memProps));
 }
 
-RHIVKBuffer::RHIVKBuffer(RHIVKContext* context, uint64 size, RHIBufferUsage usage, RHIMemoryProperty memProps)
+RHIVKBuffer::RHIVKBuffer(RHIVKContext* context, uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps)
     : m_context(context)
     , m_size(size)
 {

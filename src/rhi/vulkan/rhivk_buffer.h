@@ -11,7 +11,7 @@ class RHIVKContext;
 
 class RHIVKBuffer : public RHIBuffer {
 public:
-    static UniquePtr<RHIVKBuffer> createUnique(RHIVKContext* context, uint64 size, RHIBufferUsage usage, RHIMemoryProperty memProps);
+    static UniquePtr<RHIVKBuffer> createUnique(RHIVKContext* context, uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps);
     ~RHIVKBuffer() override;
 
     void* map() override;
@@ -20,7 +20,7 @@ public:
     VkBuffer getVk() const { return m_buffer; }
 
 protected:
-    RHIVKBuffer(RHIVKContext* context, uint64 size, RHIBufferUsage usage, RHIMemoryProperty memProps);
+    RHIVKBuffer(RHIVKContext* context, uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps);
     RHIVKBuffer(const RHIVKBuffer&) = delete;
     RHIVKBuffer& operator=(const RHIVKBuffer&) = delete;
     RHIVKBuffer(RHIVKBuffer&&) = delete;

@@ -13,8 +13,8 @@ public:
         uint32 width, 
         uint32 height, 
         RHIFormat format, 
-        RHIImageUsage usage, 
-        RHIMemoryProperty memProps
+        RHIImageUsageFlags usage, 
+        RHIMemoryPropertyFlags memProps
     );
     static UniquePtr<RHIVKImage> createUnique(
         RHIVKContext* context,
@@ -35,8 +35,8 @@ protected:
         uint32 width,
         uint32 height,
         RHIFormat format,
-        RHIImageUsage usage,
-        RHIMemoryProperty memProps
+        RHIImageUsageFlags usage,
+        RHIMemoryPropertyFlags memProps
     );
     RHIVKImage(
         RHIVKContext* context,
@@ -52,9 +52,9 @@ protected:
     RHIVKImage& operator=(RHIVKImage&&) = delete;
 
 private:
-    VkImage m_image;
-    RHIVKContext* m_context;
-    bool m_ownsImage; // If true, this class will manage the Vulkan image's lifetime
+    VkImage m_image = VK_NULL_HANDLE;
+    RHIVKContext* m_context = nullptr;
+    bool m_ownsImage = false; // If true, this class will manage the Vulkan image's lifetime
 };
 
 } // namespace rhi::vulkan

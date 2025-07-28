@@ -18,7 +18,7 @@ bool readImageToCpu(
     Array<uint8>& outData,
     bool restoreLayout)
 {
-    const size_t imageSize = width * height * 4;
+    const uint64 imageSize = static_cast<uint64>(width) * height * 4;
     // 1. Create a host-visible staging buffer
     auto stagingBuffer = context->createBuffer(
         imageSize,

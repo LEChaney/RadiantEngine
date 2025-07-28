@@ -9,7 +9,7 @@ SceneKey SceneManager::addScene() {
 }
 
 void SceneManager::removeScene(SceneKey scene) {
-    auto it = std::find(activeScenes.begin(), activeScenes.end(), scene);
+    auto it = std::ranges::find(activeScenes, scene);
     if (it != activeScenes.end()) {
         // Remove at swap
         std::iter_swap(it, activeScenes.end() - 1);
@@ -44,14 +44,14 @@ void SceneManager::setActiveScenes(const std::vector<SceneKey>& scenesKeys) {
 }
 
 void SceneManager::addObserver(ISceneManagerObserver* observer) {
-    if (observer && std::find(observers.begin(), observers.end(), observer) == observers.end()) {
+    if (observer && std::ranges::find(observers, observer) == observers.end()) {
         observers.push_back(observer);
     }
 }
 
 void SceneManager::removeObserver(ISceneManagerObserver* observer) {
-    auto it = std::remove(observers.begin(), observers.end(), observer);
-    if (it != observers.end()) {
-        observers.erase(it, observers.end());
+    auto [begin, end] = std::ranges::remove(observers, observer);
+    if (begin != end) {
+        observers.erase(begin, end);
     }
 }

@@ -630,12 +630,12 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
     // Partition draws for parallel recording
     size_t total_draws = all_draws.size();
     size_t chunk = (total_draws + NUM_PARALLEL_GEOMETRY_CMDS - 1) / NUM_PARALLEL_GEOMETRY_CMDS;
-    std::vector<parallel::ParallelTask> tasks;
+    std::vector<Parallel::ParallelTask> tasks;
     for (unsigned int t = 0; t < NUM_PARALLEL_GEOMETRY_CMDS; ++t) {
         size_t begin = t * chunk;
         size_t end = std::min(begin + chunk, total_draws);
         if (begin >= end) break;
-        tasks.push_back(parallel::ParallelTask{
+        tasks.push_back(Parallel::ParallelTask{
             [this, &all_draws, begin, end, &sceneDataDescriptorSet, &frame, &draw_renderobjects](VkCommandBuffer subcmd) {
                 // Begin secondary command buffer
                 VkCommandBufferInheritanceRenderingInfo inheritanceRenderingInfo{};
@@ -686,7 +686,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
         });
     }
     // Record in parallel
-    parallel::record_parallel(tasks, std::vector<VkCommandBuffer>(frame.geometryCommandBuffers, frame.geometryCommandBuffers + tasks.size()));
+    Parallel::recordParallel(tasks, std::vector<VkCommandBuffer>(frame.geometryCommandBuffers, frame.geometryCommandBuffers + tasks.size()));
 
     // Execute all secondary command buffers from the main command buffer
     std::vector<VkCommandBuffer> secondary_cmds(tasks.size());

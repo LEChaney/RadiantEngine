@@ -1,7 +1,10 @@
 #include "rhivk_core_defs.h"
 
 namespace rhi::vulkan {
-const Map<RHIFormat, VkFormat> g_rhiToVkFormat = {
+
+namespace {
+
+const Map<RHIFormat, VkFormat> gk_rhiToVkFormat = {
     {RHIFormat::RHI_FORMAT_UNDEFINED, VK_FORMAT_UNDEFINED},
     {RHIFormat::RHI_FORMAT_R4G4_UNORM_PACK8, VK_FORMAT_R4G4_UNORM_PACK8},
     {RHIFormat::RHI_FORMAT_R4G4B4A4_UNORM_PACK16, VK_FORMAT_R4G4B4A4_UNORM_PACK16},
@@ -257,15 +260,15 @@ const Map<RHIFormat, VkFormat> g_rhiToVkFormat = {
 Map<VkFormat, RHIFormat> createVkToRhiFormatMap()
 {
     Map<VkFormat, RHIFormat> map;
-    for (const auto& pair : g_rhiToVkFormat) {
+    for (const auto& pair : gk_rhiToVkFormat) {
         map[pair.second] = pair.first;
     }
     return map;
 }
 
-const Map<VkFormat, RHIFormat> g_vkToRhiFormat = createVkToRhiFormatMap();
+const Map<VkFormat, RHIFormat> gk_vkToRhiFormat = createVkToRhiFormatMap();
 
-const Map<RHIColorSpace, VkColorSpaceKHR> colorSpaceMap = {
+const Map<RHIColorSpace, VkColorSpaceKHR> gk_colorSpaceMap = {
     {RHIColorSpace::RHI_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR},
     {RHIColorSpace::RHI_COLOR_SPACE_DISPLAY_P3_NONLINEAR_EXT, VK_COLOR_SPACE_DISPLAY_P3_NONLINEAR_EXT},
     {RHIColorSpace::RHI_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT, VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT},
@@ -283,20 +286,22 @@ const Map<RHIColorSpace, VkColorSpaceKHR> colorSpaceMap = {
     {RHIColorSpace::RHI_COLOR_SPACE_EXTENDED_SRGB_NONLINEAR_EXT, VK_COLOR_SPACE_EXTENDED_SRGB_NONLINEAR_EXT},
     {RHIColorSpace::RHI_COLOR_SPACE_DISPLAY_NATIVE_AMD, VK_COLOR_SPACE_DISPLAY_NATIVE_AMD},
 };
-
+    
 Map<VkColorSpaceKHR, RHIColorSpace> createVkToRhiColorMap()
 {
     Map<VkColorSpaceKHR, RHIColorSpace> map;
-    for (const auto& pair : colorSpaceMap) {
+    for (const auto& pair : gk_colorSpaceMap) {
         map[pair.second] = pair.first;
     }
     return map;
 }
 
+} // anonymous namespace
+
 VkFormat toVkFormat(RHIFormat fmt)
 {
-    auto it = g_rhiToVkFormat.find(fmt);
-    if (it != g_rhiToVkFormat.end()) {
+    auto it = gk_rhiToVkFormat.find(fmt);
+    if (it != gk_rhiToVkFormat.end()) {
         return it->second;
     }
     return VK_FORMAT_UNDEFINED;
@@ -304,8 +309,8 @@ VkFormat toVkFormat(RHIFormat fmt)
 
 RHIFormat toRhiFormat(VkFormat fmt)
 {
-    auto it = g_vkToRhiFormat.find(fmt);
-    if (it != g_vkToRhiFormat.end()) {
+    auto it = gk_vkToRhiFormat.find(fmt);
+    if (it != gk_vkToRhiFormat.end()) {
         return it->second;
     }
     return RHIFormat::RHI_FORMAT_UNDEFINED;
@@ -313,8 +318,8 @@ RHIFormat toRhiFormat(VkFormat fmt)
 
 VkColorSpaceKHR toVkColorSpace(RHIColorSpace cs)
 {
-    auto it = colorSpaceMap.find(cs);
-    if (it != colorSpaceMap.end()) {
+    auto it = gk_colorSpaceMap.find(cs);
+    if (it != gk_colorSpaceMap.end()) {
         return it->second;
     }
     return VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;

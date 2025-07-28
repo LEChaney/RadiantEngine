@@ -23,8 +23,8 @@ protected:
     RHIVKSemaphore& operator=(RHIVKSemaphore&&) = delete;
 
 private:
-    VkSemaphore m_semaphore;
-    RHIVKContext* m_context;
+    VkSemaphore m_semaphore = VK_NULL_HANDLE;
+    RHIVKContext* m_context = nullptr;
 };
 
 } // namespace rhi::vulkan

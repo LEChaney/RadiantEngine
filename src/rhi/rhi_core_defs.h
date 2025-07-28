@@ -29,29 +29,9 @@ enum class RHIMemoryProperty : uint32 {
     // ... add more as needed
 };
 
-inline RHIBufferUsage operator|(RHIBufferUsage a, RHIBufferUsage b) {
-    return static_cast<RHIBufferUsage>(static_cast<uint32>(a) | static_cast<uint32>(b));
-}
-
-inline RHIBufferUsage operator&(RHIBufferUsage a, RHIBufferUsage b) {
-    return static_cast<RHIBufferUsage>(static_cast<uint32>(a) & static_cast<uint32>(b));
-}
-
-inline RHIImageUsage operator|(RHIImageUsage a, RHIImageUsage b) {
-    return static_cast<RHIImageUsage>(static_cast<uint32>(a) | static_cast<uint32>(b));
-}
-
-inline RHIImageUsage operator&(RHIImageUsage a, RHIImageUsage b) {
-    return static_cast<RHIImageUsage>(static_cast<uint32>(a) & static_cast<uint32>(b));
-}
-
-inline RHIMemoryProperty operator|(RHIMemoryProperty a, RHIMemoryProperty b) {
-    return static_cast<RHIMemoryProperty>(static_cast<uint32>(a) | static_cast<uint32>(b));
-}
-
-inline RHIMemoryProperty operator&(RHIMemoryProperty a, RHIMemoryProperty b) {
-    return static_cast<RHIMemoryProperty>(static_cast<uint32>(a) & static_cast<uint32>(b));
-}
+DECLARE_FLAGS(RHIBufferUsage, RHIBufferUsageFlags)
+DECLARE_FLAGS(RHIImageUsage, RHIImageUsageFlags)
+DECLARE_FLAGS(RHIMemoryProperty, RHIMemoryPropertyFlags)
 
 enum class RHIImageLayout {
     Undefined,

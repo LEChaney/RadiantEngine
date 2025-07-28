@@ -47,6 +47,47 @@ using Map = ankerl::unordered_dense::map<Key, T>;
 template<typename T>
 using Set = ankerl::unordered_dense::set<T>;
 
+// Generic flags wrapper for enum bitfields
+template<typename Enum>
+class Flags {
+public:
+    using Underlying = std::underlying_type_t<Enum>;
+
+    constexpr Flags() : m_bits(0) {}
+    constexpr Flags(Underlying bits) : m_bits(bits) {}
+
+    // Implicit conversion from Enum to Flags
+    constexpr Flags& operator=(Enum bit) { m_bits = static_cast<Underlying>(bit); return *this; }
+    constexpr Flags(const Enum& bit) : m_bits(static_cast<Underlying>(bit)) {}
+
+    constexpr Flags operator|(Enum bit) const { return Flags(m_bits | static_cast<Underlying>(bit)); }
+    constexpr Flags operator|(Flags other) const { return Flags(m_bits | other.m_bits); }
+    constexpr Flags operator&(Enum bit) const { return Flags(m_bits & static_cast<Underlying>(bit)); }
+    constexpr Flags operator&(Flags other) const { return Flags(m_bits & other.m_bits); }
+    constexpr Flags operator~() const { return Flags(~m_bits); }
+
+    Flags& operator|=(Enum bit) { m_bits |= static_cast<Underlying>(bit); return *this; }
+    Flags& operator|=(Flags other) { m_bits |= other.m_bits; return *this; }
+    Flags& operator&=(Enum bit) { m_bits &= static_cast<Underlying>(bit); return *this; }
+    Flags& operator&=(Flags other) { m_bits &= other.m_bits; return *this; }
+
+    constexpr bool operator==(Flags other) const { return m_bits == other.m_bits; }
+    constexpr bool operator!=(Flags other) const { return m_bits != other.m_bits; }
+    constexpr explicit operator bool() const { return m_bits != 0; }
+    constexpr Underlying bits() const { return m_bits; }
+
+    constexpr bool test(Enum bit) const { return (m_bits & static_cast<Underlying>(bit)) != 0; }
+
+private:
+    Underlying m_bits;
+};
+
+// Helper macro for defining flag types
+#define DECLARE_FLAGS(EnumType, FlagsType) \
+    using FlagsType = Flags<EnumType>;         \
+    inline FlagsType operator|(EnumType a, EnumType b) { return FlagsType(a) | b; } \
+    inline FlagsType operator&(EnumType a, EnumType b) { return FlagsType(a) & b; }
+
 // Assertion macro (crashes in debug, does nothing in release)
 #define ASSERT(expr) assert(expr)
 

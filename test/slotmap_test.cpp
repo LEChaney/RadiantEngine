@@ -151,7 +151,7 @@ TEST(SlotMapTest, NullKeyProperties) {
     // Null key should not be equal to a valid key
     EXPECT_NE(h, Key::null());
     // Null key should be trivially copyable and constexpr
-    static_assert(std::is_trivially_copyable<Key>::value, "Key should be trivially copyable");
+    static_assert(std::is_trivially_copyable_v<Key>, "Key should be trivially copyable");
     constexpr Key nh = Key::null();
     (void)nh;
 }

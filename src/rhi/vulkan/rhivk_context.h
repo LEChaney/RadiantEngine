@@ -35,17 +35,17 @@ public:
     UniquePtr<RHIFence> createFence() override;
     UniquePtr<RHISemaphore> createSemaphore() override;
     UniquePtr<RHISwapchain> createSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount) override;
-    UniquePtr<RHIBuffer> createBuffer(uint64 size, RHIBufferUsage usage, RHIMemoryProperty memProps) override;
-    UniquePtr<RHIImage> createImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsage usage, RHIMemoryProperty memProps) override;
+    UniquePtr<RHIBuffer> createBuffer(uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps) override;
+    UniquePtr<RHIImage> createImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsageFlags usage, RHIMemoryPropertyFlags memProps) override;
 
     // Vulkan RHI factory methods
     UniquePtr<RHIVKCommandBuffer> createRhiVkCommandBuffer();
     UniquePtr<RHIVKFence> createRhiVkFence();
     UniquePtr<RHIVKSemaphore> createRhiVkSemaphore();
     UniquePtr<RHIVKSwapchain> createRhiVkSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount);
-    UniquePtr<RHIVKBuffer> createRhiVkBuffer(uint64 size, RHIBufferUsage usage, RHIMemoryProperty memProps);
+    UniquePtr<RHIVKBuffer> createRhiVkBuffer(uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps);
     // TODO: Finish implementation of createRhiVkImage
-    UniquePtr<RHIVKImage> createRhiVkImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsage usage, RHIMemoryProperty memProps);
+    UniquePtr<RHIVKImage> createRhiVkImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsageFlags usage, RHIMemoryPropertyFlags memProps);
 
     // Vulkan object accessors
     const VkInstance& getVkInstance() const { return m_instance; }

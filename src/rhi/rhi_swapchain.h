@@ -1,5 +1,5 @@
 #pragma once
-#include <cstdint>
+#include "core/core_defs.h"
 
 namespace rhi {
 class RHIImage;
@@ -10,7 +10,7 @@ class RHIFence;
 class RHISwapchain {
 public:
     struct RHIFrame {
-        uint32_t imageIndex;
+        uint32 imageIndex;
         RHIImage* image;
         RHIImageView* imageView;
         RHICommandBuffer* commandBuffer;
@@ -19,8 +19,8 @@ public:
 
     virtual RHIFrame acquireNextFrame() = 0;
     virtual void present(const RHIFrame& frame) = 0;
-    virtual uint32_t imageCount() const = 0;
-    virtual void resize(uint32_t width, uint32_t height) = 0;
+    virtual uint32 imageCount() const = 0;
+    virtual void resize(uint32 width, uint32 height) = 0;
 
     virtual RHIFormat getFormat() const = 0;
     virtual RHIColorSpace getColorSpace() const = 0;

@@ -25,8 +25,8 @@ protected:
     RHIVKFence& operator=(RHIVKFence&&) = delete;
 
 private:
-    VkFence m_fence;
-    RHIVKContext* m_context;
+    VkFence m_fence = VK_NULL_HANDLE;
+    RHIVKContext* m_context = nullptr;
 };
 
 } // namespace rhi::vulkan
