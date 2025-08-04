@@ -4,6 +4,7 @@
 #include "core/core_defs.h"
 #include <vulkan/vulkan.h>
 #include <functional>
+#include <string>
 
 namespace rhi::vulkan {
 
@@ -14,6 +15,11 @@ class RHIVKSemaphore;
 class RHIVKSwapchain;
 class RHIVKBuffer;
 class RHIVKImage;
+class RHIVKShaderModule;
+class RHIVKPipeline;
+class RHIVKDescriptorSetLayoutBuilder;
+class RHIVKDescriptorSetBuilder;
+class RHIVKDescriptorSetBuilder;
 
 class RHIVKContext : public RHIContext {
 public:
@@ -42,6 +48,10 @@ public:
     UniquePtr<RHISwapchain> createSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount) override;
     UniquePtr<RHIBuffer> createBuffer(uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps) override;
     UniquePtr<RHIImage> createImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsageFlags usage, RHIMemoryPropertyFlags memProps) override;
+    UniquePtr<RHIShaderModule> createShaderModule(const std::string& spvFilePath) override;
+    UniquePtr<RHIPipeline> createComputePipeline(RHIShaderModule* shaderModule) override;
+    UniquePtr<RHIDescriptorSetLayoutBuilder> createDescriptorSetLayoutBuilder() override;
+    UniquePtr<RHIDescriptorSetBuilder> createDescriptorSetBuilder() override;
 
     // Vulkan RHI factory methods
     UniquePtr<RHIVKCommandBuffer> createRhiVkCommandBuffer();
@@ -51,6 +61,10 @@ public:
     UniquePtr<RHIVKBuffer> createRhiVkBuffer(uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps);
     // TODO: Finish implementation of createRhiVkImage
     UniquePtr<RHIVKImage> createRhiVkImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsageFlags usage, RHIMemoryPropertyFlags memProps);
+    UniquePtr<RHIVKShaderModule> createRhiVkShaderModule(const std::string& spvFilePath);
+    UniquePtr<RHIVKPipeline> createRhiVkComputePipeline(RHIShaderModule* shaderModule);
+    UniquePtr<RHIVKDescriptorSetLayoutBuilder> createRhiVkDescriptorSetLayoutBuilder();
+    UniquePtr<RHIVKDescriptorSetBuilder> createRhiVkDescriptorSetBuilder();
 
     // Vulkan object accessors
     const VkInstance& getVkInstance() const { return m_instance; }

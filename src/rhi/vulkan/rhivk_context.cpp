@@ -3,6 +3,7 @@
 #include "rhi/vulkan/rhivk_command_buffer.h"
 #include "rhi/vulkan/rhivk_swapchain.h"
 #include "rhi/vulkan/rhivk_buffer.h"
+#include "rhi/vulkan/rhivk_descriptor_set_layout_builder.h"
 #include "rhi/vulkan/rhivk_fence.h"
 #include "rhi/vulkan/rhivk_semaphore.h"
 #include "rhi/vulkan/rhivk_core_defs.h"
@@ -322,6 +323,25 @@ UniquePtr<RHISemaphore> RHIVKContext::createSemaphore() {
     return createRhiVkSemaphore();
 }
 
+UniquePtr<RHIShaderModule> RHIVKContext::createShaderModule(const std::string& spvFilePath) {
+    throw std::runtime_error("Shader modules not implemented yet");
+    // return createRhiVkShaderModule(spvFilePath);
+}
+
+UniquePtr<RHIPipeline> RHIVKContext::createComputePipeline(RHIShaderModule* shaderModule) {
+    throw std::runtime_error("Compute pipelines not implemented yet");
+    // return createRhiVkComputePipeline(shaderModule);
+}
+
+UniquePtr<RHIDescriptorSetLayoutBuilder> RHIVKContext::createDescriptorSetLayoutBuilder() {
+    return createRhiVkDescriptorSetLayoutBuilder();
+}
+
+UniquePtr<RHIDescriptorSetBuilder> RHIVKContext::createDescriptorSetBuilder() {
+    throw std::runtime_error("Descriptor set builder not implemented yet");
+    //return createRhiVkDescriptorSetBuilder();
+}
+
 UniquePtr<RHISwapchain> RHIVKContext::createSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount) {
     return createRhiVkSwapchain(window, width, height, imageCount);
 }
@@ -356,6 +376,29 @@ UniquePtr<RHIVKBuffer> RHIVKContext::createRhiVkBuffer(uint64 size, RHIBufferUsa
 
 UniquePtr<RHIVKImage> RHIVKContext::createRhiVkImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsageFlags usage, RHIMemoryPropertyFlags memProps) {
     return RHIVKImage::createUnique(this, width, height, format, usage, memProps);
+}
+
+UniquePtr<RHIVKShaderModule> RHIVKContext::createRhiVkShaderModule(
+    const std::string& spvFilePath) 
+{
+    throw std::runtime_error("Shader modules not implemented yet");
+    //return RHIVKShaderModule::createUnique(this, spvFilePath);
+}
+
+UniquePtr<RHIVKPipeline> RHIVKContext::createRhiVkComputePipeline(
+    RHIShaderModule* shaderModule) 
+{
+    throw std::runtime_error("Compute pipelines not implemented yet");
+    // return RHIVKPipeline::createUniqueCompute(this, shaderModule);
+}
+
+UniquePtr<RHIVKDescriptorSetLayoutBuilder> RHIVKContext::createRhiVkDescriptorSetLayoutBuilder() {
+    return RHIVKDescriptorSetLayoutBuilder::createUnique(this);
+}
+
+UniquePtr<RHIVKDescriptorSetBuilder> RHIVKContext::createRhiVkDescriptorSetBuilder() {
+    throw std::runtime_error("Descriptor set builder not implemented yet");
+    //return RHIVKDescriptorSetBuilder::createUnique(this);
 }
 
 } // namespace rhi::vulkan

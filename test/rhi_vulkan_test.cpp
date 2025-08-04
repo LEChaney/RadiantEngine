@@ -4,6 +4,8 @@
 #include "rhi/rhi_command_buffer.h"
 #include "rhi/rhi_queue.h"
 #include "rhi/rhi_swapchain.h"
+#include "rhi/rhi_descriptor_set_layout_builder.h"
+#include "rhi/rhi_descriptor_set_layout.h"
 #include "rhi/rhi_fence.h"
 #include "fmt/format.h"
 #include "core/core_defs.h"
@@ -14,10 +16,8 @@
 
 #include "rhi/rhi_image_utils.h"
 
-using rhi::RHIContext;
+using namespace rhi;
 using rhi::vulkan::RHIVKContext;
-using rhi::RHIImageView;
-using rhi::RHIImageLayout;
 
 // Helper to capture validation messages
 void validationMsgCollector(const char* msg, RHIVKContext::ValidationLevel level) {
@@ -187,16 +187,16 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
         // --- Validate clear color using read_image_to_cpu ---
         // Get image size (assuming swapchain exposes width/height or use known values)
         uint32_t width = 640, height = 480;
-        std::vector<uint8_t> imageData;
+        std::vector<uint8> imageData;
         bool readBackOk = rhi::readImageToCpu(m_context.get(), frameData.image, width, height, imageData);
         ASSERT_TRUE(readBackOk) << "Failed to read back image data from GPU";
         ASSERT_EQ(imageData.size(), width * height * 4);
 
         // Convert clearColor to uint8 RGBA
-        uint8_t expectedR = static_cast<uint8_t>(clearColor.r * 255.0f);
-        uint8_t expectedG = static_cast<uint8_t>(clearColor.g * 255.0f);
-        uint8_t expectedB = static_cast<uint8_t>(clearColor.b * 255.0f);
-        uint8_t expectedA = static_cast<uint8_t>(clearColor.a * 255.0f);
+        uint8 expectedR = static_cast<uint8>(clearColor.r * 255.0f);
+        uint8 expectedG = static_cast<uint8>(clearColor.g * 255.0f);
+        uint8 expectedB = static_cast<uint8>(clearColor.b * 255.0f);
+        uint8 expectedA = static_cast<uint8>(clearColor.a * 255.0f);
 
         // Check a few sample pixels (corners and center)
         auto checkPixel = [&](uint32_t x, uint32_t y) {
@@ -231,4 +231,98 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
     }
 
     ASSERT_TRUE(checkedAtLeastOneFrame) << "No valid frames were tested";
+}
+
+TEST_F(RHIVulkanTestWithSDLAndSwap, ComputeClearColorWithWriter) {
+    // 1. Create descriptor set layout
+    auto setLayoutBuilder = m_context->createDescriptorSetLayoutBuilder();
+    setLayoutBuilder->addBinding(0, RHIDescriptorType::StorageImage);
+    auto setLayout = setLayoutBuilder->build(RHIShaderStage::Compute);
+
+    // // 2. Create pipeline layout with push constant range
+    // auto layoutBuilder = m_context->createPipelineLayoutBuilder();
+    // layoutBuilder->addDescriptorSetLayout(setLayout.get());
+    // layoutBuilder->addPushConstantRange(rhi::ShaderStage::Compute, 0, sizeof(glm::vec4));
+    // auto pipelineLayout = layoutBuilder->build();
+
+    // // 3. Create compute shader module
+    // auto shaderModule = m_context->createShaderModule("shaders/clear.comp.spv");
+    // ASSERT_NE(shaderModule, nullptr);
+
+    // // 4. Create compute pipeline
+    // rhi::ComputePipelineDesc pipelineDesc;
+    // pipelineDesc.layout = pipelineLayout.get();
+    // pipelineDesc.shaderModule = shaderModule.get();
+    // auto computePipeline = m_context->createComputePipeline(pipelineDesc);
+    // ASSERT_NE(computePipeline, nullptr);
+
+    // // 5. Acquire swapchain frame
+    // auto frame = m_swapchain->acquireNextFrame();
+    // ASSERT_NE(frame.commandBuffer, nullptr);
+    // ASSERT_NE(frame.image, nullptr);
+
+    // // 6. Create descriptor set using Writer
+    // auto writer = m_context->createDescriptorSetWriter(setLayout.get());
+    // writer->bindImage(0, frame.image, rhi::RHIDescriptorType::StorageImage);
+    // auto descriptorSet = writer->build();
+
+    // // 7. Wait for previous frame
+    // frame.fence->wait();
+    // frame.fence->reset();
+
+    // // 8. Record compute commands
+    // frame.commandBuffer->reset();
+    // frame.commandBuffer->begin();
+
+    // frame.commandBuffer->transitionImageLayout(
+    //     frame.image, rhi::RHIImageLayout::General
+    // );
+    // frame.commandBuffer->bindPipeline(computePipeline.get(), rhi::RHIPipelineBindPoint::Compute);
+    // frame.commandBuffer->bindDescriptorSet(descriptorSet.get(), rhi::RHIPipelineBindPoint::Compute, pipelineLayout.get());
+    // glm::vec4 clearColor(0.1f, 0.6f, 0.2f, 1.0f);
+    // frame.commandBuffer->pushConstants(pipelineLayout.get(), rhi::ShaderStage::Compute, 0, sizeof(clearColor), &clearColor);
+    // uint32_t width = 640, height = 480;
+    // frame.commandBuffer->dispatchCompute((width + 15) / 16, (height + 15) / 16, 1);
+    // frame.commandBuffer->transitionImageLayout(frame.image, rhi::RHIImageLayout::Present);
+    // frame.commandBuffer->end();
+
+    // // 9. Submit and present
+    // auto* queue = m_context->getGraphicsQueue();
+    // queue->submit({frame.commandBuffer}, frame.fence, nullptr);
+    // m_swapchain->present(frame);
+
+    // // 10. Read back and verify
+    // std::vector<uint8> imageData;
+    // bool readBackOk = rhi::readImageToCpu(m_context.get(), frame.image, width, height, imageData);
+    // ASSERT_TRUE(readBackOk);
+    // ASSERT_EQ(imageData.size(), width * height * 4);
+
+    // auto expectedR = static_cast<uint8>(clearColor.r * 255.0f);
+    // auto expectedG = static_cast<uint8>(clearColor.g * 255.0f);
+    // auto expectedB = static_cast<uint8>(clearColor.b * 255.0f);
+    // auto expectedA = static_cast<uint8>(clearColor.a * 255.0f);
+
+    // auto format = m_swapchain->getFormat();
+    // bool isBGRA = (format == rhi::RHIFormat::RHI_FORMAT_B8G8R8A8_UNORM ||
+    //                format == rhi::RHIFormat::RHI_FORMAT_B8G8R8A8_SRGB);
+
+    // auto checkPixel = [&](uint32_t x, uint32_t y) {
+    //     size_t idx = (y * width + x) * 4;
+    //     if (isBGRA) {
+    //         EXPECT_EQ(imageData[idx + 0], expectedB);
+    //         EXPECT_EQ(imageData[idx + 1], expectedG);
+    //         EXPECT_EQ(imageData[idx + 2], expectedR);
+    //         EXPECT_EQ(imageData[idx + 3], expectedA);
+    //     } else {
+    //         EXPECT_EQ(imageData[idx + 0], expectedR);
+    //         EXPECT_EQ(imageData[idx + 1], expectedG);
+    //         EXPECT_EQ(imageData[idx + 2], expectedB);
+    //         EXPECT_EQ(imageData[idx + 3], expectedA);
+    //     }
+    // };
+    // checkPixel(0, 0);
+    // checkPixel(width - 1, 0);
+    // checkPixel(0, height - 1);
+    // checkPixel(width - 1, height - 1);
+    // checkPixel(width / 2, height / 2);
 }
