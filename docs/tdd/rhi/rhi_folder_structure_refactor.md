@@ -7,7 +7,7 @@ To improve maintainability and clarity in the `src/rhi` and `src/rhi/vulkan` dir
 Create subfolders for major resource types. For example:
 
 ```
-src/rhi/
+src/rhi/interface/
   buffer/
     rhi_buffer.h
     rhi_buffer.cpp
