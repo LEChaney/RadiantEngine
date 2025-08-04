@@ -4,6 +4,59 @@ namespace rhi::vulkan {
 
 namespace {
 
+// RHIImageLayout <-> VkImageLayout mapping using Map
+const Map<RHIImageLayout, VkImageLayout> gk_rhiToVkImageLayout = {
+    {RHIImageLayout::Undefined, VK_IMAGE_LAYOUT_UNDEFINED},
+    {RHIImageLayout::General, VK_IMAGE_LAYOUT_GENERAL},
+    {RHIImageLayout::ColorAttachment, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL},
+    {RHIImageLayout::DepthStencilAttachment, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL},
+    {RHIImageLayout::DepthStencilReadOnly, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL},
+    {RHIImageLayout::ShaderReadOnly, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
+    {RHIImageLayout::TransferSrc, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL},
+    {RHIImageLayout::TransferDst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL},
+    {RHIImageLayout::Preinitialized, VK_IMAGE_LAYOUT_PREINITIALIZED},
+    {RHIImageLayout::DepthReadOnlyStencilAttachment, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL},
+    {RHIImageLayout::DepthAttachmentStencilReadOnly, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL},
+    {RHIImageLayout::DepthAttachment, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL},
+    {RHIImageLayout::DepthReadOnly, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL},
+    {RHIImageLayout::StencilAttachment, VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL},
+    {RHIImageLayout::StencilReadOnly, VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL},
+    {RHIImageLayout::ReadOnly, VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL},
+    {RHIImageLayout::Attachment, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL},
+    {RHIImageLayout::Present, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR},
+    {RHIImageLayout::SharedPresent, VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR},
+    {RHIImageLayout::FragmentDensityMap, VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT},
+    {RHIImageLayout::FragmentShadingRateAttachment, VK_IMAGE_LAYOUT_FRAGMENT_SHADING_RATE_ATTACHMENT_OPTIMAL_KHR},
+    {RHIImageLayout::AttachmentFeedbackLoop, VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT},
+};
+
+// RHIDescriptorType <-> VkDescriptorType mapping
+const Map<RHIDescriptorType, VkDescriptorType> gk_rhiToVkDescriptorType = {
+    {RHIDescriptorType::UniformBuffer, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER},
+    {RHIDescriptorType::StorageBuffer, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER},
+    {RHIDescriptorType::SampledImage, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE},
+    {RHIDescriptorType::StorageImage, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE},
+    {RHIDescriptorType::Sampler, VK_DESCRIPTOR_TYPE_SAMPLER},
+    {RHIDescriptorType::CombinedImageSampler, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER},
+};
+
+Map<VkDescriptorType, RHIDescriptorType> createVkToRhiDescriptorTypeMap() {
+    Map<VkDescriptorType, RHIDescriptorType> map;
+    for (const auto& pair : gk_rhiToVkDescriptorType) {
+        map[pair.second] = pair.first;
+    }
+    return map;
+}
+
+Map<VkImageLayout, RHIImageLayout> createVkToRhiImageLayoutMap() {
+    Map<VkImageLayout, RHIImageLayout> map;
+    for (const auto& pair : gk_rhiToVkImageLayout) {
+        map[pair.second] = pair.first;
+    }
+    return map;
+}
+const Map<VkImageLayout, RHIImageLayout> gk_vkToRhiImageLayout = createVkToRhiImageLayoutMap();
+
 const Map<RHIFormat, VkFormat> gk_rhiToVkFormat = {
     {RHIFormat::RHI_FORMAT_UNDEFINED, VK_FORMAT_UNDEFINED},
     {RHIFormat::RHI_FORMAT_R4G4_UNORM_PACK8, VK_FORMAT_R4G4_UNORM_PACK8},
@@ -298,6 +351,35 @@ Map<VkColorSpaceKHR, RHIColorSpace> createVkToRhiColorMap()
 
 } // anonymous namespace
 
+VkImageLayout toVkImageLayout(RHIImageLayout layout) {
+    auto it = gk_rhiToVkImageLayout.find(layout);
+    if (it != gk_rhiToVkImageLayout.end())
+        return it->second;
+    return VK_IMAGE_LAYOUT_UNDEFINED;
+}
+
+RHIImageLayout toRhiImageLayout(VkImageLayout layout) {
+    auto it = gk_vkToRhiImageLayout.find(layout);
+    if (it != gk_vkToRhiImageLayout.end())
+        return it->second;
+    return RHIImageLayout::Undefined;
+}
+
+const Map<VkDescriptorType, RHIDescriptorType> gk_vkToRhiDescriptorType = createVkToRhiDescriptorTypeMap();
+VkDescriptorType toVkDescriptorType(RHIDescriptorType type) {
+    auto it = gk_rhiToVkDescriptorType.find(type);
+    if (it != gk_rhiToVkDescriptorType.end())
+        return it->second;
+    return VK_DESCRIPTOR_TYPE_MAX_ENUM;
+}
+
+RHIDescriptorType toRhiDescriptorType(VkDescriptorType type) {
+    auto it = gk_vkToRhiDescriptorType.find(type);
+    if (it != gk_vkToRhiDescriptorType.end())
+        return it->second;
+    return RHIDescriptorType::UniformBuffer; // fallback, or consider an Invalid value
+}
+
 VkFormat toVkFormat(RHIFormat fmt)
 {
     auto it = gk_rhiToVkFormat.find(fmt);
@@ -348,6 +430,131 @@ RHISurfaceFormat toRhiSurfaceFormat(const VkSurfaceFormatKHR &vkfmt)
     fmt.format = toRhiFormat(vkfmt.format);
     fmt.color_space = toRhiColorSpace(vkfmt.colorSpace);
     return fmt;
+}
+
+// --- Flag conversion implementations ---
+namespace {
+const Map<rhi::RHIBufferUsage, VkBufferUsageFlagBits> gk_rhiToVkBufferUsageBit = {
+    {rhi::RHIBufferUsage::TransferSrc, VK_BUFFER_USAGE_TRANSFER_SRC_BIT},
+    {rhi::RHIBufferUsage::TransferDst, VK_BUFFER_USAGE_TRANSFER_DST_BIT},
+    {rhi::RHIBufferUsage::Uniform,     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT},
+    {rhi::RHIBufferUsage::Vertex,      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT},
+    {rhi::RHIBufferUsage::Index,       VK_BUFFER_USAGE_INDEX_BUFFER_BIT},
+};
+
+const Map<rhi::RHIImageUsage, VkImageUsageFlagBits> gk_rhiToVkImageUsageBit = {
+    {rhi::RHIImageUsage::TransferSrc,            VK_IMAGE_USAGE_TRANSFER_SRC_BIT},
+    {rhi::RHIImageUsage::TransferDst,            VK_IMAGE_USAGE_TRANSFER_DST_BIT},
+    {rhi::RHIImageUsage::Sampled,                VK_IMAGE_USAGE_SAMPLED_BIT},
+    {rhi::RHIImageUsage::Storage,                VK_IMAGE_USAGE_STORAGE_BIT},
+    {rhi::RHIImageUsage::ColorAttachment,        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT},
+    {rhi::RHIImageUsage::DepthStencilAttachment, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT},
+};
+
+const Map<rhi::RHIMemoryProperty, VkMemoryPropertyFlagBits> gk_rhiToVkMemoryPropertyBit = {
+    {rhi::RHIMemoryProperty::DeviceLocal,  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT},
+    {rhi::RHIMemoryProperty::HostVisible,  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT},
+    {rhi::RHIMemoryProperty::HostCoherent, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT},
+};
+
+const Map<rhi::RHIShaderStage, VkShaderStageFlagBits> gk_rhiToVkShaderStageBit = {
+    {rhi::RHIShaderStage::Vertex, VK_SHADER_STAGE_VERTEX_BIT},
+    {rhi::RHIShaderStage::TessellationControl, VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT},
+    {rhi::RHIShaderStage::TessellationEvaluation, VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT},
+    {rhi::RHIShaderStage::Geometry, VK_SHADER_STAGE_GEOMETRY_BIT},
+    {rhi::RHIShaderStage::Fragment, VK_SHADER_STAGE_FRAGMENT_BIT},
+    {rhi::RHIShaderStage::Compute, VK_SHADER_STAGE_COMPUTE_BIT},
+    {rhi::RHIShaderStage::RayGen, VK_SHADER_STAGE_RAYGEN_BIT_KHR},
+    {rhi::RHIShaderStage::AnyHit, VK_SHADER_STAGE_ANY_HIT_BIT_KHR},
+    {rhi::RHIShaderStage::ClosestHit, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR},
+    {rhi::RHIShaderStage::Miss, VK_SHADER_STAGE_MISS_BIT_KHR},
+    {rhi::RHIShaderStage::Intersection, VK_SHADER_STAGE_INTERSECTION_BIT_KHR},
+    {rhi::RHIShaderStage::Callable, VK_SHADER_STAGE_CALLABLE_BIT_KHR},
+    {rhi::RHIShaderStage::Task, VK_SHADER_STAGE_TASK_BIT_EXT},
+    {rhi::RHIShaderStage::Mesh, VK_SHADER_STAGE_MESH_BIT_EXT},
+    {rhi::RHIShaderStage::SubpassShadingHuawei, VK_SHADER_STAGE_SUBPASS_SHADING_BIT_HUAWEI},
+    {rhi::RHIShaderStage::ClusterCullingHuawei, VK_SHADER_STAGE_CLUSTER_CULLING_BIT_HUAWEI},
+};
+} // anonymous namespace
+
+VkBufferUsageFlags toVkBufferUsageFlags(rhi::RHIBufferUsageFlags flags) {
+    VkBufferUsageFlags result = 0;
+    for (const auto& [rhiBit, vkBit] : gk_rhiToVkBufferUsageBit) {
+        if (flags.test(rhiBit)) {
+            result |= vkBit;
+        }
+    }
+    return result;
+}
+
+RHIBufferUsageFlags toRhiBufferUsageFlags(VkBufferUsageFlags flags) {
+    rhi::RHIBufferUsageFlags result;
+    for (const auto& [rhiBit, vkBit] : gk_rhiToVkBufferUsageBit) {
+        if (flags & vkBit) {
+            result |= rhiBit;
+        }
+    }
+    return result;
+}
+
+VkImageUsageFlags toVkImageUsageFlags(rhi::RHIImageUsageFlags flags) {
+    VkImageUsageFlags result = 0;
+    for (const auto& [rhiBit, vkBit] : gk_rhiToVkImageUsageBit) {
+        if (flags.test(rhiBit)) {
+            result |= vkBit;
+        }
+    }
+    return result;
+}
+
+RHIImageUsageFlags toRhiImageUsageFlags(VkImageUsageFlags flags) {
+    rhi::RHIImageUsageFlags result;
+    for (const auto& [rhiBit, vkBit] : gk_rhiToVkImageUsageBit) {
+        if (flags & vkBit) {
+            result |= rhiBit;
+        }
+    }
+    return result;
+}
+
+VkMemoryPropertyFlags toVkMemoryPropertyFlags(rhi::RHIMemoryPropertyFlags flags) {
+    VkMemoryPropertyFlags result = 0;
+    for (const auto& [rhiBit, vkBit] : gk_rhiToVkMemoryPropertyBit) {
+        if (flags.test(rhiBit)) {
+            result |= vkBit;
+        }
+    }
+    return result;
+}
+
+RHIMemoryPropertyFlags toRhiMemoryPropertyFlags(VkMemoryPropertyFlags flags) {
+    rhi::RHIMemoryPropertyFlags result;
+    for (const auto& [rhiBit, vkBit] : gk_rhiToVkMemoryPropertyBit) {
+        if (flags & vkBit) {
+            result |= rhiBit;
+        }
+    }
+    return result;
+}
+
+VkShaderStageFlags toVkShaderStageFlags(rhi::RHIShaderStageFlags flags) {
+    VkShaderStageFlags result = 0;
+    for (const auto& [rhiBit, vkBit] : gk_rhiToVkShaderStageBit) {
+        if (flags.test(rhiBit)) {
+            result |= vkBit;
+        }
+    }
+    return result;
+}
+
+RHIShaderStageFlags toRhiShaderStageFlags(VkShaderStageFlags flags) {
+    rhi::RHIShaderStageFlags result;
+    for (const auto& [rhiBit, vkBit] : gk_rhiToVkShaderStageBit) {
+        if (flags & vkBit) {
+            result |= rhiBit;
+        }
+    }
+    return result;
 }
 
 } // namespace rhi::vulkan
