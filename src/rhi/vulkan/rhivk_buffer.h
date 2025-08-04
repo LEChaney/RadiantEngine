@@ -14,24 +14,23 @@ public:
     static UniquePtr<RHIVKBuffer> createUnique(RHIVKContext* context, uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps);
     ~RHIVKBuffer() override;
 
-    void* map() override;
-    void unmap() override;
-
-    VkBuffer getVk() const { return m_buffer; }
-
-protected:
-    RHIVKBuffer(RHIVKContext* context, uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps);
     RHIVKBuffer(const RHIVKBuffer&) = delete;
     RHIVKBuffer& operator=(const RHIVKBuffer&) = delete;
     RHIVKBuffer(RHIVKBuffer&&) = delete;
     RHIVKBuffer& operator=(RHIVKBuffer&&) = delete;
 
+    void* map() override;
+    void unmap() override;
+
+    VkBuffer getVk() const { return m_buffer; }
+
 private:
+    RHIVKBuffer(RHIVKContext* context, uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps);
+    
     RHIVKContext* m_context = nullptr;
     VkBuffer m_buffer = VK_NULL_HANDLE;
     VmaAllocation m_allocation = VK_NULL_HANDLE;
     VkDeviceMemory m_memory = VK_NULL_HANDLE;
-    uint64 m_size = 0;
 };
 
 } // namespace rhi::vulkan

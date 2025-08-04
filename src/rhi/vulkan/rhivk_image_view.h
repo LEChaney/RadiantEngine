@@ -13,6 +13,11 @@ public:
     static UniquePtr<RHIVKImageView> createUnique(RHIVKContext* context, RHIVKImage* image);
     ~RHIVKImageView() override;
 
+    RHIVKImageView(const RHIVKImageView&) = delete;
+    RHIVKImageView& operator=(const RHIVKImageView&) = delete;
+    RHIVKImageView(RHIVKImageView&&) = delete;
+    RHIVKImageView& operator=(RHIVKImageView&&) = delete;
+
     // RHIImageView interface
     rhi::RHIImage* getImage() const override { return m_rhiImage; };
     
@@ -20,14 +25,10 @@ public:
     VkImageView getVk() const { return m_imageView; }
     VkImage getVkImage() const { return m_rhiImage->getVk(); }
     
-protected:
-    RHIVKImageView(RHIVKContext* context, RHIVKImage* image);
-    RHIVKImageView(const RHIVKImageView&) = delete;
-    RHIVKImageView& operator=(const RHIVKImageView&) = delete;
-    RHIVKImageView(RHIVKImageView&&) = delete;
-    RHIVKImageView& operator=(RHIVKImageView&&) = delete;
-
+    
 private:
+    RHIVKImageView(RHIVKContext* context, RHIVKImage* image);
+    
     RHIVKContext* m_context;
     VkImageView m_imageView;
     RHIVKImage* m_rhiImage;

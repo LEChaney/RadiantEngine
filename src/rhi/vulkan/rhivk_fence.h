@@ -11,20 +11,20 @@ public:
     static UniquePtr<RHIVKFence> createUnique(RHIVKContext* context);
     ~RHIVKFence();
 
-    const VkFence& getVk() const { return m_fence; }
-
-    void wait() override;
-    void reset() override;
-    bool isSignaled() const override;
-
-protected:
-    RHIVKFence(RHIVKContext* context);
     RHIVKFence(const RHIVKFence&) = delete;
     RHIVKFence& operator=(const RHIVKFence&) = delete;
     RHIVKFence(RHIVKFence&&) = delete;
     RHIVKFence& operator=(RHIVKFence&&) = delete;
 
+    const VkFence& getVk() const { return m_fence; }
+
+    void wait() override;
+    void reset() override;
+    bool isSignaled() const override;
+    
 private:
+    RHIVKFence(RHIVKContext* context);
+    
     VkFence m_fence = VK_NULL_HANDLE;
     RHIVKContext* m_context = nullptr;
 };

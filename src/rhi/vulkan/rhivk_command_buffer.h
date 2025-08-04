@@ -37,9 +37,9 @@ public:
 
     VkCommandBuffer getVk() const { return m_cmdBuffer; }
 
-protected:
+private:
     RHIVKCommandBuffer(RHIVKContext* context);
-    
+
     VkCommandBuffer m_cmdBuffer = VK_NULL_HANDLE;
     RHIVKContext* m_context = nullptr;
     Map<rhi::RHIImage*, RHIImageLayout> m_trackedImageLayouts{};

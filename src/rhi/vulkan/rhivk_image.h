@@ -27,9 +27,14 @@ public:
         
     ~RHIVKImage() override;
 
+    RHIVKImage(const RHIVKImage&) = delete;
+    RHIVKImage& operator=(const RHIVKImage&) = delete;
+    RHIVKImage(RHIVKImage&&) = delete;
+    RHIVKImage& operator=(RHIVKImage&&) = delete;
+
     VkImage getVk() const { return m_image; }
     
-protected:
+private:
     RHIVKImage(
         RHIVKContext* context,
         uint32 width,
@@ -46,14 +51,9 @@ protected:
         RHIFormat format,
         bool ownsImage = true
     );
-    RHIVKImage(const RHIVKImage&) = delete;
-    RHIVKImage& operator=(const RHIVKImage&) = delete;
-    RHIVKImage(RHIVKImage&&) = delete;
-    RHIVKImage& operator=(RHIVKImage&&) = delete;
 
-private:
-    VkImage m_image = VK_NULL_HANDLE;
     RHIVKContext* m_context = nullptr;
+    VkImage m_image = VK_NULL_HANDLE;
     bool m_ownsImage = false; // If true, this class will manage the Vulkan image's lifetime
 };
 

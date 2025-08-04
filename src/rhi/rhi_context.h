@@ -1,7 +1,6 @@
 #pragma once
 #include "core/core_defs.h"
 #include "rhi_core_defs.h"
-#include <cstdint>
 
 class SDL_Window;
 
@@ -19,6 +18,11 @@ class RHIContext {
 public:
     virtual ~RHIContext() = default;
 
+    RHIContext(const RHIContext&) = delete;
+    RHIContext& operator=(const RHIContext&) = delete;
+    RHIContext(RHIContext&&) = delete;
+    RHIContext& operator=(RHIContext&&) = delete;
+
     virtual RHIQueue* getGraphicsQueue() = 0;
 
     // Factory methods for creating RHI objects
@@ -32,10 +36,6 @@ public:
 protected:
     // Only derived context or implementation should create RHIContext objects
     RHIContext() = default;
-    RHIContext(const RHIContext&) = delete;
-    RHIContext& operator=(const RHIContext&) = delete;
-    RHIContext(RHIContext&&) = delete;
-    RHIContext& operator=(RHIContext&&) = delete;
 };
 
 } // namespace rhi

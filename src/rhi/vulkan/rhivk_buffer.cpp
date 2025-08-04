@@ -1,7 +1,7 @@
 #include "rhivk_buffer.h"
 #include "rhivk_context.h"
+#include "rhivk_core_defs.h"
 
-#include <cassert>
 #include <cstring>
 
 namespace rhi::vulkan {
@@ -12,8 +12,8 @@ UniquePtr<RHIVKBuffer> RHIVKBuffer::createUnique(RHIVKContext *context, uint64 s
 }
 
 RHIVKBuffer::RHIVKBuffer(RHIVKContext* context, uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps)
-    : m_context(context)
-    , m_size(size)
+    : RHIBuffer(size)
+    , m_context(context)
 {
     // Assume context provides a VmaAllocator* via getVmaAllocator()
     VmaAllocator allocator = m_context->getVmaAllocator();
@@ -22,13 +22,7 @@ RHIVKBuffer::RHIVKBuffer(RHIVKContext* context, uint64 size, RHIBufferUsageFlags
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bufferInfo.size = size;
     bufferInfo.usage = 0;
-    if ((usage & RHIBufferUsage::TransferSrc) == RHIBufferUsage::TransferSrc) {
-        bufferInfo.usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    }
-    if ((usage & RHIBufferUsage::TransferDst) == RHIBufferUsage::TransferDst) {
-        bufferInfo.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-    }
-    // ... add more as needed
+    bufferInfo.usage |= toVkBufferUsageFlags(usage);
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     VmaAllocationCreateInfo allocInfo{};

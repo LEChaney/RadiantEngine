@@ -34,7 +34,7 @@ public:
     RHISurfaceFormat getSurfaceFormat() const override;
 
 
-protected:
+private:
     RHIVKSwapchain(RHIVKContext* 
         context, 
         SDL_Window* window, 
@@ -46,7 +46,6 @@ protected:
     RHIVKSwapchain(RHIVKSwapchain&&) = delete;
     RHIVKSwapchain& operator=(RHIVKSwapchain&&) = delete;
 
-private:
     RHIVKContext* m_rhiContext = nullptr;
     Array<UniquePtr<RHIVKCommandBuffer>> m_rhiCommandBuffers;
     Array<UniquePtr<RHIVKImage>> m_rhiImages;

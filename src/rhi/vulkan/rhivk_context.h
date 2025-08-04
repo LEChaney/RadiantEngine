@@ -27,6 +27,11 @@ public:
     static UniquePtr<RHIVKContext> createUnique(bool enableValidation = false);
     ~RHIVKContext() override;
 
+    RHIVKContext(const RHIVKContext&) = delete;
+    RHIVKContext& operator=(const RHIVKContext&) = delete;
+    RHIVKContext(RHIVKContext&&) = delete;
+    RHIVKContext& operator=(RHIVKContext&&) = delete;
+
     RHIQueue* getGraphicsQueue() override;
     RHIVKQueue* getVkGraphicsQueue();
 
@@ -59,14 +64,9 @@ public:
     // Set a custom validation callback (thread-unsafe, for test/dev only)
     static void setValidationCallback(ValidationCallback callback);
 
-protected:
-    RHIVKContext(bool enableValidation = false);
-    RHIVKContext(const RHIVKContext&) = delete;
-    RHIVKContext& operator=(const RHIVKContext&) = delete;
-    RHIVKContext(RHIVKContext&&) = delete;
-    RHIVKContext& operator=(RHIVKContext&&) = delete;
-
 private:
+    RHIVKContext(bool enableValidation = false);
+    
     void createInstance();
     void pickPhysicalDevice();
     void createLogicalDevice();
