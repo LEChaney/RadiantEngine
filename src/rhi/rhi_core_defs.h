@@ -3,7 +3,7 @@
 
 namespace rhi {
 
-enum class RHIBufferUsage : uint32 {
+enum class RHIBufferUsage : uint8 {
     TransferSrc = 1,
     TransferDst = 1 << 1,
     Uniform     = 1 << 2,
@@ -12,7 +12,7 @@ enum class RHIBufferUsage : uint32 {
     // ... add more as needed
 };
 
-enum class RHIImageUsage : uint32 {
+enum class RHIImageUsage : uint8 {
     TransferSrc            = 1,
     TransferDst            = 1 << 1,
     Sampled                = 1 << 2,
@@ -22,29 +22,83 @@ enum class RHIImageUsage : uint32 {
     // ... add more as needed
 };
 
-enum class RHIMemoryProperty : uint32 {
+enum class RHIMemoryProperty : uint8 {
     DeviceLocal     = 1,
     HostVisible     = 1 << 1,
     HostCoherent    = 1 << 2,
     // ... add more as needed
 };
 
+enum class RHIShaderStage : uint32 {
+    Vertex = 0x00000001,
+    TessellationControl = 0x00000002,
+    TessellationEvaluation = 0x00000004,
+    Geometry = 0x00000008,
+    Fragment = 0x00000010,
+    Compute = 0x00000020,
+    AllGraphics = 0x0000001F,
+    All = 0x7FFFFFFF,
+    RayGen = 0x00000100,
+    AnyHit = 0x00000200,
+    ClosestHit = 0x00000400,
+    Miss = 0x00000800,
+    Intersection = 0x00001000,
+    Callable = 0x00002000,
+    Task = 0x00000040,
+    Mesh = 0x00000080,
+    SubpassShadingHuawei = 0x00004000,
+    ClusterCullingHuawei = 0x00080000,
+    FlagBitsMaxEnum = 0x7FFFFFFF
+};
+
 DECLARE_FLAGS(RHIBufferUsage, RHIBufferUsageFlags)
 DECLARE_FLAGS(RHIImageUsage, RHIImageUsageFlags)
 DECLARE_FLAGS(RHIMemoryProperty, RHIMemoryPropertyFlags)
+DECLARE_FLAGS(RHIShaderStage, RHIShaderStageFlags)
 
-enum class RHIImageLayout {
-    Undefined,
-    General,
-    TransferSrc,
-    TransferDst,
-    ColorAttachment,
-    Present,
-    // Add more as needed
+enum class RHIImageLayout : uint32 {
+    Undefined = 0,
+    General = 1,
+    ColorAttachment = 2,
+    DepthStencilAttachment = 3,
+    DepthStencilReadOnly = 4,
+    ShaderReadOnly = 5,
+    TransferSrc = 6,
+    TransferDst = 7,
+    Preinitialized = 8,
+    DepthReadOnlyStencilAttachment = 1000117000,
+    DepthAttachmentStencilReadOnly = 1000117001,
+    DepthAttachment = 1000241000,
+    DepthReadOnly = 1000241001,
+    StencilAttachment = 1000241002,
+    StencilReadOnly = 1000241003,
+    ReadOnly = 1000314000,
+    Attachment = 1000314001,
+    Present = 1000001002,
+    SharedPresent = 1000111000,
+    FragmentDensityMap = 1000218000,
+    FragmentShadingRateAttachment = 1000164003,
+    AttachmentFeedbackLoop = 1000339000
+};
+
+enum class RHIPipelineBindPoint : uint8 {
+    Graphics = 0,
+    Compute  = 1,
+    RayTracing = 2,
+};
+
+enum class RHIDescriptorType : uint32 {
+    UniformBuffer,
+    StorageBuffer,
+    SampledImage,
+    StorageImage,
+    Sampler,
+    CombinedImageSampler,
+    // Add more descriptor types as needed
 };
 
 // Copied from vulkan_cor.h
-enum class RHIFormat : uint32_t {
+enum class RHIFormat : uint32 {
     RHI_FORMAT_UNDEFINED = 0,
     RHI_FORMAT_R4G4_UNORM_PACK8 = 1,
     RHI_FORMAT_R4G4B4A4_UNORM_PACK16 = 2,
@@ -356,7 +410,7 @@ enum class RHIFormat : uint32_t {
     RHI_FORMAT_MAX_ENUM = 0x7FFFFFFF
 };
 
-enum class RHIColorSpace : uint32_t {
+enum class RHIColorSpace : uint32 {
     RHI_COLOR_SPACE_SRGB_NONLINEAR_KHR = 0,
     RHI_COLOR_SPACE_DISPLAY_P3_NONLINEAR_EXT = 1000104001,
     RHI_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT = 1000104002,
