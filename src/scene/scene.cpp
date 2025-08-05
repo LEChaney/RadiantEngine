@@ -1,8 +1,8 @@
-#include "scene.h"
-#include "core/core_defs.h"
+#include "scene/Scene.h"
+#include "core/CoreDefs.h"
 #include <algorithm>
 
-// SceneNode and SceneNodeKey are defined in scene.h
+// SceneNode and SceneNodeKey are defined in Scene.h
 
 // Scene implementation
 Scene::Scene() {

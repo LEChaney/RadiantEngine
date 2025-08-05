@@ -15,7 +15,7 @@ endif()
 # target_include_directories(compile_time_RHI_switch_vulkan PRIVATE "${CMAKE_SOURCE_DIR}/src")
 # target_link_libraries(compile_time_RHI_switch_vulkan PRIVATE GTest::gtest GTest::gtest_main vma glm Vulkan::Vulkan fmt::fmt stb_image SDL2::SDL2 vkbootstrap imgui fastgltf::fastgltf)
 # target_compile_definitions(compile_time_RHI_switch_vulkan PRIVATE USE_VULKAN_RHI=1)
-# add_dependencies(build_tests compile_time_RHI_switch_vulkan)
+# add_dependencies(BuildTests compile_time_RHI_switch_vulkan)
 # add_test(NAME compile_time_RHI_switch_vulkan COMMAND compile_time_RHI_switch_vulkan)
 
 # # Metal-only test
@@ -25,7 +25,7 @@ endif()
 # target_include_directories(compile_time_RHI_switch_metal PRIVATE "${CMAKE_SOURCE_DIR}/src")
 # target_link_libraries(compile_time_RHI_switch_metal PRIVATE GTest::gtest GTest::gtest_main vma glm Vulkan::Vulkan fmt::fmt stb_image SDL2::SDL2 vkbootstrap imgui fastgltf::fastgltf)
 # target_compile_definitions(compile_time_RHI_switch_metal PRIVATE USE_METAL_RHI=1)
-# add_dependencies(build_tests compile_time_RHI_switch_metal)
+# add_dependencies(BuildTests compile_time_RHI_switch_metal)
 # add_test(NAME compile_time_RHI_switch_metal COMMAND compile_time_RHI_switch_metal)
 
 # # Mock-only test
@@ -35,7 +35,7 @@ endif()
 # target_include_directories(compile_time_RHI_switch_mock PRIVATE "${CMAKE_SOURCE_DIR}/src")
 # target_link_libraries(compile_time_RHI_switch_mock PRIVATE GTest::gtest GTest::gtest_main vma glm Vulkan::Vulkan fmt::fmt stb_image SDL2::SDL2 vkbootstrap imgui fastgltf::fastgltf)
 # target_compile_definitions(compile_time_RHI_switch_mock PRIVATE USE_MOCK_RHI=1)
-# add_dependencies(build_tests compile_time_RHI_switch_mock)
+# add_dependencies(BuildTests compile_time_RHI_switch_mock)
 # add_test(NAME compile_time_RHI_switch_mock COMMAND compile_time_RHI_switch_mock)
 
 # # Virtual RHI (multi-backend) test
@@ -45,7 +45,7 @@ endif()
 # target_include_directories(compile_time_RHI_switch_virtual PRIVATE "${CMAKE_SOURCE_DIR}/src")
 # target_link_libraries(compile_time_RHI_switch_virtual PRIVATE GTest::gtest GTest::gtest_main vma glm Vulkan::Vulkan fmt::fmt stb_image SDL2::SDL2 vkbootstrap imgui fastgltf::fastgltf)
 # target_compile_definitions(compile_time_RHI_switch_virtual PRIVATE USE_VULKAN_RHI=1 USE_METAL_RHI=1)
-# add_dependencies(build_tests compile_time_RHI_switch_virtual)
+# add_dependencies(BuildTests compile_time_RHI_switch_virtual)
 # add_test(NAME compile_time_RHI_switch_virtual COMMAND compile_time_RHI_switch_virtual)
 
 # Struct pass performance test
@@ -53,65 +53,65 @@ add_executable(struct_pass_perf_test experimental/struct_pass_perf_test.cpp)
 set_property(TARGET struct_pass_perf_test PROPERTY CXX_STANDARD 20)
 set_target_properties(struct_pass_perf_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${TEST_OUTPUT_DIRECTORY}")
 target_include_directories(struct_pass_perf_test PRIVATE "${CMAKE_SOURCE_DIR}/src")
-add_dependencies(build_tests struct_pass_perf_test)
+add_dependencies(BuildTests struct_pass_perf_test)
 add_test(NAME struct_pass_perf_test COMMAND struct_pass_perf_test)
 
 # Slotmap unit test
-add_executable(slotmap_test slotmap_test.cpp)
-set_property(TARGET slotmap_test PROPERTY CXX_STANDARD 20)
-set_target_properties(slotmap_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${TEST_OUTPUT_DIRECTORY}")
-target_include_directories(slotmap_test PRIVATE "${CMAKE_SOURCE_DIR}/src")
-target_link_libraries(slotmap_test PRIVATE GTest::gtest GTest::gtest_main unordered_dense)
-add_dependencies(build_tests slotmap_test)
-add_test(NAME slotmap_test COMMAND slotmap_test)
+add_executable(SlotMapTest SlotMapTest.cpp)
+set_property(TARGET SlotMapTest PROPERTY CXX_STANDARD 20)
+set_target_properties(SlotMapTest PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${TEST_OUTPUT_DIRECTORY}")
+target_include_directories(SlotMapTest PRIVATE "${CMAKE_SOURCE_DIR}/src")
+target_link_libraries(SlotMapTest PRIVATE GTest::gtest GTest::gtest_main unordered_dense)
+add_dependencies(BuildTests SlotMapTest)
+add_test(NAME SlotMapTest COMMAND SlotMapTest)
 
 # Scene unit test
-add_executable(scene_test scene_test.cpp ${CMAKE_SOURCE_DIR}/src/scene/scene.cpp)
-set_property(TARGET scene_test PROPERTY CXX_STANDARD 20)
-set_target_properties(scene_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${TEST_OUTPUT_DIRECTORY}")
-target_include_directories(scene_test PRIVATE "${CMAKE_SOURCE_DIR}/src")
-target_link_libraries(scene_test PRIVATE GTest::gtest GTest::gtest_main glm unordered_dense)
-add_dependencies(build_tests scene_test)
-add_test(NAME scene_test COMMAND scene_test)
+add_executable(SceneTest SceneTest.cpp ${CMAKE_SOURCE_DIR}/src/scene/Scene.cpp)
+set_property(TARGET SceneTest PROPERTY CXX_STANDARD 20)
+set_target_properties(SceneTest PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${TEST_OUTPUT_DIRECTORY}")
+target_include_directories(SceneTest PRIVATE "${CMAKE_SOURCE_DIR}/src")
+target_link_libraries(SceneTest PRIVATE GTest::gtest GTest::gtest_main glm unordered_dense)
+add_dependencies(BuildTests SceneTest)
+add_test(NAME SceneTest COMMAND SceneTest)
 
 # SceneManager unit test
-add_executable(scene_manager_test 
-    scene_manager_test.cpp 
-    ${CMAKE_SOURCE_DIR}/src/scene/scene.cpp
-    ${CMAKE_SOURCE_DIR}/src/scene/scene_manager.cpp)
-set_property(TARGET scene_manager_test PROPERTY CXX_STANDARD 20)
-set_target_properties(scene_manager_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${TEST_OUTPUT_DIRECTORY}")
-target_include_directories(scene_manager_test PRIVATE "${CMAKE_SOURCE_DIR}/src")
-target_link_libraries(scene_manager_test PRIVATE GTest::gtest GTest::gtest_main glm unordered_dense)
-add_dependencies(build_tests scene_manager_test)
-add_test(NAME scene_manager_test COMMAND scene_manager_test)
+add_executable(SceneManagerTest 
+    SceneManagerTest.cpp 
+    ${CMAKE_SOURCE_DIR}/src/scene/Scene.cpp
+    ${CMAKE_SOURCE_DIR}/src/scene/SceneManager.cpp)
+set_property(TARGET SceneManagerTest PROPERTY CXX_STANDARD 20)
+set_target_properties(SceneManagerTest PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${TEST_OUTPUT_DIRECTORY}")
+target_include_directories(SceneManagerTest PRIVATE "${CMAKE_SOURCE_DIR}/src")
+target_link_libraries(SceneManagerTest PRIVATE GTest::gtest GTest::gtest_main glm unordered_dense)
+add_dependencies(BuildTests SceneManagerTest)
+add_test(NAME SceneManagerTest COMMAND SceneManagerTest)
 
 # RHI Vulkan test
-add_executable(rhi_vulkan_test
-    rhi_vulkan_test.cpp
-    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_context.cpp
-    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_queue.cpp
-    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_command_buffer.cpp
-    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_swapchain.cpp
-    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_buffer.cpp
-    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_image.cpp
-    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_image_view.cpp
-    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_semaphore.cpp
-    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_fence.cpp
-    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_core_defs.cpp
-    ${CMAKE_SOURCE_DIR}/src/rhi/rhi_image_utils.cpp
-    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_descriptor_set_layout_builder.cpp
-    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/rhivk_descriptor_set_layout.cpp
+add_executable(RHIVulkanTest
+    RHIVulkanTest.cpp
+    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/core/RHIVkContext.cpp
+    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/queue/RHIVkQueue.cpp
+    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/command/RHIVkCommandBuffer.cpp
+    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/swapchain/RHIVkSwapchain.cpp
+    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/buffer/RHIVkBuffer.cpp
+    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/image/RHIVkImage.cpp
+    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/image/RHIVkImageView.cpp
+    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/sync/RHIVkSemaphore.cpp
+    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/sync/RHIVkFence.cpp
+    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/core/RHIVkTypeConversion.cpp
+    ${CMAKE_SOURCE_DIR}/src/rhi/interface/image/RHIImageUtils.cpp
+    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/descriptor/RHIVkDescriptorSetLayoutBuilder.cpp
+    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/descriptor/RHIVkDescriptorSetLayout.cpp
 )
-set_property(TARGET rhi_vulkan_test PROPERTY CXX_STANDARD 20)
-set_target_properties(rhi_vulkan_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${TEST_OUTPUT_DIRECTORY}")
-target_include_directories(rhi_vulkan_test PRIVATE "${CMAKE_SOURCE_DIR}/src")
-target_link_libraries(rhi_vulkan_test PRIVATE GTest::gtest GTest::gtest_main Vulkan::Vulkan fmt::fmt SDL2::SDL2 glm unordered_dense VulkanMemoryAllocator)
+set_property(TARGET RHIVulkanTest PROPERTY CXX_STANDARD 20)
+set_target_properties(RHIVulkanTest PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${TEST_OUTPUT_DIRECTORY}")
+target_include_directories(RHIVulkanTest PRIVATE "${CMAKE_SOURCE_DIR}/src")
+target_link_libraries(RHIVulkanTest PRIVATE GTest::gtest GTest::gtest_main Vulkan::Vulkan fmt::fmt SDL2::SDL2 glm unordered_dense VulkanMemoryAllocator)
 if (WIN32)
-  add_custom_command(TARGET rhi_vulkan_test POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:rhi_vulkan_test> $<TARGET_FILE_DIR:rhi_vulkan_test>
+  add_custom_command(TARGET RHIVulkanTest POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:RHIVulkanTest> $<TARGET_FILE_DIR:RHIVulkanTest>
     COMMAND_EXPAND_LISTS
   )
 endif()
-add_dependencies(build_tests rhi_vulkan_test)
-add_test(NAME rhi_vulkan_test COMMAND rhi_vulkan_test)
+add_dependencies(BuildTests RHIVulkanTest)
+add_test(NAME RHIVulkanTest COMMAND RHIVulkanTest)

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utils/containers/slotmap.h"
+#include "utils/containers/SlotMap.h"
 
 #include "ankerl/unordered_dense.h"
 #include "glm/mat4x4.hpp"

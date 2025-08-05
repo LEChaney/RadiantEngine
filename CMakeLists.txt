@@ -36,8 +36,8 @@ endif()
 
 add_subdirectory(src)
 enable_testing()
-# Define a global build_tests target before adding subdirectories
-add_custom_target(build_tests)
+# Define a global BuildTests target before adding subdirectories
+add_custom_target(BuildTests)
 add_subdirectory(test)
 
 find_program(GLSL_VALIDATOR glslangValidator HINTS /usr/bin /usr/local/bin $ENV{VULKAN_SDK}/Bin/ $ENV{VULKAN_SDK}/Bin32/)
@@ -67,6 +67,6 @@ add_custom_target(
 )
 
 # Custom target to build everything: engine, tests, shaders
-add_custom_target(build_all
-    DEPENDS engine Shaders build_tests
+add_custom_target(BuildAll
+    DEPENDS engine Shaders BuildTests
 )
