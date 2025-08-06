@@ -7,7 +7,7 @@
 #include "vk_descriptors.h"
 #include "vk_loader.h"
 #include "camera.h"
-#include "core/parallel/parallel_task.h"
+#include "core/parallel/ParallelTask.h"
 
 #include <vulkan/vulkan_core.h>
 
