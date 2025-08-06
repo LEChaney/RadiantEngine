@@ -8,6 +8,7 @@
 #include "rhi/interface/descriptor/RHIDescriptorSetLayout.h"
 #include "rhi/interface/pipeline/RHIPipelineLayoutBuilder.h"
 #include "rhi/interface/pipeline/RHIPipelineLayout.h"
+#include "rhi/interface/pipeline/RHIShaderModule.h"
 #include "rhi/interface/sync/RHIFence.h"
 #include "rhi/interface/image/RHIImageUtils.h"
 #include "fmt/format.h"
@@ -246,9 +247,9 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     layoutBuilder->addPushConstantRange(RHIShaderStage::Compute, 0, sizeof(glm::vec4));
     auto pipelineLayout = layoutBuilder->build();
 
-    // // 3. Create compute shader module
-    // auto shaderModule = m_context->createShaderModule("shaders/clear.comp.spv");
-    // ASSERT_NE(shaderModule, nullptr);
+    // 3. Create compute shader module
+    auto shaderModule = m_context->createShaderModule("../shaders/clear.comp.spv");
+    ASSERT_NE(shaderModule, nullptr);
 
     // // 4. Create compute pipeline
     // rhi::ComputePipelineDesc pipelineDesc;

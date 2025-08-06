@@ -5,6 +5,7 @@
 #include "rhi/vulkan/buffer/RHIVkBuffer.h"
 #include "rhi/vulkan/descriptor/RHIVkDescriptorSetLayoutBuilder.h"
 #include "rhi/vulkan/pipeline/RHIVkPipelineLayoutBuilder.h"
+#include "rhi/vulkan/pipeline/RHIVkShaderModule.h"
 #include "rhi/vulkan/sync/RHIVkFence.h"
 #include "rhi/vulkan/sync/RHIVkSemaphore.h"
 #include "rhi/vulkan/core/RHIVkTypeConversion.h"
@@ -325,13 +326,17 @@ UniquePtr<RHISemaphore> RHIVkContext::createSemaphore() {
 }
 
 UniquePtr<RHIShaderModule> RHIVkContext::createShaderModule(const std::string& spvFilePath) {
-    throw std::runtime_error("Shader modules not implemented yet");
-    // return createRhiVkShaderModule(spvFilePath);
+    return createRhiVkShaderModule(spvFilePath);
+}
+
+UniquePtr<RHIShaderModule> RHIVkContext::createShaderModule(const Array<uint32>& shaderCode)
+{
+    return createRhiVkShaderModule(shaderCode);
 }
 
 UniquePtr<RHIPipeline> RHIVkContext::createComputePipeline(RHIShaderModule* shaderModule) {
     throw std::runtime_error("Compute pipelines not implemented yet");
-    // return createRhiVkComputePipeline(shaderModule);
+    //return createRhiVkComputePipeline(shaderModule);
 }
 
 UniquePtr<RHIDescriptorSetLayoutBuilder> RHIVkContext::createDescriptorSetLayoutBuilder() {
@@ -383,13 +388,6 @@ UniquePtr<RHIVkImage> RHIVkContext::createRhiVkImage(uint32 width, uint32 height
     return RHIVkImage::createUnique(this, width, height, format, usage, memProps);
 }
 
-UniquePtr<RHIVkShaderModule> RHIVkContext::createRhiVkShaderModule(
-    const std::string& spvFilePath) 
-{
-    throw std::runtime_error("Shader modules not implemented yet");
-    //return RHIVkShaderModule::createUnique(this, spvFilePath);
-}
-
 UniquePtr<RHIVkPipeline> RHIVkContext::createRhiVkComputePipeline(
     RHIShaderModule* shaderModule) 
 {
@@ -409,6 +407,17 @@ UniquePtr<RHIVkDescriptorSetBuilder> RHIVkContext::createRhiVkDescriptorSetBuild
 UniquePtr<RHIVkPipelineLayoutBuilder> RHIVkContext::createRhiVkPipelineLayoutBuilder()
 {
     return RHIVkPipelineLayoutBuilder::createUnique(this);
+}
+
+UniquePtr<RHIVkShaderModule> RHIVkContext::createRhiVkShaderModule(
+    const std::string& spvFilePath) 
+{
+    return RHIVkShaderModule::createUnique(this, spvFilePath);
+}
+
+UniquePtr<RHIVkShaderModule> RHIVkContext::createRhiVkShaderModule(const Array<uint32>& shaderCode)
+{
+    return RHIVkShaderModule::createUnique(this, shaderCode);
 }
 
 } // namespace rhi::vulkan
