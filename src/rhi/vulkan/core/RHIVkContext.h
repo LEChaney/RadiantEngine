@@ -53,7 +53,7 @@ public:
     UniquePtr<RHIPipelineLayoutBuilder> createPipelineLayoutBuilder() override;
     UniquePtr<RHIShaderModule> createShaderModule(const std::string& spvFilePath) override;
     UniquePtr<RHIShaderModule> createShaderModule(const Array<uint32>& shaderCode) override;
-    UniquePtr<RHIPipeline> createComputePipeline(RHIShaderModule* shaderModule) override;
+    UniquePtr<RHIPipeline> createComputePipeline(const RHIComputePipelineDescriptor& desc) override;
 
     // Vulkan RHI factory methods
     UniquePtr<RHIVkCommandBuffer> createRhiVkCommandBuffer();
@@ -63,12 +63,12 @@ public:
     UniquePtr<RHIVkBuffer> createRhiVkBuffer(uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps);
     // TODO: Finish implementation of createRhiVkImage
     UniquePtr<RHIVkImage> createRhiVkImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsageFlags usage, RHIMemoryPropertyFlags memProps);
-    UniquePtr<RHIVkPipeline> createRhiVkComputePipeline(RHIShaderModule* shaderModule);
     UniquePtr<RHIVkDescriptorSetLayoutBuilder> createRhiVkDescriptorSetLayoutBuilder();
     UniquePtr<RHIVkDescriptorSetBuilder> createRhiVkDescriptorSetBuilder();
     UniquePtr<RHIVkPipelineLayoutBuilder> createRhiVkPipelineLayoutBuilder();
     UniquePtr<RHIVkShaderModule> createRhiVkShaderModule(const std::string& spvFilePath);
     UniquePtr<RHIVkShaderModule> createRhiVkShaderModule(const Array<uint32>& shaderCode);
+    UniquePtr<RHIVkPipeline> createRhiVkComputePipeline(const RHIComputePipelineDescriptor& desc);
 
     // Vulkan object accessors
     const VkInstance& getVkInstance() const { return m_instance; }

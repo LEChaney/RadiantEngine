@@ -6,6 +6,7 @@
 #include "rhi/vulkan/descriptor/RHIVkDescriptorSetLayoutBuilder.h"
 #include "rhi/vulkan/pipeline/RHIVkPipelineLayoutBuilder.h"
 #include "rhi/vulkan/pipeline/RHIVkShaderModule.h"
+#include "rhi/vulkan/pipeline/RHIVkPipeline.h"
 #include "rhi/vulkan/sync/RHIVkFence.h"
 #include "rhi/vulkan/sync/RHIVkSemaphore.h"
 #include "rhi/vulkan/core/RHIVkTypeConversion.h"
@@ -334,9 +335,8 @@ UniquePtr<RHIShaderModule> RHIVkContext::createShaderModule(const Array<uint32>&
     return createRhiVkShaderModule(shaderCode);
 }
 
-UniquePtr<RHIPipeline> RHIVkContext::createComputePipeline(RHIShaderModule* shaderModule) {
-    throw std::runtime_error("Compute pipelines not implemented yet");
-    //return createRhiVkComputePipeline(shaderModule);
+UniquePtr<RHIPipeline> RHIVkContext::createComputePipeline(const RHIComputePipelineDescriptor& desc) {
+    return createRhiVkComputePipeline(desc);
 }
 
 UniquePtr<RHIDescriptorSetLayoutBuilder> RHIVkContext::createDescriptorSetLayoutBuilder() {
@@ -388,13 +388,6 @@ UniquePtr<RHIVkImage> RHIVkContext::createRhiVkImage(uint32 width, uint32 height
     return RHIVkImage::createUnique(this, width, height, format, usage, memProps);
 }
 
-UniquePtr<RHIVkPipeline> RHIVkContext::createRhiVkComputePipeline(
-    RHIShaderModule* shaderModule) 
-{
-    throw std::runtime_error("Compute pipelines not implemented yet");
-    // return RHIVkPipeline::createUniqueCompute(this, shaderModule);
-}
-
 UniquePtr<RHIVkDescriptorSetLayoutBuilder> RHIVkContext::createRhiVkDescriptorSetLayoutBuilder() {
     return RHIVkDescriptorSetLayoutBuilder::createUnique(this);
 }
@@ -418,6 +411,12 @@ UniquePtr<RHIVkShaderModule> RHIVkContext::createRhiVkShaderModule(
 UniquePtr<RHIVkShaderModule> RHIVkContext::createRhiVkShaderModule(const Array<uint32>& shaderCode)
 {
     return RHIVkShaderModule::createUnique(this, shaderCode);
+}
+
+UniquePtr<RHIVkPipeline> RHIVkContext::createRhiVkComputePipeline(
+    const RHIComputePipelineDescriptor& desc) 
+{
+    return RHIVkPipeline::createUniqueCompute(this, desc);
 }
 
 } // namespace rhi::vulkan

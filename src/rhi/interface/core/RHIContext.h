@@ -19,6 +19,7 @@ class RHIPipeline;
 class RHIDescriptorSetLayoutBuilder;
 class RHIDescriptorSetBuilder;
 class RHIPipelineLayoutBuilder;
+class RHIComputePipelineDescriptor;
 
 class RHIContext {
 public:
@@ -43,7 +44,7 @@ public:
     virtual UniquePtr<RHIPipelineLayoutBuilder> createPipelineLayoutBuilder() = 0;
     virtual UniquePtr<RHIShaderModule> createShaderModule(const std::string& spvFilePath) = 0;
     virtual UniquePtr<RHIShaderModule> createShaderModule(const Array<uint32>& shaderCode) = 0;
-    virtual UniquePtr<RHIPipeline> createComputePipeline(RHIShaderModule* shaderModule) = 0;
+    virtual UniquePtr<RHIPipeline> createComputePipeline(const RHIComputePipelineDescriptor& desc) = 0;
 
 protected:
     // Only derived context or implementation should create RHIContext objects

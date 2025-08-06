@@ -9,6 +9,7 @@
 #include "rhi/interface/pipeline/RHIPipelineLayoutBuilder.h"
 #include "rhi/interface/pipeline/RHIPipelineLayout.h"
 #include "rhi/interface/pipeline/RHIShaderModule.h"
+#include "rhi/interface/pipeline/RHIPipeline.h"
 #include "rhi/interface/sync/RHIFence.h"
 #include "rhi/interface/image/RHIImageUtils.h"
 #include "fmt/format.h"
@@ -251,12 +252,12 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     auto shaderModule = m_context->createShaderModule("../shaders/clear.comp.spv");
     ASSERT_NE(shaderModule, nullptr);
 
-    // // 4. Create compute pipeline
-    // rhi::ComputePipelineDesc pipelineDesc;
-    // pipelineDesc.layout = pipelineLayout.get();
-    // pipelineDesc.shaderModule = shaderModule.get();
-    // auto computePipeline = m_context->createComputePipeline(pipelineDesc);
-    // ASSERT_NE(computePipeline, nullptr);
+    // 4. Create compute pipeline
+    RHIComputePipelineDescriptor pipelineDesc;
+    pipelineDesc.layout = pipelineLayout.get();
+    pipelineDesc.computeShader = shaderModule.get();
+    auto computePipeline = m_context->createComputePipeline(pipelineDesc);
+    ASSERT_NE(computePipeline, nullptr);
 
     // // 5. Acquire swapchain frame
     // auto frame = m_swapchain->acquireNextFrame();
