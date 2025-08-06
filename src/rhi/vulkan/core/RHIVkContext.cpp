@@ -4,6 +4,7 @@
 #include "rhi/vulkan/swapchain/RHIVkSwapchain.h"
 #include "rhi/vulkan/buffer/RHIVkBuffer.h"
 #include "rhi/vulkan/descriptor/RHIVkDescriptorSetLayoutBuilder.h"
+#include "rhi/vulkan/pipeline/RHIVkPipelineLayoutBuilder.h"
 #include "rhi/vulkan/sync/RHIVkFence.h"
 #include "rhi/vulkan/sync/RHIVkSemaphore.h"
 #include "rhi/vulkan/core/RHIVkTypeConversion.h"
@@ -342,6 +343,10 @@ UniquePtr<RHIDescriptorSetBuilder> RHIVkContext::createDescriptorSetBuilder() {
     //return createRhiVkDescriptorSetBuilder();
 }
 
+UniquePtr<RHIPipelineLayoutBuilder> RHIVkContext::createPipelineLayoutBuilder() {
+    return createRhiVkPipelineLayoutBuilder();
+}
+
 UniquePtr<RHISwapchain> RHIVkContext::createSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount) {
     return createRhiVkSwapchain(window, width, height, imageCount);
 }
@@ -399,6 +404,11 @@ UniquePtr<RHIVkDescriptorSetLayoutBuilder> RHIVkContext::createRhiVkDescriptorSe
 UniquePtr<RHIVkDescriptorSetBuilder> RHIVkContext::createRhiVkDescriptorSetBuilder() {
     throw std::runtime_error("Descriptor set builder not implemented yet");
     //return RHIVkDescriptorSetBuilder::createUnique(this);
+}
+
+UniquePtr<RHIVkPipelineLayoutBuilder> RHIVkContext::createRhiVkPipelineLayoutBuilder()
+{
+    return RHIVkPipelineLayoutBuilder::createUnique(this);
 }
 
 } // namespace rhi::vulkan

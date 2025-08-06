@@ -19,7 +19,7 @@ class RHIVkShaderModule;
 class RHIVkPipeline;
 class RHIVkDescriptorSetLayoutBuilder;
 class RHIVkDescriptorSetBuilder;
-class RHIVkDescriptorSetBuilder;
+class RHIVkPipelineLayoutBuilder;
 
 class RHIVkContext : public RHIContext {
 public:
@@ -52,6 +52,7 @@ public:
     UniquePtr<RHIPipeline> createComputePipeline(RHIShaderModule* shaderModule) override;
     UniquePtr<RHIDescriptorSetLayoutBuilder> createDescriptorSetLayoutBuilder() override;
     UniquePtr<RHIDescriptorSetBuilder> createDescriptorSetBuilder() override;
+    UniquePtr<RHIPipelineLayoutBuilder> createPipelineLayoutBuilder() override;
 
     // Vulkan RHI factory methods
     UniquePtr<RHIVkCommandBuffer> createRhiVkCommandBuffer();
@@ -65,6 +66,7 @@ public:
     UniquePtr<RHIVkPipeline> createRhiVkComputePipeline(RHIShaderModule* shaderModule);
     UniquePtr<RHIVkDescriptorSetLayoutBuilder> createRhiVkDescriptorSetLayoutBuilder();
     UniquePtr<RHIVkDescriptorSetBuilder> createRhiVkDescriptorSetBuilder();
+    UniquePtr<RHIVkPipelineLayoutBuilder> createRhiVkPipelineLayoutBuilder();
 
     // Vulkan object accessors
     const VkInstance& getVkInstance() const { return m_instance; }

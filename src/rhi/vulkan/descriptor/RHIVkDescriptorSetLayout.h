@@ -20,7 +20,7 @@ public:
     RHIVkDescriptorSetLayout(RHIVkDescriptorSetLayout&&) = delete;
     RHIVkDescriptorSetLayout& operator=(RHIVkDescriptorSetLayout&&) = delete;
 
-    VkDescriptorSetLayout getVkDescriptorSetLayout() const { return m_layout; }
+    VkDescriptorSetLayout getVk() const { return m_layout; }
 
 private:
     RHIVkDescriptorSetLayout(RHIVkContext* context, VkDescriptorSetLayout layout);

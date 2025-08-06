@@ -6,6 +6,8 @@
 #include "rhi/interface/swapchain/RHISwapchain.h"
 #include "rhi/interface/descriptor/RHIDescriptorSetLayoutBuilder.h"
 #include "rhi/interface/descriptor/RHIDescriptorSetLayout.h"
+#include "rhi/interface/pipeline/RHIPipelineLayoutBuilder.h"
+#include "rhi/interface/pipeline/RHIPipelineLayout.h"
 #include "rhi/interface/sync/RHIFence.h"
 #include "rhi/interface/image/RHIImageUtils.h"
 #include "fmt/format.h"
@@ -232,17 +234,17 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
     ASSERT_TRUE(checkedAtLeastOneFrame) << "No valid frames were tested";
 }
 
-TEST_F(RHIVulkanTestWithSDLAndSwap, ComputeClearColorWithWriter) {
+TEST_F(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     // 1. Create descriptor set layout
     auto setLayoutBuilder = m_context->createDescriptorSetLayoutBuilder();
     setLayoutBuilder->addBinding(0, RHIDescriptorType::StorageImage);
     auto setLayout = setLayoutBuilder->build(RHIShaderStage::Compute);
 
     // // 2. Create pipeline layout with push constant range
-    // auto layoutBuilder = m_context->createPipelineLayoutBuilder();
-    // layoutBuilder->addDescriptorSetLayout(setLayout.get());
-    // layoutBuilder->addPushConstantRange(rhi::ShaderStage::Compute, 0, sizeof(glm::vec4));
-    // auto pipelineLayout = layoutBuilder->build();
+    auto layoutBuilder = m_context->createPipelineLayoutBuilder();
+    layoutBuilder->addDescriptorSetLayout(setLayout.get());
+    layoutBuilder->addPushConstantRange(RHIShaderStage::Compute, 0, sizeof(glm::vec4));
+    auto pipelineLayout = layoutBuilder->build();
 
     // // 3. Create compute shader module
     // auto shaderModule = m_context->createShaderModule("shaders/clear.comp.spv");
@@ -279,7 +281,7 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, ComputeClearColorWithWriter) {
     // frame.commandBuffer->bindPipeline(computePipeline.get(), rhi::RHIPipelineBindPoint::Compute);
     // frame.commandBuffer->bindDescriptorSet(descriptorSet.get(), rhi::RHIPipelineBindPoint::Compute, pipelineLayout.get());
     // glm::vec4 clearColor(0.1f, 0.6f, 0.2f, 1.0f);
-    // frame.commandBuffer->pushConstants(pipelineLayout.get(), rhi::ShaderStage::Compute, 0, sizeof(clearColor), &clearColor);
+    // frame.commandBuffer->pushConstants(pipelineLayout.get(), RHIShaderStage::Compute, 0, sizeof(clearColor), &clearColor);
     // uint32_t width = 640, height = 480;
     // frame.commandBuffer->dispatchCompute((width + 15) / 16, (height + 15) / 16, 1);
     // frame.commandBuffer->transitionImageLayout(frame.image, rhi::RHIImageLayout::Present);
