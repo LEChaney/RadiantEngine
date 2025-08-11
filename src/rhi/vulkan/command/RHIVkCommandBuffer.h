@@ -1,4 +1,3 @@
-
 #pragma once
 #include "rhi/interface/command/RHICommandBuffer.h"
 #include "rhi/vulkan/core/RHIVkContext.h"
@@ -10,10 +9,12 @@ namespace rhi {
 
 class RHIImage;
 class RHIBuffer;
+class RHIPipeline;
 
 namespace vulkan {
 
 class RHIVkContext;
+class RHIVkPipeline;
 
 class RHIVkCommandBuffer : public RHICommandBuffer {
 public:
@@ -34,6 +35,7 @@ public:
     // Transition image layout with explicit old layout
     void transitionImageLayout(RHIImage* image, RHIImageLayout oldLayout, RHIImageLayout newLayout) override;
     void copyImageToBuffer(RHIImage* image, RHIBuffer* buffer, uint32_t width, uint32_t height) override;
+    void bindComputePipeline(RHIPipeline* pipeline) override;
 
     VkCommandBuffer getVk() const { return m_cmdBuffer; }
 

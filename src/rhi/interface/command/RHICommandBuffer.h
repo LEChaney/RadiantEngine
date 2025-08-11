@@ -4,6 +4,8 @@
 
 namespace rhi {
 
+class RHIPipeline;
+
 class RHICommandBuffer {
 public:
     virtual ~RHICommandBuffer() = default;
@@ -17,6 +19,8 @@ public:
     // Transition image layout with explicit old layout
     virtual void transitionImageLayout(class RHIImage* image, RHIImageLayout oldLayout, RHIImageLayout newLayout) = 0;
     virtual void copyImageToBuffer(class RHIImage* image, class RHIBuffer* buffer, uint32_t width, uint32_t height) = 0;
+    // Bind a compute pipeline
+    virtual void bindComputePipeline(RHIPipeline* pipeline) = 0;
 
 protected:
     // Only derived context or implementation should create RHICommandBuffer objects

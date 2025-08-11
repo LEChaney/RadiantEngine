@@ -3,6 +3,7 @@
 #include "rhi/vulkan/image/RHIVkImage.h"
 #include "rhi/vulkan/image/RHIVkImageView.h"
 #include "rhi/vulkan/buffer/RHIVkBuffer.h"
+#include "rhi/vulkan/pipeline/RHIVkPipeline.h"
 #include "rhi/vulkan/core/RHIVulkanInclude.h"
 
 namespace rhi::vulkan {
@@ -148,6 +149,11 @@ void RHIVkCommandBuffer::copyImageToBuffer(rhi::RHIImage* image, rhi::RHIBuffer*
     region.imageOffset = {0, 0, 0};
     region.imageExtent = {width, height, 1};
     vkCmdCopyImageToBuffer(m_cmdBuffer, vkImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, vkBuffer, 1, &region);
+}
+
+void RHIVkCommandBuffer::bindComputePipeline(RHIPipeline* pipeline) {
+    auto* vkPipe = static_cast<RHIVkPipeline*>(pipeline);
+    vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, vkPipe->getVk());
 }
 
 } // namespace rhi::vulkan
