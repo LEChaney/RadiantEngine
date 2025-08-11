@@ -93,6 +93,8 @@ CheckOptions:
     value: 'gk_'
   - key: 'readability-function-cognitive-complexity.IgnoreMacros'
     value: '1'
+  - key: 'readability-simplify-boolean-expr.IgnoreMacros'
+    value: '1'
   # - key: 'cppcoreguidelines-avoid-magic-numbers.IgnoreEnums'
   #   value: '1'
   # - key: 'cppcoreguidelines-avoid-magic-numbers.IgnoreOctalLiterals'
