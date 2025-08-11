@@ -1,7 +1,7 @@
 #include "RHIVkDescriptorBufferArena.h"
 #include "rhi/vulkan/core/RHIVkContext.h"
-#include "rhi/vulkan/buffer/RHIVkBuffer.h"
 #include "rhi/vulkan/descriptor/RHIVkDescriptorSetLayout.h"
+#include "rhi/interface/buffer/RHIBuffer.h"
 #include "fmt/format.h"
 
 namespace rhi::vulkan {
@@ -11,13 +11,12 @@ UniquePtr<RHIVkDescriptorBufferArena> RHIVkDescriptorBufferArena::createUnique(R
 }
 
 RHIVkDescriptorBufferArena::RHIVkDescriptorBufferArena(RHIVkContext* ctx, const CreateInfo& ci)
-    : m_ctx(ctx), m_createInfo(ci) {
+    : m_ctx(ctx), m_size(ci.sizeBytes) {
     // Create underlying buffer (placeholder usage & memory flags for now)
     // TODO: adjust usage flags for sampler / push descriptor usage
-    const RHIBufferUsageFlags usage = RHIBufferUsage::ResourceDescriptorBuffer;
+    const RHIBufferUsageFlags usage = ci.usage;
     const RHIMemoryPropertyFlags memProps = RHIMemoryProperty::HostVisible | RHIMemoryProperty::HostCoherent;
-    m_size = ci.sizeBytes;
-    m_buffer = m_ctx->createBuffer(static_cast<uint64>(m_size), usage, memProps);
+    m_buffer = m_ctx->createBuffer(m_size, usage, memProps);
     if (ci.persistentMapped && m_buffer) {
         m_mapped = m_buffer->map();
     }
@@ -50,16 +49,17 @@ RHIDescriptorSetAllocation RHIVkDescriptorBufferArena::allocateSet(RHIDescriptor
     VkDescriptorSetLayout vkLayout = static_cast<RHIVkDescriptorSetLayout*>(layout)->getVk();
     VkDeviceSize layoutSize = 0;
     vkGetDescriptorSetLayoutSizeEXT(m_ctx->getVkDevice(), vkLayout, &layoutSize);
-    size_t alignment = m_ctx->getVkDescriptorBufferProperties().descriptorBufferOffsetAlignment;
-    size_t offset = 0;
+    uint64 alignment = m_ctx->getVkDescriptorBufferProperties().descriptorBufferOffsetAlignment;
+    uint64 offset = 0;
     if (!allocateRaw(layoutSize, alignment, offset)) {
         throw std::runtime_error("RHIVkDescriptorBufferArena::allocateSet: failed to allocate descriptor set");
     }
-    RHIDescriptorSetAllocation alloc;
-    alloc.arena = this;
-    alloc.offset = offset;
-    alloc.size = layoutSize;
-    alloc.layout = layout;
+    RHIDescriptorSetAllocation alloc {
+        .arena = this,
+        .offset = offset,
+        .size = layoutSize,
+        .layout = layout
+    };
     return alloc;
 }
 

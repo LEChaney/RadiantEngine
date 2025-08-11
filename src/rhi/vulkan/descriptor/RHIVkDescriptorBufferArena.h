@@ -3,13 +3,13 @@
 #include "rhi/vulkan/core/RHIVulkanInclude.h"
 
 namespace rhi {
-class RHIBuffer; 
 class RHIDescriptorSetLayout; 
 }
 
 namespace rhi::vulkan {
 
 class RHIVkContext;
+class RHIVkBuffer;
 
 class RHIVkDescriptorBufferArena final : public RHIDescriptorBufferArena {
 public:
@@ -31,14 +31,13 @@ public:
 private:
     RHIVkDescriptorBufferArena(RHIVkContext* ctx, const CreateInfo& ci);
 
-    bool allocateRaw(size_t size, size_t alignment, size_t& outOffset);
+    bool allocateRaw(uint64 size, uint64 alignment, uint64& outOffset);
 
     RHIVkContext* m_ctx = nullptr;
-    CreateInfo m_createInfo{};
-    UniquePtr<RHIBuffer> m_buffer; // RHI buffer abstraction (will be Vulkan buffer internally)
-    void* m_mapped = nullptr;      // persistent mapped pointer (if enabled)
-    size_t m_size = 0;
-    size_t m_bump = 0;             // linear bump offset
+    UniquePtr<RHIBuffer> m_buffer = nullptr;
+    void* m_mapped = nullptr;
+    uint64 m_size = 0;
+    uint64 m_bump = 0;
 };
 
 } // namespace rhi::vulkan

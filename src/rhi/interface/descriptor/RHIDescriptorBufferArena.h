@@ -10,8 +10,8 @@ class RHIDescriptorSetLayout;
 
 struct RHIDescriptorSetAllocation {
     class RHIDescriptorBufferArena* arena = nullptr;
-    size_t offset = 0;   // byte offset into arena buffer
-    size_t size = 0;     // allocation size in bytes
+    uint64 offset = 0;   // byte offset into arena buffer
+    uint64 size = 0;     // allocation size in bytes
     RHIDescriptorSetLayout* layout = nullptr;
     bool valid() const { return arena && layout && size > 0; }
 };
@@ -19,8 +19,9 @@ struct RHIDescriptorSetAllocation {
 class RHIDescriptorBufferArena {
 public:
     struct CreateInfo {
-        size_t sizeBytes = 0;
+        uint64 sizeBytes = 0;
         bool persistentMapped = true;
+        RHIBufferUsageFlags usage = RHIBufferUsage::ResourceDescriptorBuffer;
     };
 
     virtual ~RHIDescriptorBufferArena() = default;
