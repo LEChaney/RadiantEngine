@@ -12,7 +12,9 @@
 #include "rhi/vulkan/core/RHIVkTypeConversion.h"
 #include "rhi/vulkan/core/RHIVkContext.h"
 #include "rhi/interface/swapchain/RHISwapchain.h"
+#include "rhi/vulkan/descriptor/RHIVkDescriptorBufferArena.h"
 
+#define VMA_STATIC_VULKAN_FUNCTIONS 1
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
 
@@ -102,18 +104,18 @@ UniquePtr<RHIVkContext> RHIVkContext::createUnique(bool enableValidation) {
 RHIVkContext::RHIVkContext(bool enableValidation)
     : m_validationEnabled(enableValidation || gk_defaultEnableValidation)
 {
+    if (volkInitialize() != VK_SUCCESS) {
+        throw std::runtime_error("Failed to initialize Vulkan loader (volk)");
+    }
     createInstance();
+    volkLoadInstance(m_instance);
     setupDebugMessenger();
     pickPhysicalDevice();
     createLogicalDevice();
+    volkLoadDevice(m_device);
     createCommandPool();
-
-    // Create VMA allocator
-    VmaAllocatorCreateInfo allocatorInfo{};
-    allocatorInfo.physicalDevice = m_physicalDevice;
-    allocatorInfo.device = m_device;
-    allocatorInfo.instance = m_instance;
-    vmaCreateAllocator(&allocatorInfo, &m_vmaAllocator);
+    queryDescriptorBufferProperties();
+    createVmaAllocator();
 }
 
 RHIVkContext::~RHIVkContext() {
@@ -239,6 +241,23 @@ void RHIVkContext::setupDebugMessenger() {
     }
 }
 
+void RHIVkContext::queryDescriptorBufferProperties() {
+    m_descBufferProps.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_PROPERTIES_EXT;
+    VkPhysicalDeviceProperties2 deviceProps{};
+    deviceProps.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+    deviceProps.pNext = &m_descBufferProps;
+    vkGetPhysicalDeviceProperties2(m_physicalDevice, &deviceProps);
+}
+
+void RHIVkContext::createVmaAllocator() {
+    VmaAllocatorCreateInfo allocatorInfo{};
+    allocatorInfo.physicalDevice = m_physicalDevice;
+    allocatorInfo.device = m_device;
+    allocatorInfo.instance = m_instance;
+    allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT; // Enable buffer device address
+    vmaCreateAllocator(&allocatorInfo, &m_vmaAllocator);
+}
+
 void RHIVkContext::pickPhysicalDevice() {
     uint32 deviceCount = 0;
     vkEnumeratePhysicalDevices(m_instance, &deviceCount, nullptr);
@@ -285,14 +304,39 @@ void RHIVkContext::createLogicalDevice() {
         createInfo.ppEnabledLayerNames = nullptr;
     }
 
-    // Enable VK_KHR_swapchain device extension
-    Array<const char*> deviceExtensions = { "VK_KHR_swapchain" };
+    // Enable required device extensions
+    Array<const char*> deviceExtensions = { 
+        "VK_KHR_swapchain",
+        "VK_KHR_buffer_device_address",
+        "VK_EXT_descriptor_buffer",
+        "VK_EXT_descriptor_indexing",
+        "VK_KHR_synchronization2"
+    };
     createInfo.enabledExtensionCount = static_cast<uint32>(deviceExtensions.size());
     createInfo.ppEnabledExtensionNames = deviceExtensions.data();
+
+    // Enable bufferDeviceAddress feature
+    VkPhysicalDeviceBufferDeviceAddressFeatures bufferDeviceAddressFeatures{};
+    bufferDeviceAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+    bufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
+#ifdef _DEBUG
+    bufferDeviceAddressFeatures.bufferDeviceAddressCaptureReplay = VK_TRUE;
+#endif
+
+    // Enable descriptorBuffer features
+    VkPhysicalDeviceDescriptorBufferFeaturesEXT descriptorBufferFeatures{};
+    descriptorBufferFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT;
+    descriptorBufferFeatures.descriptorBuffer = VK_TRUE;
+#ifdef _DEBUG
+    descriptorBufferFeatures.descriptorBufferCaptureReplay = VK_TRUE;
+#endif
+    descriptorBufferFeatures.pNext = &bufferDeviceAddressFeatures;
+    createInfo.pNext = &descriptorBufferFeatures;
 
     if (vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create logical device");
     }
+
     m_rhiGraphicsQueue = RHIVkQueue::createUnique(this, graphicsQueueFamily);
 }
 
@@ -337,6 +381,11 @@ UniquePtr<RHIShaderModule> RHIVkContext::createShaderModule(const Array<uint32>&
 
 UniquePtr<RHIPipeline> RHIVkContext::createComputePipeline(const RHIComputePipelineDescriptor& desc) {
     return createRhiVkComputePipeline(desc);
+}
+
+UniquePtr<RHIDescriptorBufferArena> RHIVkContext::createDescriptorBufferArena(const RHIDescriptorBufferArena::CreateInfo& createInfo)
+{
+    return createRhiVkDescriptorBufferArena(createInfo);
 }
 
 UniquePtr<RHIDescriptorSetLayoutBuilder> RHIVkContext::createDescriptorSetLayoutBuilder() {
@@ -418,5 +467,12 @@ UniquePtr<RHIVkPipeline> RHIVkContext::createRhiVkComputePipeline(
 {
     return RHIVkPipeline::createUniqueCompute(this, desc);
 }
+
+UniquePtr<RHIVkDescriptorBufferArena> RHIVkContext::createRhiVkDescriptorBufferArena(const RHIDescriptorBufferArena::CreateInfo& createInfo)
+{
+    return RHIVkDescriptorBufferArena::createUnique(this, createInfo);
+}
+
+
 
 } // namespace rhi::vulkan

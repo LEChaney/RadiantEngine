@@ -1,7 +1,7 @@
 #pragma once
 #include "core/CoreDefs.h"
 #include "rhi/interface/pipeline/RHIPipelineLayoutBuilder.h"
-#include <vulkan/vulkan.h>
+#include "rhi/vulkan/core/RHIVulkanInclude.h"
 
 namespace rhi::vulkan {
     

@@ -1,5 +1,7 @@
 find_package(Vulkan REQUIRED)
 
+add_subdirectory(volk) # use volk's own CMakeLists
+
 add_library(vkbootstrap STATIC)
 add_library(glm INTERFACE)
 

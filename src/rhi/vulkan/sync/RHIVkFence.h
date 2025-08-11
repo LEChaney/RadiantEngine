@@ -1,7 +1,7 @@
 #pragma once
 #include "rhi/vulkan/core/RHIVkContext.h"
 #include "rhi/interface/sync/RHIFence.h"
-#include <vulkan/vulkan.h>
+#include "rhi/vulkan/core/RHIVulkanInclude.h"
 
 namespace rhi::vulkan {
 

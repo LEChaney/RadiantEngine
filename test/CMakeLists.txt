@@ -106,11 +106,12 @@ add_executable(RHIVulkanTest
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/pipeline/RHIVkPipelineLayout.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/pipeline/RHIVkShaderModule.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/pipeline/RHIVkPipeline.cpp
+    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/descriptor/RHIVkDescriptorBufferArena.cpp
 )
 set_property(TARGET RHIVulkanTest PROPERTY CXX_STANDARD 20)
 set_target_properties(RHIVulkanTest PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${TEST_OUTPUT_DIRECTORY}")
 target_include_directories(RHIVulkanTest PRIVATE "${CMAKE_SOURCE_DIR}/src")
-target_link_libraries(RHIVulkanTest PRIVATE GTest::gtest GTest::gtest_main Vulkan::Vulkan fmt::fmt SDL2::SDL2 glm unordered_dense VulkanMemoryAllocator)
+target_link_libraries(RHIVulkanTest PRIVATE volk::volk GTest::gtest GTest::gtest_main Vulkan::Vulkan fmt::fmt SDL2::SDL2 glm unordered_dense VulkanMemoryAllocator)
 if (WIN32)
   add_custom_command(TARGET RHIVulkanTest POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:RHIVulkanTest> $<TARGET_FILE_DIR:RHIVulkanTest>

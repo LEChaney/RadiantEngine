@@ -4,7 +4,7 @@
 #include "rhi/vulkan/core/RHIVkContext.h"
 #include "core/CoreDefs.h"
 #include "glm/vec4.hpp"
-#include <vulkan/vulkan.h>
+#include "rhi/vulkan/core/RHIVulkanInclude.h"
 
 namespace rhi {
 

@@ -40,14 +40,14 @@
 
 #else  // #ifdef _WIN32
 
-#include <vulkan/vulkan.h>
+#include "volk.h"
 
 #endif  // #ifdef _WIN32
 
 #ifdef _MSVC_LANG
 
 // Uncomment to test including `vulkan.h` on your own before including VMA.
-//#include <vulkan/vulkan.h>
+//#include "volk.h"
 
 /*
 In every place where you want to use Vulkan Memory Allocator, define appropriate
@@ -99,7 +99,7 @@ include all public interface declarations. Example:
 #ifdef VMA_VOLK_HEADER_PATH
     #include VMA_VOLK_HEADER_PATH
 #else
-    #include <vulkan/vulkan.h>
+    #include "volk.h"
 #endif
 
 #ifdef _WIN32

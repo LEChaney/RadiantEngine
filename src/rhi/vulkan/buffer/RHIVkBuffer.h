@@ -3,7 +3,7 @@
 #include "rhi/vulkan/core/RHIVkTypeConversion.h"
 #include "core/CoreDefs.h"
 #include "vk_mem_alloc.h"
-#include <vulkan/vulkan.h>
+#include "rhi/vulkan/core/RHIVulkanInclude.h"
 
 namespace rhi::vulkan {
 

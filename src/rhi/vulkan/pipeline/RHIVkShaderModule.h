@@ -1,7 +1,7 @@
 #pragma once
 #include "rhi/interface/pipeline/RHIShaderModule.h"
 #include "core/CoreDefs.h"
-#include <vulkan/vulkan.h>
+#include "rhi/vulkan/core/RHIVulkanInclude.h"
 
 namespace rhi::vulkan {
 

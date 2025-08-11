@@ -1,10 +1,11 @@
 #pragma once
-#include <vk_mem_alloc.h>
 #include "rhi/interface/core/RHIContext.h"
+#include "rhi/vulkan/descriptor/RHIVkDescriptorBufferArena.h"
 #include "core/CoreDefs.h"
-#include <vulkan/vulkan.h>
+#include "rhi/vulkan/core/RHIVulkanInclude.h"
 #include <functional>
 #include <string>
+#include <vk_mem_alloc.h>
 
 namespace rhi::vulkan {
 
@@ -54,6 +55,7 @@ public:
     UniquePtr<RHIShaderModule> createShaderModule(const std::string& spvFilePath) override;
     UniquePtr<RHIShaderModule> createShaderModule(const Array<uint32>& shaderCode) override;
     UniquePtr<RHIPipeline> createComputePipeline(const RHIComputePipelineDescriptor& desc) override;
+    UniquePtr<RHIDescriptorBufferArena> createDescriptorBufferArena(const RHIDescriptorBufferArena::CreateInfo& createInfo) override; // New override
 
     // Vulkan RHI factory methods
     UniquePtr<RHIVkCommandBuffer> createRhiVkCommandBuffer();
@@ -69,12 +71,14 @@ public:
     UniquePtr<RHIVkShaderModule> createRhiVkShaderModule(const std::string& spvFilePath);
     UniquePtr<RHIVkShaderModule> createRhiVkShaderModule(const Array<uint32>& shaderCode);
     UniquePtr<RHIVkPipeline> createRhiVkComputePipeline(const RHIComputePipelineDescriptor& desc);
+    UniquePtr<RHIVkDescriptorBufferArena> createRhiVkDescriptorBufferArena(const RHIDescriptorBufferArena::CreateInfo& createInfo);
 
     // Vulkan object accessors
     const VkInstance& getVkInstance() const { return m_instance; }
     const VkPhysicalDevice& getVkPhysicalDevice() const { return m_physicalDevice; }
     const VkDevice& getVkDevice() const { return m_device; }
     const VkCommandPool& getVkCommandPool() const { return m_commandPool; }
+    const VkPhysicalDeviceDescriptorBufferPropertiesEXT& getVkDescriptorBufferProperties() const { return m_descBufferProps; }
 
     // VMA allocator accessors
     VmaAllocator getVmaAllocator() const { return m_vmaAllocator; }
@@ -90,11 +94,14 @@ private:
     void createLogicalDevice();
     void createCommandPool();
     void setupDebugMessenger();
+    void queryDescriptorBufferProperties();
+    void createVmaAllocator();
     
     bool m_validationEnabled = false;
     VkInstance m_instance{};
     VkPhysicalDevice m_physicalDevice{};
     VkDevice m_device{};
+    VkPhysicalDeviceDescriptorBufferPropertiesEXT m_descBufferProps{};
     VkCommandPool m_commandPool{};
     VkDebugUtilsMessengerEXT m_debugMessenger{};
     VmaAllocator m_vmaAllocator = VK_NULL_HANDLE;

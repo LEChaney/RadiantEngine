@@ -37,7 +37,7 @@ UniquePtr<RHIDescriptorSetLayout> RHIVkDescriptorSetLayoutBuilder::build(RHIShad
     createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     createInfo.bindingCount = static_cast<uint32_t>(m_bindings.size());
     createInfo.pBindings = m_bindings.data();
-
+    createInfo.flags |= VK_DESCRIPTOR_SET_LAYOUT_CREATE_DESCRIPTOR_BUFFER_BIT_EXT; // needed for vkGetDescriptorSetLayoutSizeEXT
     VkDescriptorSetLayout layout = VK_NULL_HANDLE;
     if (vkCreateDescriptorSetLayout(m_context->getVkDevice(), &createInfo, nullptr, &layout) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create descriptor set layout");

@@ -3,7 +3,7 @@
 #include "rhi/vulkan/image/RHIVkImage.h"
 #include "rhi/vulkan/image/RHIVkImageView.h"
 #include "rhi/vulkan/buffer/RHIVkBuffer.h"
-#include <vulkan/vulkan.h>
+#include "rhi/vulkan/core/RHIVulkanInclude.h"
 
 namespace rhi::vulkan {
 

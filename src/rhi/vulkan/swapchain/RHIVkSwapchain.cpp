@@ -6,7 +6,7 @@
 #include "rhi/vulkan/image/RHIVkImage.h"
 #include "rhi/vulkan/sync/RHIVkSemaphore.h"
 #include "rhi/vulkan/core/RHIVkTypeConversion.h"
-#include <vulkan/vulkan.h>
+#include "rhi/vulkan/core/RHIVulkanInclude.h"
 #include <vector>
 #include <cassert>
 #include <stdexcept>

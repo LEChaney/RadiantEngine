@@ -1,6 +1,6 @@
 #include "rhi/vulkan/core/RHIVkContext.h"
 #include "rhi/vulkan/descriptor/RHIVkDescriptorSetLayout.h"
-#include <vulkan/vulkan.h>
+#include "rhi/vulkan/core/RHIVulkanInclude.h"
 
 namespace rhi::vulkan {
 

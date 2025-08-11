@@ -1,7 +1,7 @@
 #include "rhi/vulkan/image/RHIVkImage.h"
 #include "rhi/vulkan/core/RHIVkContext.h"
 #include "rhi/vulkan/core/RHIVkTypeConversion.h"
-#include <vulkan/vulkan.h>
+#include "rhi/vulkan/core/RHIVulkanInclude.h"
 
 namespace rhi::vulkan {
 

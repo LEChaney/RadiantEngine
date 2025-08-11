@@ -1,7 +1,7 @@
 #pragma once
 #include "rhi/interface/core/RHICoreDefs.h"
 #include "core/CoreDefs.h"
-#include <vulkan/vulkan.h>
+#include "rhi/vulkan/core/RHIVulkanInclude.h"
 
 // TODO: Rename this file to rhivk_type_conversions.h or similar
 

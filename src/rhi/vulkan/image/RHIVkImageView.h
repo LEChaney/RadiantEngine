@@ -1,7 +1,7 @@
 #pragma once
 #include "rhi/interface/image/RHIImageView.h"
 #include "rhi/vulkan/image/RHIVkImage.h"
-#include <vulkan/vulkan.h>
+#include "rhi/vulkan/core/RHIVulkanInclude.h"
 
 namespace rhi::vulkan {
 

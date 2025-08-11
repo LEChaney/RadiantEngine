@@ -3,7 +3,7 @@
 #include "rhi/interface/descriptor/RHIDescriptorSetLayoutBuilder.h"
 #include "rhi/vulkan/core/RHIVkTypeConversion.h"
 #include "core/CoreDefs.h"
-#include <vulkan/vulkan.h>
+#include "rhi/vulkan/core/RHIVulkanInclude.h"
 
 namespace rhi::vulkan {
 

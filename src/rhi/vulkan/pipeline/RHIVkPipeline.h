@@ -1,6 +1,6 @@
 #pragma once
 #include "rhi/interface/pipeline/RHIPipeline.h"
-#include <vulkan/vulkan.h>
+#include "rhi/vulkan/core/RHIVulkanInclude.h"
 
 namespace rhi::vulkan {
 

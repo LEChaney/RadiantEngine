@@ -2,7 +2,7 @@
 #pragma once
 #include "rhi/interface/queue/RHIQueue.h"
 #include "core/CoreDefs.h"
-#include <vulkan/vulkan.h>
+#include "rhi/vulkan/core/RHIVulkanInclude.h"
 
 namespace rhi::vulkan {
 

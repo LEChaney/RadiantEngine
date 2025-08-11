@@ -2,7 +2,7 @@
 #include "rhi/vulkan/rhivk_command_buffer.h"
 #include "rhi/vulkan/rhivk_fence.h"
 #include "rhi/vulkan/rhivk_semaphore.h"
-#include <vulkan/vulkan.h>
+#include "rhi/vulkan/core/RHIVulkanInclude.h"
 #include <vector>
 
 namespace rhi::vulkan {
