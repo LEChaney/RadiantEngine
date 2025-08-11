@@ -21,7 +21,8 @@ public:
         SDL_Window* window, 
         uint32_t width, 
         uint32_t height, 
-        uint32_t imageCount);
+        uint32_t imageCount,
+        RHIImageUsageFlags extraImageUsage = 0);
     ~RHIVkSwapchain() override;
 
     RHIFrame acquireNextFrame() override;
@@ -40,7 +41,8 @@ private:
         SDL_Window* window, 
         uint32_t width, 
         uint32_t height, 
-        uint32_t imageCount);
+        uint32_t imageCount,
+        RHIImageUsageFlags extraImageUsage = 0);
     RHIVkSwapchain(const RHIVkSwapchain&) = delete;
     RHIVkSwapchain& operator=(const RHIVkSwapchain&) = delete;
     RHIVkSwapchain(RHIVkSwapchain&&) = delete;

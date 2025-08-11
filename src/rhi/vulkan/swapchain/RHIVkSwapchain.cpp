@@ -21,9 +21,10 @@ UniquePtr<RHIVkSwapchain> RHIVkSwapchain::createUnique(
     SDL_Window* window,
     uint32_t width,
     uint32_t height,
-    uint32_t imageCount)
+    uint32_t imageCount,
+    RHIImageUsageFlags extraImageUsage)
 {
-    return UniquePtr<RHIVkSwapchain>(new RHIVkSwapchain(context, window, width, height, imageCount));
+    return UniquePtr<RHIVkSwapchain>(new RHIVkSwapchain(context, window, width, height, imageCount, extraImageUsage));
 }
 
 RHIVkSwapchain::RHIVkSwapchain(
@@ -31,7 +32,8 @@ RHIVkSwapchain::RHIVkSwapchain(
     SDL_Window* window,
     uint32_t width,
     uint32_t height,
-    uint32_t imageCount)
+    uint32_t imageCount,
+    RHIImageUsageFlags extraImageUsage)
     : m_rhiContext(context)
     , m_imageCount(imageCount)
 {
@@ -79,8 +81,8 @@ RHIVkSwapchain::RHIVkSwapchain(
     swapchainInfo.imageExtent = { width, height };
     swapchainInfo.imageArrayLayers = 1;
     swapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
-                                VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-                                VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+                               VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    swapchainInfo.imageUsage |= toVkImageUsageFlags(extraImageUsage);
     swapchainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     swapchainInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
     swapchainInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
@@ -109,6 +111,7 @@ RHIVkSwapchain::RHIVkSwapchain(
             width,
             height,
             toRhiFormat(m_surfaceFormat.format),
+            toRhiImageUsageFlags(swapchainInfo.imageUsage),
             false // swapchain owns the image
         );
 

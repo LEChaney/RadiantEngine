@@ -12,24 +12,19 @@ UniquePtr<RHIVkBuffer> RHIVkBuffer::createUnique(RHIVkContext *context, uint64 s
 }
 
 RHIVkBuffer::RHIVkBuffer(RHIVkContext* context, uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps)
-    : RHIBuffer(size)
-    , m_context(context)
+    : RHIBuffer(size, usage), m_context(context) 
 {
-    // Assume context provides a VmaAllocator* via getVmaAllocator()
     VmaAllocator allocator = m_context->getVmaAllocator();
 
-    VkBufferCreateInfo bufferInfo{};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    VkBufferCreateInfo bufferInfo{ VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
     bufferInfo.size = size;
-    bufferInfo.usage = 0;
-    bufferInfo.usage |= toVkBufferUsageFlags(usage);
+    bufferInfo.usage = toVkBufferUsageFlags(usage);
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     VmaAllocationCreateInfo allocInfo{};
-    allocInfo.usage = VMA_MEMORY_USAGE_AUTO; // TODO: Allow specifying this on creation
-    allocInfo.flags = 0;
+    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
     allocInfo.requiredFlags = toVkMemoryPropertyFlags(memProps);
-    if ((memProps & RHIMemoryProperty::HostVisible) == RHIMemoryProperty::HostVisible) {
+    if (memProps.hasFlag(RHIMemoryProperty::HostVisible)) {
         allocInfo.flags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT; // Needed to allow mapping when using VMA_MEMORY_USAGE_AUTO
     }
 

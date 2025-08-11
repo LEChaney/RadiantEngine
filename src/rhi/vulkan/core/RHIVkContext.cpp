@@ -13,6 +13,7 @@
 #include "rhi/vulkan/core/RHIVkContext.h"
 #include "rhi/interface/swapchain/RHISwapchain.h"
 #include "rhi/vulkan/descriptor/RHIVkDescriptorBufferArena.h"
+#include "rhi/vulkan/descriptor/RHIVkDescriptorWriter.h"
 
 #define VMA_STATIC_VULKAN_FUNCTIONS 1
 #define VMA_IMPLEMENTATION
@@ -388,6 +389,11 @@ UniquePtr<RHIDescriptorBufferArena> RHIVkContext::createDescriptorBufferArena(co
     return createRhiVkDescriptorBufferArena(createInfo);
 }
 
+UniquePtr<RHIDescriptorWriter> RHIVkContext::createDescriptorWriter(const RHIDescriptorSetAllocation & alloc)
+{
+    return createRhiVkDescriptorWriter(alloc);
+}
+
 UniquePtr<RHIDescriptorSetLayoutBuilder> RHIVkContext::createDescriptorSetLayoutBuilder() {
     return createRhiVkDescriptorSetLayoutBuilder();
 }
@@ -401,8 +407,8 @@ UniquePtr<RHIPipelineLayoutBuilder> RHIVkContext::createPipelineLayoutBuilder() 
     return createRhiVkPipelineLayoutBuilder();
 }
 
-UniquePtr<RHISwapchain> RHIVkContext::createSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount) {
-    return createRhiVkSwapchain(window, width, height, imageCount);
+UniquePtr<RHISwapchain> RHIVkContext::createSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount, RHIImageUsageFlags extraImageUsage) {
+    return createRhiVkSwapchain(window, width, height, imageCount, extraImageUsage);
 }
 
 UniquePtr<RHIBuffer> RHIVkContext::createBuffer(uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps) {
@@ -425,8 +431,8 @@ UniquePtr<RHIVkSemaphore> RHIVkContext::createRhiVkSemaphore() {
     return RHIVkSemaphore::createUnique(this);
 }
 
-UniquePtr<RHIVkSwapchain> RHIVkContext::createRhiVkSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount) {
-    return RHIVkSwapchain::createUnique(this, window, width, height, imageCount);
+UniquePtr<RHIVkSwapchain> RHIVkContext::createRhiVkSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount, RHIImageUsageFlags extraImageUsage) {
+    return RHIVkSwapchain::createUnique(this, window, width, height, imageCount, extraImageUsage);
 }
 
 UniquePtr<RHIVkBuffer> RHIVkContext::createRhiVkBuffer(uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps) {
@@ -471,6 +477,10 @@ UniquePtr<RHIVkPipeline> RHIVkContext::createRhiVkComputePipeline(
 UniquePtr<RHIVkDescriptorBufferArena> RHIVkContext::createRhiVkDescriptorBufferArena(const RHIDescriptorBufferArena::CreateInfo& createInfo)
 {
     return RHIVkDescriptorBufferArena::createUnique(this, createInfo);
+}
+
+UniquePtr<RHIDescriptorWriter> RHIVkContext::createRhiVkDescriptorWriter(const RHIDescriptorSetAllocation& alloc) {
+    return RHIVkDescriptorWriter::createUnique(this, alloc);
 }
 
 

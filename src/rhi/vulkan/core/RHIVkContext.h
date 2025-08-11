@@ -21,6 +21,7 @@ class RHIVkPipeline;
 class RHIVkDescriptorSetLayoutBuilder;
 class RHIVkDescriptorSetBuilder;
 class RHIVkPipelineLayoutBuilder;
+class RHIVkDescriptorWriter;
 
 class RHIVkContext : public RHIContext {
 public:
@@ -46,7 +47,7 @@ public:
     UniquePtr<RHICommandBuffer> createCommandBuffer() override;
     UniquePtr<RHIFence> createFence() override;
     UniquePtr<RHISemaphore> createSemaphore() override;
-    UniquePtr<RHISwapchain> createSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount) override;
+    UniquePtr<RHISwapchain> createSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount, RHIImageUsageFlags extraImageUsage = 0) override;
     UniquePtr<RHIBuffer> createBuffer(uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps) override;
     UniquePtr<RHIImage> createImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsageFlags usage, RHIMemoryPropertyFlags memProps) override;
     UniquePtr<RHIDescriptorSetLayoutBuilder> createDescriptorSetLayoutBuilder() override;
@@ -56,12 +57,13 @@ public:
     UniquePtr<RHIShaderModule> createShaderModule(const Array<uint32>& shaderCode) override;
     UniquePtr<RHIPipeline> createComputePipeline(const RHIComputePipelineDescriptor& desc) override;
     UniquePtr<RHIDescriptorBufferArena> createDescriptorBufferArena(const RHIDescriptorBufferArena::CreateInfo& createInfo) override; // New override
+    UniquePtr<RHIDescriptorWriter> createDescriptorWriter(const RHIDescriptorSetAllocation& alloc) override; // new override
 
     // Vulkan RHI factory methods
     UniquePtr<RHIVkCommandBuffer> createRhiVkCommandBuffer();
     UniquePtr<RHIVkFence> createRhiVkFence();
     UniquePtr<RHIVkSemaphore> createRhiVkSemaphore();
-    UniquePtr<RHIVkSwapchain> createRhiVkSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount);
+    UniquePtr<RHIVkSwapchain> createRhiVkSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount, RHIImageUsageFlags extraImageUsage = 0);
     UniquePtr<RHIVkBuffer> createRhiVkBuffer(uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps);
     // TODO: Finish implementation of createRhiVkImage
     UniquePtr<RHIVkImage> createRhiVkImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsageFlags usage, RHIMemoryPropertyFlags memProps);
@@ -72,6 +74,7 @@ public:
     UniquePtr<RHIVkShaderModule> createRhiVkShaderModule(const Array<uint32>& shaderCode);
     UniquePtr<RHIVkPipeline> createRhiVkComputePipeline(const RHIComputePipelineDescriptor& desc);
     UniquePtr<RHIVkDescriptorBufferArena> createRhiVkDescriptorBufferArena(const RHIDescriptorBufferArena::CreateInfo& createInfo);
+    UniquePtr<RHIDescriptorWriter> createRhiVkDescriptorWriter(const RHIDescriptorSetAllocation& alloc);
 
     // Vulkan object accessors
     const VkInstance& getVkInstance() const { return m_instance; }

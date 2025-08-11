@@ -102,11 +102,12 @@ add_executable(RHIVulkanTest
     ${CMAKE_SOURCE_DIR}/src/rhi/interface/image/RHIImageUtils.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/descriptor/RHIVkDescriptorSetLayoutBuilder.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/descriptor/RHIVkDescriptorSetLayout.cpp
+    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/descriptor/RHIVkDescriptorBufferArena.cpp
+    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/descriptor/RHIVkDescriptorWriter.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/pipeline/RHIVkPipelineLayoutBuilder.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/pipeline/RHIVkPipelineLayout.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/pipeline/RHIVkShaderModule.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/pipeline/RHIVkPipeline.cpp
-    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/descriptor/RHIVkDescriptorBufferArena.cpp
 )
 set_property(TARGET RHIVulkanTest PROPERTY CXX_STANDARD 20)
 set_target_properties(RHIVulkanTest PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${TEST_OUTPUT_DIRECTORY}")

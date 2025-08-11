@@ -21,6 +21,7 @@ class RHIDescriptorSetLayoutBuilder;
 class RHIDescriptorSetBuilder;
 class RHIPipelineLayoutBuilder;
 class RHIComputePipelineDescriptor;
+class RHIDescriptorWriter;
 
 class RHIContext {
 public:
@@ -37,7 +38,7 @@ public:
     virtual UniquePtr<RHICommandBuffer> createCommandBuffer() = 0;
     virtual UniquePtr<RHIFence> createFence() = 0;
     virtual UniquePtr<RHISemaphore> createSemaphore() = 0;
-    virtual UniquePtr<RHISwapchain> createSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 bufferCount) = 0;
+    virtual UniquePtr<RHISwapchain> createSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 bufferCount, RHIImageUsageFlags extraImageUsage = 0) = 0;
     virtual UniquePtr<RHIBuffer> createBuffer(uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps) = 0;
     virtual UniquePtr<RHIImage> createImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsageFlags usage, RHIMemoryPropertyFlags memProps) = 0;
     virtual UniquePtr<RHIDescriptorSetLayoutBuilder> createDescriptorSetLayoutBuilder() = 0;
@@ -47,6 +48,7 @@ public:
     virtual UniquePtr<RHIShaderModule> createShaderModule(const Array<uint32>& shaderCode) = 0;
     virtual UniquePtr<RHIPipeline> createComputePipeline(const RHIComputePipelineDescriptor& desc) = 0;
     virtual UniquePtr<RHIDescriptorBufferArena> createDescriptorBufferArena(const RHIDescriptorBufferArena::CreateInfo& createInfo) = 0;
+    virtual UniquePtr<RHIDescriptorWriter> createDescriptorWriter(const RHIDescriptorSetAllocation& alloc) = 0;
 
 protected:
     // Only derived context or implementation should create RHIContext objects

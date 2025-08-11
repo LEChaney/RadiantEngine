@@ -3,6 +3,7 @@
 #include "rhi/interface/command/RHICommandBuffer.h"
 #include "rhi/interface/queue/RHIQueue.h"
 #include "rhi/interface/swapchain/RHISwapchain.h"
+#include "rhi/interface/descriptor/RHIDescriptorWriter.h"
 #include "rhi/interface/descriptor/RHIDescriptorSetLayoutBuilder.h"
 #include "rhi/interface/descriptor/RHIDescriptorSetLayout.h"
 #include "rhi/interface/pipeline/RHIPipelineLayoutBuilder.h"
@@ -69,7 +70,9 @@ protected:
         ASSERT_NE(m_window, nullptr);
 
         // Create swapchain (API assumed: createSwapchain(SDL_Window*, width, height, buffer_count))
-        m_swapchain = m_context->createSwapchain(m_window, width, height, k_bufferCount);
+        m_swapchain = m_context->createSwapchain(m_window, width, height, k_bufferCount,
+                                                 RHIImageUsage::TransferSrc |  // So we can read back images
+                                                 RHIImageUsage::Storage); // So we can use in compute shaders
         ASSERT_NE(m_swapchain, nullptr);
         EXPECT_EQ(m_swapchain->imageCount(), k_bufferCount);
     }
@@ -275,22 +278,24 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     desc.layout = pipelineLayout.get();
     desc.computeShader = computeShader.get();
     UniquePtr<RHIPipeline> computePipeline;
-    try {
-        computePipeline = m_context->createComputePipeline(desc);
-    } catch (...) {
-        GTEST_SKIP() << "Compute pipeline not yet implemented";
-    }
-    if (!computePipeline) {
-        GTEST_SKIP() << "Compute pipeline creation returned null";
-    }
+    computePipeline = m_context->createComputePipeline(desc);
+    ASSERT_NE(computePipeline, nullptr);
 
     // 4. Descriptor buffer arena and set allocation (hypothetical)
-    auto arena = m_context->createDescriptorBufferArena({ 128 * 1024, true });
+    auto arena = m_context->createDescriptorBufferArena({
+        .sizeBytes = 128 * 1024,
+        .persistentMapped = true,
+        .usage = RHIBufferUsage::ResourceDescriptorBuffer
+    });
     ASSERT_NE(arena, nullptr);
     auto setAlloc = arena->allocateSet(storageSetLayout.get(), "ComputeClearSet");
     ASSERT_TRUE(setAlloc.valid());
-    // RHIDescriptorWriter(setAlloc).writeStorageImage(0, 0, frame.imageView).flush();
-
+    {
+        m_context->createDescriptorWriter(setAlloc)
+            ->writeStorageImage(0, 0, frame.imageView)
+            .flush();
+    }
+    
     // 5. Record commands
     // frame.commandBuffer->reset();
     // frame.commandBuffer->begin();

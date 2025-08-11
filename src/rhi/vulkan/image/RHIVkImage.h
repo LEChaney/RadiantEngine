@@ -22,6 +22,7 @@ public:
         uint32 width,
         uint32 height,
         RHIFormat format,
+        RHIImageUsageFlags usage,
         bool ownsImage = true
     );
         
@@ -49,7 +50,8 @@ private:
         uint32 width,
         uint32 height,
         RHIFormat format,
-        bool ownsImage = true
+        RHIImageUsageFlags usage,
+        bool ownsImage
     );
 
     RHIVkContext* m_context = nullptr;

@@ -10,10 +10,9 @@ UniquePtr<RHIVkDescriptorBufferArena> RHIVkDescriptorBufferArena::createUnique(R
     return UniquePtr<RHIVkDescriptorBufferArena>(new RHIVkDescriptorBufferArena(ctx, ci));
 }
 
-RHIVkDescriptorBufferArena::RHIVkDescriptorBufferArena(RHIVkContext* ctx, const CreateInfo& ci)
+RHIVkDescriptorBufferArena::RHIVkDescriptorBufferArena(RHIVkContext* ctx,
+    const CreateInfo& ci)
     : m_ctx(ctx), m_size(ci.sizeBytes) {
-    // Create underlying buffer (placeholder usage & memory flags for now)
-    // TODO: adjust usage flags for sampler / push descriptor usage
     const RHIBufferUsageFlags usage = ci.usage;
     const RHIMemoryPropertyFlags memProps = RHIMemoryProperty::HostVisible | RHIMemoryProperty::HostCoherent;
     m_buffer = m_ctx->createBuffer(m_size, usage, memProps);
@@ -34,6 +33,7 @@ bool RHIVkDescriptorBufferArena::allocateRaw(size_t size, size_t alignment, size
     size_t current = m_bump;
     size_t aligned = (current + (alignment - 1)) & ~(alignment - 1);
     if (aligned + size > m_size) {
+        ASSERT(false && "RHIVkDescriptorBufferArena: Out of space for descriptor set allocation");
         return false;
     }
     outOffset = aligned;
@@ -42,18 +42,17 @@ bool RHIVkDescriptorBufferArena::allocateRaw(size_t size, size_t alignment, size
 }
 
 RHIDescriptorSetAllocation RHIVkDescriptorBufferArena::allocateSet(RHIDescriptorSetLayout* layout, const char* /*debugName*/) {
-    if (!layout) {
-        throw std::invalid_argument("RHIVkDescriptorBufferArena::allocateSet: layout cannot be null");
-    }
+    ASSERT(layout != nullptr && "RHIVkDescriptorBufferArena::allocateSet: layout must not be null");
+
     // Placeholder: assume layout can provide a byteSize() in future; use fixed size now
     VkDescriptorSetLayout vkLayout = static_cast<RHIVkDescriptorSetLayout*>(layout)->getVk();
     VkDeviceSize layoutSize = 0;
     vkGetDescriptorSetLayoutSizeEXT(m_ctx->getVkDevice(), vkLayout, &layoutSize);
     uint64 alignment = m_ctx->getVkDescriptorBufferProperties().descriptorBufferOffsetAlignment;
     uint64 offset = 0;
-    if (!allocateRaw(layoutSize, alignment, offset)) {
-        throw std::runtime_error("RHIVkDescriptorBufferArena::allocateSet: failed to allocate descriptor set");
-    }
+    ASSERT(allocateRaw(layoutSize, alignment, offset) && 
+        "RHIVkDescriptorBufferArena::allocateSet: failed to allocate descriptor set");
+
     RHIDescriptorSetAllocation alloc {
         .arena = this,
         .offset = offset,
@@ -65,6 +64,22 @@ RHIDescriptorSetAllocation RHIVkDescriptorBufferArena::allocateSet(RHIDescriptor
 
 void RHIVkDescriptorBufferArena::resetLinear() {
     m_bump = 0;
+}
+
+bool RHIVkDescriptorBufferArena::isValidAddress(void* ptr) const {
+    if (!m_mapped) {
+        return false; // Not mapped, cannot validate
+    }
+    return ptr >= m_mapped && ptr < static_cast<uint8*>(m_mapped) + m_size;
+}
+
+bool RHIVkDescriptorBufferArena::isValidRange(void* ptr, size_t size) const {
+    if (!m_mapped || size == 0 || !ptr) {
+        return false;
+    }
+    auto* base = static_cast<uint8*>(m_mapped);
+    auto* p    = static_cast<uint8*>(ptr);
+    return !(p < base || p + size > base + m_size);
 }
 
 } // namespace rhi::vulkan

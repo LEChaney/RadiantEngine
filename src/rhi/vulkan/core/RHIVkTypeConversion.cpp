@@ -501,7 +501,7 @@ const Map<rhi::RHIShaderStage, VkShaderStageFlagBits> gk_rhiToVkShaderStageBit =
 VkBufferUsageFlags toVkBufferUsageFlags(rhi::RHIBufferUsageFlags flags) {
     VkBufferUsageFlags result = 0;
     for (const auto& [rhiBit, vkBit] : gk_rhiToVkBufferUsageBit) {
-        if (flags.test(rhiBit)) {
+        if (flags.hasFlag(rhiBit)) {
             result |= vkBit;
         }
     }
@@ -521,7 +521,7 @@ RHIBufferUsageFlags toRhiBufferUsageFlags(VkBufferUsageFlags flags) {
 VkImageUsageFlags toVkImageUsageFlags(rhi::RHIImageUsageFlags flags) {
     VkImageUsageFlags result = 0;
     for (const auto& [rhiBit, vkBit] : gk_rhiToVkImageUsageBit) {
-        if (flags.test(rhiBit)) {
+        if (flags.hasFlag(rhiBit)) {
             result |= vkBit;
         }
     }
@@ -541,7 +541,7 @@ RHIImageUsageFlags toRhiImageUsageFlags(VkImageUsageFlags flags) {
 VkMemoryPropertyFlags toVkMemoryPropertyFlags(rhi::RHIMemoryPropertyFlags flags) {
     VkMemoryPropertyFlags result = 0;
     for (const auto& [rhiBit, vkBit] : gk_rhiToVkMemoryPropertyBit) {
-        if (flags.test(rhiBit)) {
+        if (flags.hasFlag(rhiBit)) {
             result |= vkBit;
         }
     }
@@ -561,7 +561,7 @@ RHIMemoryPropertyFlags toRhiMemoryPropertyFlags(VkMemoryPropertyFlags flags) {
 VkShaderStageFlags toVkShaderStageFlags(rhi::RHIShaderStageFlags flags) {
     VkShaderStageFlags result = 0;
     for (const auto& [rhiBit, vkBit] : gk_rhiToVkShaderStageBit) {
-        if (flags.test(rhiBit)) {
+        if (flags.hasFlag(rhiBit)) {
             result |= vkBit;
         }
     }

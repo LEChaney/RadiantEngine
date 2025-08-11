@@ -28,6 +28,9 @@ public:
     void* mapped() const override { return m_mapped; }
     RHIBuffer* buffer() const override { return m_buffer.get(); }
 
+    bool isValidAddress(void* ptr) const override;
+    bool isValidRange(void* ptr, size_t size) const override;
+
 private:
     RHIVkDescriptorBufferArena(RHIVkContext* ctx, const CreateInfo& ci);
 

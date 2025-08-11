@@ -13,7 +13,8 @@ struct RHIDescriptorSetAllocation {
     uint64 offset = 0;   // byte offset into arena buffer
     uint64 size = 0;     // allocation size in bytes
     RHIDescriptorSetLayout* layout = nullptr;
-    bool valid() const { return arena && layout && size > 0; }
+
+    bool valid() const;
 };
 
 class RHIDescriptorBufferArena {
@@ -37,8 +38,17 @@ public:
     virtual void* mapped() const = 0;
     virtual RHIBuffer* buffer() const = 0;
 
+    virtual bool isValidAddress(void* ptr) const = 0;
+    virtual bool isValidRange(void* ptr, size_t size) const = 0;
+
 protected:
     RHIDescriptorBufferArena() = default;
 };
+
+inline bool RHIDescriptorSetAllocation::valid() const {
+    return arena && layout && size > 0 &&
+           arena->isValidRange(reinterpret_cast<uint8*>(arena->mapped()) + offset, size);
+
+}
 
 } // namespace rhi

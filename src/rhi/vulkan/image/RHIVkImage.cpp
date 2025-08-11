@@ -22,9 +22,10 @@ UniquePtr<RHIVkImage> RHIVkImage::createUnique(
     uint32 width,
     uint32 height,
     RHIFormat format,
+    RHIImageUsageFlags usage,
     bool ownsImage)
 {
-    return UniquePtr<RHIVkImage>(new RHIVkImage(context, image, width, height, format, ownsImage));
+    return UniquePtr<RHIVkImage>(new RHIVkImage(context, image, width, height, format, usage, ownsImage));
 }
 
 RHIVkImage::RHIVkImage(
@@ -34,7 +35,7 @@ RHIVkImage::RHIVkImage(
     RHIFormat format,
     RHIImageUsageFlags usage,
     RHIMemoryPropertyFlags memProps)
-    : RHIImage(width, height, format)
+    : RHIImage(width, height, format, usage)
     , m_context(context), m_ownsImage(true)
 {
     // Vulkan image creation logic goes here
@@ -48,8 +49,9 @@ RHIVkImage::RHIVkImage(
     uint32 width,
     uint32 height,
     RHIFormat format,
+    RHIImageUsageFlags usage,
     bool ownsImage)
-    : RHIImage(width, height, format)
+    : RHIImage(width, height, format, usage)
     , m_image(image), m_context(context), m_ownsImage(ownsImage)
 {}
 
