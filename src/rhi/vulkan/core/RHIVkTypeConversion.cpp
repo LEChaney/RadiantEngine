@@ -349,6 +349,25 @@ Map<VkColorSpaceKHR, RHIColorSpace> createVkToRhiColorMap()
     return map;
 }
 
+const Map<VkColorSpaceKHR, RHIColorSpace> gk_vkToRhiColor = createVkToRhiColorMap();
+
+const Map<RHIPipelineBindPoint, VkPipelineBindPoint> gk_rhiToVkPipelineBindPoint = {
+    {RHIPipelineBindPoint::Graphics, VkPipelineBindPoint::VK_PIPELINE_BIND_POINT_GRAPHICS},
+    {RHIPipelineBindPoint::Compute, VkPipelineBindPoint::VK_PIPELINE_BIND_POINT_COMPUTE},
+    {RHIPipelineBindPoint::RayTracing, VkPipelineBindPoint::VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR},
+};
+
+Map<VkPipelineBindPoint, RHIPipelineBindPoint> createVkToRhiPipelineBindPointMap()
+{
+    Map<VkPipelineBindPoint, RHIPipelineBindPoint> map;
+    for (const auto& pair : gk_rhiToVkPipelineBindPoint) {
+        map[pair.second] = pair.first;
+    }
+    return map;
+}
+
+const Map<VkPipelineBindPoint, RHIPipelineBindPoint> gk_vkToRhiPipelineBindPoint = createVkToRhiPipelineBindPointMap();
+
 } // anonymous namespace
 
 VkImageLayout toVkImageLayout(RHIImageLayout layout) {
@@ -409,8 +428,8 @@ VkColorSpaceKHR toVkColorSpace(RHIColorSpace cs)
 
 RHIColorSpace toRhiColorSpace(VkColorSpaceKHR cs)
 {
-    auto it = createVkToRhiColorMap().find(cs);
-    if (it != createVkToRhiColorMap().end()) {
+    auto it = gk_vkToRhiColor.find(cs);
+    if (it != gk_vkToRhiColor.end()) {
         return it->second;
     }
     return RHIColorSpace::RHI_COLOR_SPACE_SRGB_NONLINEAR_KHR;
@@ -430,6 +449,22 @@ RHISurfaceFormat toRhiSurfaceFormat(const VkSurfaceFormatKHR &vkfmt)
     fmt.format = toRhiFormat(vkfmt.format);
     fmt.color_space = toRhiColorSpace(vkfmt.colorSpace);
     return fmt;
+}
+
+VkPipelineBindPoint toVkPipelineBindPoint(RHIPipelineBindPoint bindPoint) {
+    auto it = gk_rhiToVkPipelineBindPoint.find(bindPoint);
+    if (it != gk_rhiToVkPipelineBindPoint.end()) {
+        return it->second;
+    }
+    return VK_PIPELINE_BIND_POINT_MAX_ENUM;
+}
+
+RHIPipelineBindPoint toRhiPipelineBindPoint(VkPipelineBindPoint bindPoint) {
+    auto it = gk_vkToRhiPipelineBindPoint.find(bindPoint);
+    if (it != gk_vkToRhiPipelineBindPoint.end()) {
+        return it->second;
+    }
+    return RHIPipelineBindPoint::Invalid;
 }
 
 // --- Flag conversion implementations ---

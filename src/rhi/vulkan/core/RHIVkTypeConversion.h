@@ -27,6 +27,10 @@ RHIColorSpace toRhiColorSpace(VkColorSpaceKHR cs);
 VkSurfaceFormatKHR toVkSurfaceFormat(const RHISurfaceFormat& fmt);
 RHISurfaceFormat toRhiSurfaceFormat(const VkSurfaceFormatKHR& vkfmt);
 
+// RHIPipelineBindPoint <-> VkPipelineBindPoint
+VkPipelineBindPoint toVkPipelineBindPoint(RHIPipelineBindPoint bindPoint);
+RHIPipelineBindPoint toRhiPipelineBindPoint(VkPipelineBindPoint bindPoint);
+
 // RHIBufferUsageFlags <-> VkBufferUsageFlags
 VkBufferUsageFlags toVkBufferUsageFlags(RHIBufferUsageFlags flags);
 RHIBufferUsageFlags toRhiBufferUsageFlags(VkBufferUsageFlags flags);

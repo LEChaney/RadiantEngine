@@ -39,13 +39,15 @@ RHIVkBuffer::~RHIVkBuffer() {
     }
 }
 
-
 void *RHIVkBuffer::map()
 {
-    void* data = nullptr;
+    if (m_mapped) {
+        return m_mapped; // Already mapped
+    }
+    
     VmaAllocator allocator = m_context->getVmaAllocator();
-    vmaMapMemory(allocator, m_allocation, &data);
-    return data;
+    vmaMapMemory(allocator, m_allocation, &m_mapped);
+    return m_mapped;
 }
 
 void RHIVkBuffer::unmap() {

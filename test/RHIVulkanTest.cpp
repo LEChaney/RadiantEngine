@@ -6,6 +6,8 @@
 #include "rhi/interface/descriptor/RHIDescriptorWriter.h"
 #include "rhi/interface/descriptor/RHIDescriptorSetLayoutBuilder.h"
 #include "rhi/interface/descriptor/RHIDescriptorSetLayout.h"
+#include "rhi/interface/descriptor/RHIDescriptorBuffer.h"
+#include "rhi/interface/descriptor/RHIDescriptorSet.h"
 #include "rhi/interface/pipeline/RHIPipelineLayoutBuilder.h"
 #include "rhi/interface/pipeline/RHIPipelineLayout.h"
 #include "rhi/interface/pipeline/RHIShaderModule.h"
@@ -239,12 +241,12 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
 }
 
 TEST_F(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
-    // Finalized hypothetical API usage: RHIDescriptorBufferArena + allocateSet + RHIDescriptorWriter.
+    // Finalized hypothetical API usage: RHIDescriptorBuffer + allocateSet + RHIDescriptorWriter.
     // Assumes forthcoming headers:
-    //   rhi/interface/descriptor/RHIDescriptorBufferArena.h
+    //   rhi/interface/descriptor/RHIDescriptorBuffer.h
     //   rhi/interface/descriptor/RHIDescriptorWriter.h
     // And command buffer extensions:
-    //   bindComputePipeline, bindDescriptorBuffer, dispatch
+    //   bindComputePipeline, bindDescriptorBuffers, dispatch
 
     constexpr uint32_t kWidth = 640, kHeight = 480;
 
@@ -272,7 +274,8 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     ASSERT_NE(pipelineLayout, nullptr);
 
     // 3. Compute shader + pipeline
-    auto computeShader = m_context->createShaderModule("../shaders/clear.comp.spv");
+    Path shaderPath = "../shaders/clear.comp.spv";
+    auto computeShader = m_context->createShaderModule(shaderPath);
     ASSERT_NE(computeShader, nullptr);
     RHIComputePipelineDescriptor desc{};
     desc.layout = pipelineLayout.get();
@@ -281,17 +284,17 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     computePipeline = m_context->createComputePipeline(desc);
     ASSERT_NE(computePipeline, nullptr);
 
-    // 4. Descriptor buffer arena and set allocation (hypothetical)
-    auto arena = m_context->createDescriptorBufferArena({
+    // 4. Descriptor buffer and set allocation (hypothetical)
+    auto buffer = m_context->createDescriptorBuffer({
         .sizeBytes = 128 * 1024,
         .persistentMapped = true,
         .usage = RHIBufferUsage::ResourceDescriptorBuffer
     });
-    ASSERT_NE(arena, nullptr);
-    auto setAlloc = arena->allocateSet(storageSetLayout.get(), "ComputeClearSet");
-    ASSERT_TRUE(setAlloc.valid());
+    ASSERT_NE(buffer, nullptr);
+    auto set = buffer->allocateSet(storageSetLayout.get(), "ComputeClearSet");
+    ASSERT_TRUE(set.isValid());
     {
-        m_context->createDescriptorWriter(setAlloc)
+        m_context->createDescriptorWriter(set)
             ->writeStorageImage(0, 0, frame.imageView)
             .flush();
     }
@@ -302,10 +305,21 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     frame.commandBuffer->transitionImageLayout(frame.image, RHIImageLayout::General);
 
     frame.commandBuffer->bindComputePipeline(computePipeline.get());
-    frame.commandBuffer->bindDescriptorBuffer(pipelineLayout.get(), 0, arena->buffer(), setAlloc.offset);
 
-    // glm::vec4 clearColor(0.0f, 1.0f, 0.0f, 1.0f); // Green clear color
-    // //frame.commandBuffer->pushConstants(pipelineLayout.get(), RHIShaderStage::Compute, 0, sizeof(clearColor), &clearColor);
+    frame.commandBuffer->bindDescriptorBuffers({buffer.get()});
+    Array<RHIDescriptorSetBinding> setBindings = {
+        { .setIndex = 0, .set = set }
+    };
+    frame.commandBuffer->bindDescriptorSets(setBindings, pipelineLayout.get(),
+        RHIPipelineBindPoint::Compute);
+
+    glm::vec4 clearColor(0.0f, 1.0f, 0.0f, 1.0f); // Green clear color
+    frame.commandBuffer->pushConstants(
+        pipelineLayout.get(),
+        RHIShaderStage::Compute,
+        0,
+        sizeof(clearColor),
+        &clearColor);
     
     // uint32_t groupCountX = (kWidth + 7) / 8;
     // uint32_t groupCountY = (kHeight + 7) / 8;

@@ -1,7 +1,7 @@
 #pragma once
 #include "core/CoreDefs.h"
 #include "rhi/interface/core/RHICoreDefs.h"
-#include "rhi/interface/descriptor/RHIDescriptorBufferArena.h"
+#include "RHIDescriptorBuffer.h"
 #include "rhi/interface/descriptor/RHIDescriptorWriter.h"
 
 namespace rhi {
@@ -28,7 +28,7 @@ public:
     RHIDescriptorHeap& operator=(RHIDescriptorHeap&&) = delete;
 
     virtual RHIDescriptorSetLayout* layout() const = 0;
-    virtual const RHIDescriptorSetAllocation& allocation() const = 0;
+    virtual const RHIDescriptorSet& allocation() const = 0;
 
     virtual uint32 registerSampledImage(RHIImageView* view, RHISampler* sampler) = 0;
     virtual void updateSampledImage(uint32 index, RHIImageView* view, RHISampler* sampler) = 0;

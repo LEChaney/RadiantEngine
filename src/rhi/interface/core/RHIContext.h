@@ -1,5 +1,5 @@
 #pragma once
-#include "rhi/interface/descriptor/RHIDescriptorBufferArena.h"
+#include "..\descriptor\RHIDescriptorBuffer.h"
 #include "rhi/interface/core/RHICoreDefs.h"
 #include "core/CoreDefs.h"
 #include <string>
@@ -44,11 +44,11 @@ public:
     virtual UniquePtr<RHIDescriptorSetLayoutBuilder> createDescriptorSetLayoutBuilder() = 0;
     virtual UniquePtr<RHIDescriptorSetBuilder> createDescriptorSetBuilder() = 0;
     virtual UniquePtr<RHIPipelineLayoutBuilder> createPipelineLayoutBuilder() = 0;
-    virtual UniquePtr<RHIShaderModule> createShaderModule(const std::string& spvFilePath) = 0;
+    virtual UniquePtr<RHIShaderModule> createShaderModule(const Path& spvFilePath) = 0;
     virtual UniquePtr<RHIShaderModule> createShaderModule(const Array<uint32>& shaderCode) = 0;
     virtual UniquePtr<RHIPipeline> createComputePipeline(const RHIComputePipelineDescriptor& desc) = 0;
-    virtual UniquePtr<RHIDescriptorBufferArena> createDescriptorBufferArena(const RHIDescriptorBufferArena::CreateInfo& createInfo) = 0;
-    virtual UniquePtr<RHIDescriptorWriter> createDescriptorWriter(const RHIDescriptorSetAllocation& alloc) = 0;
+    virtual UniquePtr<RHIDescriptorBuffer> createDescriptorBuffer(const RHIDescriptorBuffer::CreateInfo& createInfo) = 0;
+    virtual UniquePtr<RHIDescriptorWriter> createDescriptorWriter(const RHIDescriptorSet& alloc) = 0;
 
 protected:
     // Only derived context or implementation should create RHIContext objects

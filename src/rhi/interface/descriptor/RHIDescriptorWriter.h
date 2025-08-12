@@ -1,7 +1,7 @@
 #pragma once
 #include "core/CoreDefs.h"
-#include "rhi/interface/core/RHICoreDefs.h"
-#include "rhi/interface/descriptor/RHIDescriptorBufferArena.h"
+#include "RHIDescriptorBuffer.h"
+#include "RHIDescriptorSet.h"
 
 namespace rhi {
 
@@ -25,10 +25,10 @@ public:
     virtual void flush() = 0; // Flush non-coherent memory if required
 
 protected:
-    explicit RHIDescriptorWriter(const RHIDescriptorSetAllocation& alloc)
-        : m_alloc(alloc) {}
+    explicit RHIDescriptorWriter(const RHIDescriptorSet& descSet)
+        : m_descSet(descSet) {}
 
-    RHIDescriptorSetAllocation m_alloc{};
+    RHIDescriptorSet m_descSet{};
 };
 
 } // namespace rhi

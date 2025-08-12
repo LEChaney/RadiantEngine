@@ -106,6 +106,7 @@ enum class RHIPipelineBindPoint : uint8 {
     Graphics = 0,
     Compute  = 1,
     RayTracing = 2,
+    Invalid = 0xFF
 };
 
 enum class RHIDescriptorType : uint32 {

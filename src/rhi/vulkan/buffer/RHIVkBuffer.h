@@ -24,7 +24,7 @@ public:
 
     VkBuffer getVk() const { return m_buffer; }
 
-private:
+protected:
     RHIVkBuffer(RHIVkContext* context, uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps);
     
     RHIVkContext* m_context = nullptr;

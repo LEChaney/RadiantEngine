@@ -5,13 +5,15 @@
 
 namespace rhi::vulkan {
 
-UniquePtr<RHIVkShaderModule> RHIVkShaderModule::createUnique(
-    RHIVkContext* context, const std::string& spvFilePath) 
+UniquePtr<RHIVkShaderModule> RHIVkShaderModule::createUnique(RHIVkContext* context,
+    const Path& spvFilePath)
 {
     // Load SPIR-V shader code from file
     std::ifstream file(spvFilePath, std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
-        throw std::runtime_error("Failed to open shader file: " + spvFilePath);
+        ASSERT(false && "Failed to open shader file");
+        //throw std::runtime_error("Failed to open shader file: " + spvFilePath);
+        return nullptr;
     }
     file.seekg(0, std::ios::end);
     std::streampos fileSize = file.tellg();
@@ -19,7 +21,9 @@ UniquePtr<RHIVkShaderModule> RHIVkShaderModule::createUnique(
 
     Array<uint32> shaderCode(fileSize / sizeof(uint32));
     if (!file.read(reinterpret_cast<char*>(shaderCode.data()), fileSize)) {
-        throw std::runtime_error("Failed to read shader file: " + spvFilePath);
+        ASSERT(false && "Failed to read shader file");
+        //throw std::runtime_error("Failed to read shader file: " + spvFilePath);
+        return nullptr;
     }
 
     return UniquePtr<RHIVkShaderModule>(new RHIVkShaderModule(context, shaderCode));

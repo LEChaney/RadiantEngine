@@ -12,7 +12,7 @@
 #include "rhi/vulkan/core/RHIVkTypeConversion.h"
 #include "rhi/vulkan/core/RHIVkContext.h"
 #include "rhi/interface/swapchain/RHISwapchain.h"
-#include "rhi/vulkan/descriptor/RHIVkDescriptorBufferArena.h"
+#include "..\descriptor\RHIVkDescriptorBuffer.h"
 #include "rhi/vulkan/descriptor/RHIVkDescriptorWriter.h"
 
 #define VMA_STATIC_VULKAN_FUNCTIONS 1
@@ -379,7 +379,7 @@ UniquePtr<RHISemaphore> RHIVkContext::createSemaphore() {
     return createRhiVkSemaphore();
 }
 
-UniquePtr<RHIShaderModule> RHIVkContext::createShaderModule(const std::string& spvFilePath) {
+UniquePtr<RHIShaderModule> RHIVkContext::createShaderModule(const Path& spvFilePath) {
     return createRhiVkShaderModule(spvFilePath);
 }
 
@@ -392,12 +392,12 @@ UniquePtr<RHIPipeline> RHIVkContext::createComputePipeline(const RHIComputePipel
     return createRhiVkComputePipeline(desc);
 }
 
-UniquePtr<RHIDescriptorBufferArena> RHIVkContext::createDescriptorBufferArena(const RHIDescriptorBufferArena::CreateInfo& createInfo)
+UniquePtr<RHIDescriptorBuffer> RHIVkContext::createDescriptorBuffer(const RHIDescriptorBuffer::CreateInfo& createInfo)
 {
     return createRhiVkDescriptorBufferArena(createInfo);
 }
 
-UniquePtr<RHIDescriptorWriter> RHIVkContext::createDescriptorWriter(const RHIDescriptorSetAllocation & alloc)
+UniquePtr<RHIDescriptorWriter> RHIVkContext::createDescriptorWriter(const RHIDescriptorSet & alloc)
 {
     return createRhiVkDescriptorWriter(alloc);
 }
@@ -465,8 +465,7 @@ UniquePtr<RHIVkPipelineLayoutBuilder> RHIVkContext::createRhiVkPipelineLayoutBui
     return RHIVkPipelineLayoutBuilder::createUnique(this);
 }
 
-UniquePtr<RHIVkShaderModule> RHIVkContext::createRhiVkShaderModule(
-    const std::string& spvFilePath) 
+UniquePtr<RHIVkShaderModule> RHIVkContext::createRhiVkShaderModule(const Path& spvFilePath)
 {
     return RHIVkShaderModule::createUnique(this, spvFilePath);
 }
@@ -482,12 +481,12 @@ UniquePtr<RHIVkPipeline> RHIVkContext::createRhiVkComputePipeline(
     return RHIVkPipeline::createUniqueCompute(this, desc);
 }
 
-UniquePtr<RHIVkDescriptorBufferArena> RHIVkContext::createRhiVkDescriptorBufferArena(const RHIDescriptorBufferArena::CreateInfo& createInfo)
+UniquePtr<RHIVkDescriptorBuffer> RHIVkContext::createRhiVkDescriptorBufferArena(const RHIDescriptorBuffer::CreateInfo& createInfo)
 {
-    return RHIVkDescriptorBufferArena::createUnique(this, createInfo);
+    return RHIVkDescriptorBuffer::createUnique(this, createInfo);
 }
 
-UniquePtr<RHIDescriptorWriter> RHIVkContext::createRhiVkDescriptorWriter(const RHIDescriptorSetAllocation& alloc) {
+UniquePtr<RHIDescriptorWriter> RHIVkContext::createRhiVkDescriptorWriter(const RHIDescriptorSet& alloc) {
     return RHIVkDescriptorWriter::createUnique(this, alloc);
 }
 

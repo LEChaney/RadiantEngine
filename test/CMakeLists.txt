@@ -61,7 +61,7 @@ add_executable(SlotMapTest SlotMapTest.cpp)
 set_property(TARGET SlotMapTest PROPERTY CXX_STANDARD 20)
 set_target_properties(SlotMapTest PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${TEST_OUTPUT_DIRECTORY}")
 target_include_directories(SlotMapTest PRIVATE "${CMAKE_SOURCE_DIR}/src")
-target_link_libraries(SlotMapTest PRIVATE GTest::gtest GTest::gtest_main unordered_dense)
+target_link_libraries(SlotMapTest PRIVATE GTest::gtest GTest::gtest_main unordered_dense svector)
 add_dependencies(BuildTests SlotMapTest)
 add_test(NAME SlotMapTest COMMAND SlotMapTest)
 
@@ -70,7 +70,7 @@ add_executable(SceneTest SceneTest.cpp ${CMAKE_SOURCE_DIR}/src/scene/Scene.cpp)
 set_property(TARGET SceneTest PROPERTY CXX_STANDARD 20)
 set_target_properties(SceneTest PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${TEST_OUTPUT_DIRECTORY}")
 target_include_directories(SceneTest PRIVATE "${CMAKE_SOURCE_DIR}/src")
-target_link_libraries(SceneTest PRIVATE GTest::gtest GTest::gtest_main glm unordered_dense)
+target_link_libraries(SceneTest PRIVATE GTest::gtest GTest::gtest_main glm unordered_dense svector)
 add_dependencies(BuildTests SceneTest)
 add_test(NAME SceneTest COMMAND SceneTest)
 
@@ -82,7 +82,7 @@ add_executable(SceneManagerTest
 set_property(TARGET SceneManagerTest PROPERTY CXX_STANDARD 20)
 set_target_properties(SceneManagerTest PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${TEST_OUTPUT_DIRECTORY}")
 target_include_directories(SceneManagerTest PRIVATE "${CMAKE_SOURCE_DIR}/src")
-target_link_libraries(SceneManagerTest PRIVATE GTest::gtest GTest::gtest_main glm unordered_dense)
+target_link_libraries(SceneManagerTest PRIVATE GTest::gtest GTest::gtest_main glm unordered_dense svector)
 add_dependencies(BuildTests SceneManagerTest)
 add_test(NAME SceneManagerTest COMMAND SceneManagerTest)
 
@@ -102,7 +102,7 @@ add_executable(RHIVulkanTest
     ${CMAKE_SOURCE_DIR}/src/rhi/interface/image/RHIImageUtils.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/descriptor/RHIVkDescriptorSetLayoutBuilder.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/descriptor/RHIVkDescriptorSetLayout.cpp
-    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/descriptor/RHIVkDescriptorBufferArena.cpp
+    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/descriptor/RHIVkDescriptorBuffer.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/descriptor/RHIVkDescriptorWriter.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/pipeline/RHIVkPipelineLayoutBuilder.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/pipeline/RHIVkPipelineLayout.cpp
@@ -112,7 +112,7 @@ add_executable(RHIVulkanTest
 set_property(TARGET RHIVulkanTest PROPERTY CXX_STANDARD 20)
 set_target_properties(RHIVulkanTest PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${TEST_OUTPUT_DIRECTORY}")
 target_include_directories(RHIVulkanTest PRIVATE "${CMAKE_SOURCE_DIR}/src")
-target_link_libraries(RHIVulkanTest PRIVATE volk::volk GTest::gtest GTest::gtest_main Vulkan::Vulkan fmt::fmt SDL2::SDL2 glm unordered_dense VulkanMemoryAllocator)
+target_link_libraries(RHIVulkanTest PRIVATE volk::volk GTest::gtest GTest::gtest_main Vulkan::Vulkan fmt::fmt SDL2::SDL2 glm unordered_dense svector VulkanMemoryAllocator)
 if (WIN32)
   add_custom_command(TARGET RHIVulkanTest POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:RHIVulkanTest> $<TARGET_FILE_DIR:RHIVulkanTest>

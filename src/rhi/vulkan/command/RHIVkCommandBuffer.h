@@ -11,6 +11,7 @@ class RHIImage;
 class RHIBuffer;
 class RHIPipeline;
 class RHIPipelineLayout;
+struct RHIDescriptorSet;
 
 namespace vulkan {
 
@@ -39,7 +40,11 @@ public:
     void transitionImageLayout(RHIImage* image, RHIImageLayout oldLayout, RHIImageLayout newLayout) override;
     void copyImageToBuffer(RHIImage* image, RHIBuffer* buffer, uint32_t width, uint32_t height) override;
     void bindComputePipeline(RHIPipeline* pipeline) override;
-    void bindDescriptorBuffer(RHIPipelineLayout* layout, uint32_t setIndex, RHIBuffer* buffer, uint64 offset) override;
+    void bindDescriptorBuffers(const Array<RHIDescriptorBuffer*>& descBuffers) override;
+    void bindDescriptorSets(const Array<RHIDescriptorSetBinding>& setBindings,
+        RHIPipelineLayout* pipelineLayout, RHIPipelineBindPoint bindPoint) override;
+    void pushConstants(RHIPipelineLayout* layout, RHIShaderStageFlags shaderStageFlags,
+        uint32 offset, uint32 size, const void* data);
 
     VkCommandBuffer getVk() const { return m_cmdBuffer; }
 
@@ -48,7 +53,7 @@ private:
 
     VkCommandBuffer m_cmdBuffer = VK_NULL_HANDLE;
     RHIVkContext* m_context = nullptr;
-    Map<rhi::RHIImage*, RHIImageLayout> m_trackedImageLayouts;
+    Map<RHIImage*, RHIImageLayout> m_trackedImageLayouts;
 };
 
 } // namespace rhi::vulkan

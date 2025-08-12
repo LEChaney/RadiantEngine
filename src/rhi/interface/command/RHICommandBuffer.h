@@ -1,5 +1,7 @@
 #pragma once
+#include "rhi/interface/descriptor/RHIDescriptorBuffer.h"
 #include "rhi/interface/core/RHICoreDefs.h"
+#include "core/CoreDefs.h"
 #include <glm/vec4.hpp>
 
 namespace rhi {
@@ -7,6 +9,8 @@ namespace rhi {
 class RHIPipeline;
 class RHIPipelineLayout;
 class RHIBuffer;
+struct RHIDescriptorSet;
+struct RHIDescriptorSetBinding;
 
 class RHICommandBuffer {
 public:
@@ -20,11 +24,26 @@ public:
     virtual void transitionImageLayout(class RHIImage* image, RHIImageLayout newLayout) = 0;
     // Transition image layout with explicit old layout
     virtual void transitionImageLayout(class RHIImage* image, RHIImageLayout oldLayout, RHIImageLayout newLayout) = 0;
-    virtual void copyImageToBuffer(class RHIImage* image, class RHIBuffer* buffer, uint32_t width, uint32_t height) = 0;
-    // Bind a compute pipeline
+    virtual void copyImageToBuffer(class RHIImage* image, class RHIBuffer* buffer, uint32 width, uint32 height) = 0;
     virtual void bindComputePipeline(RHIPipeline* pipeline) = 0;
-    // Bind descriptor buffer for a pipeline layout set using VK_EXT_descriptor_buffer
-    virtual void bindDescriptorBuffer(RHIPipelineLayout* layout, uint32_t setIndex, RHIBuffer* buffer, uint64_t offset) = 0;
+    virtual void bindDescriptorBuffers(const Array<RHIDescriptorBuffer*>& descBuffers) = 0;
+    virtual void bindDescriptorSets(const Array<RHIDescriptorSetBinding>& setBindings,
+        RHIPipelineLayout* pipelineLayout, RHIPipelineBindPoint bindPoint) = 0;
+    virtual void pushConstants(RHIPipelineLayout* layout, RHIShaderStageFlags shaderStageFlags,
+        uint32 offset, uint32 size, const void* data) = 0;
+
+    RHIPipeline* getBoundComputePipeline() const {
+        return m_boundPipeline;
+    }
+    uint32 getBoundDescriptorBufferCount() const {
+        return m_boundDescriptorBuffers.size();
+    }
+    RHIDescriptorBuffer* getBoundDescriptorBuffer(uint32 index) const {
+        return m_boundDescriptorBuffers[index];
+    }
+    uint32 getBoundDescriptorBufferIndex(RHIDescriptorBuffer* buffer) const {
+        return m_boundDescriptorBuffersToIndex.at(buffer);
+    }
 
 protected:
     // Only derived context or implementation should create RHICommandBuffer objects
@@ -33,6 +52,10 @@ protected:
     RHICommandBuffer& operator=(const RHICommandBuffer&) = delete;
     RHICommandBuffer(RHICommandBuffer&&) = delete;
     RHICommandBuffer& operator=(RHICommandBuffer&&) = delete;
+
+    RHIPipeline* m_boundPipeline = nullptr;
+    Array<RHIDescriptorBuffer*> m_boundDescriptorBuffers;
+    Map<RHIDescriptorBuffer*, uint32> m_boundDescriptorBuffersToIndex;
 };
 
 } // namespace rhi

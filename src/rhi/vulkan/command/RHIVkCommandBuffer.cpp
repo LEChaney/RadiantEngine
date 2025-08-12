@@ -1,11 +1,14 @@
 #include "rhi/vulkan/core/RHIVkContext.h"
 #include "rhi/vulkan/command/RHIVkCommandBuffer.h"
+#include "rhi/interface/descriptor/RHIDescriptorSet.h"
 #include "rhi/vulkan/image/RHIVkImage.h"
 #include "rhi/vulkan/image/RHIVkImageView.h"
 #include "rhi/vulkan/buffer/RHIVkBuffer.h"
 #include "rhi/vulkan/pipeline/RHIVkPipeline.h"
 #include "rhi/vulkan/pipeline/RHIVkPipelineLayout.h"
 #include "rhi/vulkan/core/RHIVulkanInclude.h"
+#include "rhi/vulkan/core/RHIVkTypeConversion.h"
+#include <limits>
 
 namespace rhi::vulkan {
 
@@ -136,7 +139,7 @@ void RHIVkCommandBuffer::transitionImageLayout(RHIImage* image, RHIImageLayout o
     m_trackedImageLayouts[image] = newLayout;
 }
 
-void RHIVkCommandBuffer::copyImageToBuffer(rhi::RHIImage* image, rhi::RHIBuffer* buffer, uint32_t width, uint32_t height) {
+void RHIVkCommandBuffer::copyImageToBuffer(rhi::RHIImage* image, rhi::RHIBuffer* buffer, uint32 width, uint32 height) {
     VkImage vkImage = static_cast<RHIVkImage*>(image)->getVk();
     VkBuffer vkBuffer = static_cast<RHIVkBuffer*>(buffer)->getVk();
     VkBufferImageCopy region{};
@@ -155,37 +158,80 @@ void RHIVkCommandBuffer::copyImageToBuffer(rhi::RHIImage* image, rhi::RHIBuffer*
 void RHIVkCommandBuffer::bindComputePipeline(RHIPipeline* pipeline) {
     auto* vkPipe = static_cast<RHIVkPipeline*>(pipeline);
     vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, vkPipe->getVk());
+
+    m_boundPipeline = pipeline;
 }
 
-void RHIVkCommandBuffer::bindDescriptorBuffer(RHIPipelineLayout* layout, uint32_t setIndex, RHIBuffer* buffer, uint64 offset) {
-    auto* vkLayout = static_cast<RHIVkPipelineLayout*>(layout);
-    auto* vkBuffer = static_cast<RHIVkBuffer*>(buffer);
+void RHIVkCommandBuffer::bindDescriptorBuffers(const Array<RHIDescriptorBuffer*>& descBuffers) {
+    if (descBuffers == m_boundDescriptorBuffers) {
+        return; // Buffer set already bound, no need to do anything
+    }
 
-    // Bind the descriptor buffer(s)
-    VkDescriptorBufferBindingInfoEXT bindingInfo{};
-    bindingInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_BUFFER_BINDING_INFO_EXT;
-    bindingInfo.address = 0; // will be set from device address of buffer
-    bindingInfo.usage = toVkBufferUsageFlags(vkBuffer->getUsage());
+    Array<VkDescriptorBufferBindingInfoEXT> bindingInfos;
+    bindingInfos.resize(descBuffers.size());
+    for (int32 i = 0; i < descBuffers.size(); ++i) {
+        VkBufferDeviceAddressInfo bufferInfo{};
+        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+        bufferInfo.buffer = static_cast<RHIVkBuffer*>(descBuffers[i]->getBuffer())->getVk();
+        VkDeviceAddress address = vkGetBufferDeviceAddress(m_context->getVkDevice(), &bufferInfo);
 
-    VkBufferDeviceAddressInfo addrInfo{ VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
-    addrInfo.buffer = vkBuffer->getVk();
-    VkDeviceAddress deviceAddr = vkGetBufferDeviceAddress(m_context->getVkDevice(), &addrInfo);
+        bindingInfos[i].sType = VK_STRUCTURE_TYPE_DESCRIPTOR_BUFFER_BINDING_INFO_EXT;
+        bindingInfos[i].usage = toVkBufferUsageFlags(descBuffers[i]->getUsage());
+        bindingInfos[i].address = address;
 
-    bindingInfo.address = deviceAddr;
+        // Create a mapping so we can look up a bound descriptor buffer's binding index
+        m_boundDescriptorBuffersToIndex[descBuffers[i]] = i;
+    }
 
-    vkCmdBindDescriptorBuffersEXT(m_cmdBuffer, 1, &bindingInfo);
+    vkCmdBindDescriptorBuffersEXT(
+        m_cmdBuffer,
+        bindingInfos.size(),
+        bindingInfos.data()
+    );
 
-    // Now set the offset for the set index we want to use
-    uint32_t bufferIndex = 0; // we bound one buffer at index 0
-    VkDeviceSize setOffset = static_cast<VkDeviceSize>(offset);
+    m_boundDescriptorBuffers = descBuffers;
+}
+void RHIVkCommandBuffer::bindDescriptorSets(const Array<RHIDescriptorSetBinding>& setBindings,
+    RHIPipelineLayout* pipelineLayout, RHIPipelineBindPoint bindPoint)
+{
+    SmallArray<uint32, 8> bufferIndices;
+    SmallArray<VkDeviceSize, 8> setOffsetsInBuffer;
+    constexpr uint32 INVALID_SET_INDEX = std::numeric_limits<uint32>::max();
+    uint32 prevSetIndex = INVALID_SET_INDEX; // Max uint32
+    for (const auto& [setIndex, set] : setBindings) {
+        if (prevSetIndex == INVALID_SET_INDEX) {
+            prevSetIndex = setIndex - 1;
+        }
+        ASSERT(setIndex == prevSetIndex + 1 && "Descriptor set indices must be contiguous");
+        ASSERT(set.buffer && "Descriptor buffer is NULL");
+        ASSERT(m_boundDescriptorBuffersToIndex.contains(set.buffer) && "Descriptor buffer not bound");
+        bufferIndices.push_back(m_boundDescriptorBuffersToIndex[set.buffer]);
+        setOffsetsInBuffer.push_back(set.offset);
+        prevSetIndex = setIndex;
+    }
+
+    auto vKPipelineLayout = static_cast<RHIVkPipelineLayout*>(pipelineLayout);
     vkCmdSetDescriptorBufferOffsetsEXT(
         m_cmdBuffer,
-        VK_PIPELINE_BIND_POINT_COMPUTE,
-        vkLayout->getVk(),
-        setIndex,     // firstSet
-        1,            // setCount
-        &bufferIndex, // pBufferIndices
-        &setOffset);  // pOffsets
+        toVkPipelineBindPoint(bindPoint),
+        vKPipelineLayout->getVk(),
+        setBindings[0].setIndex,
+        setBindings.size(),
+        bufferIndices.data(),
+        setOffsetsInBuffer.data()
+    );
+}
+void RHIVkCommandBuffer::pushConstants(RHIPipelineLayout* layout,
+    RHIShaderStageFlags shaderStageFlags, uint32 offset, uint32 size, const void* data)
+{
+    vkCmdPushConstants(
+        m_cmdBuffer,
+        static_cast<RHIVkPipelineLayout*>(layout)->getVk(),
+        toVkShaderStageFlags(shaderStageFlags),
+        offset,
+        size,
+        data
+    );
 }
 
 } // namespace rhi::vulkan

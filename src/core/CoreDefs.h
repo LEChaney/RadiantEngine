@@ -1,9 +1,20 @@
 #pragma once
 #include "ankerl/unordered_dense.h"
+#include "ankerl/svector.h"
 #include <vector>
 #include <memory>
 #include <cassert>
 #include <cstdint>
+#include <filesystem>
+
+#if defined(_WIN32)
+#define NOMINMAX
+    #include <Windows.h>
+#elif defined(__linux__) || defined(__APPLE__)
+    #include <unistd.h>
+    #include <limits.h>
+#endif
+
 
 // Integer typedefs
 using int8   = int8_t;
@@ -15,9 +26,14 @@ using uint16 = uint16_t;
 using uint32 = uint32_t;
 using uint64 = uint64_t;
 
+using Path = std::filesystem::path;
+
 // Core containers / pointers
 template<typename T>
 using Array = std::vector<T>;
+
+template<typename T, std::size_t sz>
+using SmallArray = ankerl::svector<T, sz>;
 
 template<typename T, std::size_t sz>
 using StaticArray = std::array<T, sz>;
@@ -120,3 +136,18 @@ private:
 #else
     #define ENSURE(expr) ((void)0)
 #endif
+
+// Get the directory containing the current executable
+inline std::filesystem::path getExecutablePath() {
+#if defined(_WIN32)
+    wchar_t path[MAX_PATH] = {0};
+    GetModuleFileNameW(NULL, path, MAX_PATH);
+    return std::filesystem::path(path).parent_path();
+#elif defined(__linux__) || defined(__APPLE__)
+    char path[PATH_MAX];
+    ssize_t count = readlink("/proc/self/exe", path, PATH_MAX);
+    return std::filesystem::path(std::string(path, (count > 0) ? count : 0)).parent_path();
+#else
+    #error "Unsupported platform"
+#endif
+}

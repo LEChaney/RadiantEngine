@@ -9,7 +9,7 @@ class RHIVkDescriptorSetLayout;
 
 class RHIVkDescriptorWriter : public RHIDescriptorWriter {
 public:
-    static UniquePtr<RHIVkDescriptorWriter> createUnique(RHIVkContext* ctx, const RHIDescriptorSetAllocation& alloc);
+    static UniquePtr<RHIVkDescriptorWriter> createUnique(RHIVkContext* ctx, const RHIDescriptorSet& alloc);
     ~RHIVkDescriptorWriter() override = default;
     RHIVkDescriptorWriter(const RHIVkDescriptorWriter&) = delete; RHIVkDescriptorWriter& operator=(const RHIVkDescriptorWriter&) = delete; RHIVkDescriptorWriter(RHIVkDescriptorWriter&&) = delete; RHIVkDescriptorWriter& operator=(RHIVkDescriptorWriter&&) = delete;
     RHIDescriptorWriter& writeSampledImage(uint32 binding, uint32 arrayElement, RHIImageView* view, RHISampler* sampler) override;
@@ -17,7 +17,7 @@ public:
     RHIDescriptorWriter& writeStorageBuffer(uint32 binding, uint32 arrayElement, RHIBuffer* buffer, size_t offset, size_t range) override;
     void flush() override {} // coherent for now
 private:
-    RHIVkDescriptorWriter(RHIVkContext* ctx, const RHIDescriptorSetAllocation& alloc);
+    RHIVkDescriptorWriter(RHIVkContext* ctx, const RHIDescriptorSet& alloc);
     
     VkDescriptorSetLayout getVkLayout() const;
     VkDevice getDevice() const;

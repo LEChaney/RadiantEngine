@@ -1,7 +1,6 @@
 
 #pragma once
 #include "rhi/interface/descriptor/RHIDescriptorSetLayout.h"
-#include "rhi/vulkan/core/RHIVkTypeConversion.h"
 #include "core/CoreDefs.h"
 #include "rhi/vulkan/core/RHIVulkanInclude.h"
 
@@ -9,7 +8,7 @@ namespace rhi::vulkan {
 
 class RHIVkContext;
 
-class RHIVkDescriptorSetLayout : public rhi::RHIDescriptorSetLayout {
+class RHIVkDescriptorSetLayout : public RHIDescriptorSetLayout {
 public:
     static UniquePtr<RHIVkDescriptorSetLayout> createUnique(RHIVkContext* context, VkDescriptorSetLayout layout);
 

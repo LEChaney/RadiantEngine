@@ -26,6 +26,7 @@ target_include_directories(glm INTERFACE glm)
 
 #add_library(sdl2 INTERFACE)
 add_subdirectory(ankerl/unordered_dense)
+add_subdirectory(ankerl/svector)
 
 #target_include_directories(sdl2 INTERFACE $ENV{VULKAN_SDK}/Include/SDL2 )
 #target_link_directories(sdl2 INTERFACE $ENV{VULKAN_SDK}/Lib )

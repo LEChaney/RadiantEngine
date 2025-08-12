@@ -1,27 +1,26 @@
 #include "RHIVkDescriptorWriter.h"
 #include "rhi/vulkan/core/RHIVkContext.h"
 #include "rhi/vulkan/descriptor/RHIVkDescriptorSetLayout.h"
-#include "rhi/vulkan/descriptor/RHIVkDescriptorBufferArena.h"
 #include "rhi/vulkan/image/RHIVkImageView.h"
 #include "rhi/vulkan/buffer/RHIVkBuffer.h"
 
 namespace rhi::vulkan {
 
-UniquePtr<RHIVkDescriptorWriter> RHIVkDescriptorWriter::createUnique(RHIVkContext* ctx, const RHIDescriptorSetAllocation& alloc) {
+UniquePtr<RHIVkDescriptorWriter> RHIVkDescriptorWriter::createUnique(RHIVkContext* ctx, const RHIDescriptorSet& alloc) {
     return UniquePtr<RHIVkDescriptorWriter>(new RHIVkDescriptorWriter(ctx, alloc));
 }
 
-RHIVkDescriptorWriter::RHIVkDescriptorWriter(RHIVkContext* ctx, const RHIDescriptorSetAllocation& alloc)
+RHIVkDescriptorWriter::RHIVkDescriptorWriter(RHIVkContext* ctx, const RHIDescriptorSet& alloc)
     : RHIDescriptorWriter(alloc), m_ctx(ctx) {}
 
 VkDescriptorSetLayout RHIVkDescriptorWriter::getVkLayout() const {
-    return static_cast<RHIVkDescriptorSetLayout*>(m_alloc.layout)->getVk();
+    return static_cast<RHIVkDescriptorSetLayout*>(m_descSet.layout)->getVk();
 }
 
 VkDevice RHIVkDescriptorWriter::getDevice() const { return m_ctx->getVkDevice(); }
 
 uint8* RHIVkDescriptorWriter::basePtr() const {
-    return static_cast<uint8*>(m_alloc.arena->mapped()) + m_alloc.offset;
+    return static_cast<uint8*>(m_descSet.getMapped());
 }
 
 size_t RHIVkDescriptorWriter::bindingOffset(uint32 binding) const {
@@ -41,7 +40,7 @@ size_t RHIVkDescriptorWriter::descriptorStrideForType(VkDescriptorType type) {
 }
 
 void RHIVkDescriptorWriter::writeDescriptorRecord(VkDescriptorGetInfoEXT& getInfo, void* dst, size_t dataSize) {
-    ASSERT(m_alloc.arena->isValidRange(dst, dataSize) && 
+    ASSERT(m_descSet.isValidRange(dst, dataSize) &&
         "RHIVkDescriptorWriter::writeDescriptorRecord: Invalid destination range");
 
     ASSERT(vkGetDescriptorEXT && "vkGetDescriptorEXT not loaded! Did you call volkLoadDevice?");

@@ -1,6 +1,6 @@
 #pragma once
 #include "rhi/interface/core/RHIContext.h"
-#include "rhi/vulkan/descriptor/RHIVkDescriptorBufferArena.h"
+#include "..\descriptor\RHIVkDescriptorBuffer.h"
 #include "core/CoreDefs.h"
 #include "rhi/vulkan/core/RHIVulkanInclude.h"
 #include <functional>
@@ -53,11 +53,11 @@ public:
     UniquePtr<RHIDescriptorSetLayoutBuilder> createDescriptorSetLayoutBuilder() override;
     UniquePtr<RHIDescriptorSetBuilder> createDescriptorSetBuilder() override;
     UniquePtr<RHIPipelineLayoutBuilder> createPipelineLayoutBuilder() override;
-    UniquePtr<RHIShaderModule> createShaderModule(const std::string& spvFilePath) override;
+    UniquePtr<RHIShaderModule> createShaderModule(const Path& spvFilePath) override;
     UniquePtr<RHIShaderModule> createShaderModule(const Array<uint32>& shaderCode) override;
     UniquePtr<RHIPipeline> createComputePipeline(const RHIComputePipelineDescriptor& desc) override;
-    UniquePtr<RHIDescriptorBufferArena> createDescriptorBufferArena(const RHIDescriptorBufferArena::CreateInfo& createInfo) override; // New override
-    UniquePtr<RHIDescriptorWriter> createDescriptorWriter(const RHIDescriptorSetAllocation& alloc) override; // new override
+    UniquePtr<RHIDescriptorBuffer> createDescriptorBuffer(const RHIDescriptorBuffer::CreateInfo& createInfo) override; // New override
+    UniquePtr<RHIDescriptorWriter> createDescriptorWriter(const RHIDescriptorSet& alloc) override; // new override
 
     // Vulkan RHI factory methods
     UniquePtr<RHIVkCommandBuffer> createRhiVkCommandBuffer();
@@ -70,11 +70,11 @@ public:
     UniquePtr<RHIVkDescriptorSetLayoutBuilder> createRhiVkDescriptorSetLayoutBuilder();
     UniquePtr<RHIVkDescriptorSetBuilder> createRhiVkDescriptorSetBuilder();
     UniquePtr<RHIVkPipelineLayoutBuilder> createRhiVkPipelineLayoutBuilder();
-    UniquePtr<RHIVkShaderModule> createRhiVkShaderModule(const std::string& spvFilePath);
+    UniquePtr<RHIVkShaderModule> createRhiVkShaderModule(const Path& spvFilePath);
     UniquePtr<RHIVkShaderModule> createRhiVkShaderModule(const Array<uint32>& shaderCode);
     UniquePtr<RHIVkPipeline> createRhiVkComputePipeline(const RHIComputePipelineDescriptor& desc);
-    UniquePtr<RHIVkDescriptorBufferArena> createRhiVkDescriptorBufferArena(const RHIDescriptorBufferArena::CreateInfo& createInfo);
-    UniquePtr<RHIDescriptorWriter> createRhiVkDescriptorWriter(const RHIDescriptorSetAllocation& alloc);
+    UniquePtr<RHIVkDescriptorBuffer> createRhiVkDescriptorBufferArena(const RHIDescriptorBuffer::CreateInfo& createInfo);
+    UniquePtr<RHIDescriptorWriter> createRhiVkDescriptorWriter(const RHIDescriptorSet& alloc);
 
     // Vulkan object accessors
     const VkInstance& getVkInstance() const { return m_instance; }

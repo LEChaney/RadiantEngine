@@ -9,8 +9,10 @@ class RHIVkContext;
 
 class RHIVkShaderModule : public RHIShaderModule {
 public:
-    static UniquePtr<RHIVkShaderModule> createUnique(RHIVkContext* context, const std::string& spvFilePath);
-    static UniquePtr<RHIVkShaderModule> createUnique(RHIVkContext* context, const Array<uint32>& shaderCode);
+    static UniquePtr<RHIVkShaderModule> createUnique(RHIVkContext* context,
+        const Path& spvFilePath);
+    static UniquePtr<RHIVkShaderModule> createUnique(RHIVkContext* context,
+        const Array<uint32>& shaderCode);
 
     ~RHIVkShaderModule() override;
     
