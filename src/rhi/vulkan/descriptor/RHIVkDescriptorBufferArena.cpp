@@ -13,7 +13,8 @@ UniquePtr<RHIVkDescriptorBufferArena> RHIVkDescriptorBufferArena::createUnique(R
 RHIVkDescriptorBufferArena::RHIVkDescriptorBufferArena(RHIVkContext* ctx,
     const CreateInfo& ci)
     : m_ctx(ctx), m_size(ci.sizeBytes) {
-    const RHIBufferUsageFlags usage = ci.usage;
+    RHIBufferUsageFlags usage = ci.usage;
+    usage |= RHIBufferUsage::ShaderDeviceAddress; // required to query device address for binding descriptor buffer
     const RHIMemoryPropertyFlags memProps = RHIMemoryProperty::HostVisible | RHIMemoryProperty::HostCoherent;
     m_buffer = m_ctx->createBuffer(m_size, usage, memProps);
     if (ci.persistentMapped && m_buffer) {

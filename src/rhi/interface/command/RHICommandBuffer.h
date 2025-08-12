@@ -5,6 +5,8 @@
 namespace rhi {
 
 class RHIPipeline;
+class RHIPipelineLayout;
+class RHIBuffer;
 
 class RHICommandBuffer {
 public:
@@ -21,6 +23,8 @@ public:
     virtual void copyImageToBuffer(class RHIImage* image, class RHIBuffer* buffer, uint32_t width, uint32_t height) = 0;
     // Bind a compute pipeline
     virtual void bindComputePipeline(RHIPipeline* pipeline) = 0;
+    // Bind descriptor buffer for a pipeline layout set using VK_EXT_descriptor_buffer
+    virtual void bindDescriptorBuffer(RHIPipelineLayout* layout, uint32_t setIndex, RHIBuffer* buffer, uint64_t offset) = 0;
 
 protected:
     // Only derived context or implementation should create RHICommandBuffer objects

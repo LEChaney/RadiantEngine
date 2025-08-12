@@ -149,7 +149,7 @@ void RHIVkContext::createInstance() {
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName = "RadiantEngine";
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_1;
+    appInfo.apiVersion = VK_API_VERSION_1_3; // Request Vulkan 1.3
 
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -316,22 +316,30 @@ void RHIVkContext::createLogicalDevice() {
     createInfo.enabledExtensionCount = static_cast<uint32>(deviceExtensions.size());
     createInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
-    // Enable bufferDeviceAddress feature
-    VkPhysicalDeviceBufferDeviceAddressFeatures bufferDeviceAddressFeatures{};
-    bufferDeviceAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
-    bufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
+    // Enable core Vulkan 1.2/1.3 features
+    VkPhysicalDeviceVulkan12Features vulkan12{};
+    vulkan12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    vulkan12.descriptorIndexing = VK_TRUE;
+    vulkan12.bufferDeviceAddress = VK_TRUE;
 #ifdef _DEBUG
-    bufferDeviceAddressFeatures.bufferDeviceAddressCaptureReplay = VK_TRUE;
+    vulkan12.bufferDeviceAddressCaptureReplay = VK_TRUE;
 #endif
 
-    // Enable descriptorBuffer features
+    VkPhysicalDeviceVulkan13Features vulkan13{};
+    vulkan13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+    vulkan13.synchronization2 = VK_TRUE;
+
+    // Enable descriptor buffer features
     VkPhysicalDeviceDescriptorBufferFeaturesEXT descriptorBufferFeatures{};
     descriptorBufferFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT;
     descriptorBufferFeatures.descriptorBuffer = VK_TRUE;
 #ifdef _DEBUG
     descriptorBufferFeatures.descriptorBufferCaptureReplay = VK_TRUE;
 #endif
-    descriptorBufferFeatures.pNext = &bufferDeviceAddressFeatures;
+
+    // Chain: descriptorBuffer -> vulkan13 -> vulkan12
+    vulkan13.pNext = &vulkan12;
+    descriptorBufferFeatures.pNext = &vulkan13;
     createInfo.pNext = &descriptorBufferFeatures;
 
     if (vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device) != VK_SUCCESS) {

@@ -4,6 +4,7 @@
 #include "rhi/vulkan/image/RHIVkImageView.h"
 #include "rhi/vulkan/buffer/RHIVkBuffer.h"
 #include "rhi/vulkan/pipeline/RHIVkPipeline.h"
+#include "rhi/vulkan/pipeline/RHIVkPipelineLayout.h"
 #include "rhi/vulkan/core/RHIVulkanInclude.h"
 
 namespace rhi::vulkan {
@@ -154,6 +155,37 @@ void RHIVkCommandBuffer::copyImageToBuffer(rhi::RHIImage* image, rhi::RHIBuffer*
 void RHIVkCommandBuffer::bindComputePipeline(RHIPipeline* pipeline) {
     auto* vkPipe = static_cast<RHIVkPipeline*>(pipeline);
     vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, vkPipe->getVk());
+}
+
+void RHIVkCommandBuffer::bindDescriptorBuffer(RHIPipelineLayout* layout, uint32_t setIndex, RHIBuffer* buffer, uint64 offset) {
+    auto* vkLayout = static_cast<RHIVkPipelineLayout*>(layout);
+    auto* vkBuffer = static_cast<RHIVkBuffer*>(buffer);
+
+    // Bind the descriptor buffer(s)
+    VkDescriptorBufferBindingInfoEXT bindingInfo{};
+    bindingInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_BUFFER_BINDING_INFO_EXT;
+    bindingInfo.address = 0; // will be set from device address of buffer
+    bindingInfo.usage = toVkBufferUsageFlags(vkBuffer->getUsage());
+
+    VkBufferDeviceAddressInfo addrInfo{ VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
+    addrInfo.buffer = vkBuffer->getVk();
+    VkDeviceAddress deviceAddr = vkGetBufferDeviceAddress(m_context->getVkDevice(), &addrInfo);
+
+    bindingInfo.address = deviceAddr;
+
+    vkCmdBindDescriptorBuffersEXT(m_cmdBuffer, 1, &bindingInfo);
+
+    // Now set the offset for the set index we want to use
+    uint32_t bufferIndex = 0; // we bound one buffer at index 0
+    VkDeviceSize setOffset = static_cast<VkDeviceSize>(offset);
+    vkCmdSetDescriptorBufferOffsetsEXT(
+        m_cmdBuffer,
+        VK_PIPELINE_BIND_POINT_COMPUTE,
+        vkLayout->getVk(),
+        setIndex,     // firstSet
+        1,            // setCount
+        &bufferIndex, // pBufferIndices
+        &setOffset);  // pOffsets
 }
 
 } // namespace rhi::vulkan

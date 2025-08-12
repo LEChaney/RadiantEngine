@@ -10,11 +10,14 @@ namespace rhi {
 class RHIImage;
 class RHIBuffer;
 class RHIPipeline;
+class RHIPipelineLayout;
 
 namespace vulkan {
 
 class RHIVkContext;
 class RHIVkPipeline;
+class RHIVkPipelineLayout;
+class RHIVkBuffer;
 
 class RHIVkCommandBuffer : public RHICommandBuffer {
 public:
@@ -36,6 +39,7 @@ public:
     void transitionImageLayout(RHIImage* image, RHIImageLayout oldLayout, RHIImageLayout newLayout) override;
     void copyImageToBuffer(RHIImage* image, RHIBuffer* buffer, uint32_t width, uint32_t height) override;
     void bindComputePipeline(RHIPipeline* pipeline) override;
+    void bindDescriptorBuffer(RHIPipelineLayout* layout, uint32_t setIndex, RHIBuffer* buffer, uint64 offset) override;
 
     VkCommandBuffer getVk() const { return m_cmdBuffer; }
 

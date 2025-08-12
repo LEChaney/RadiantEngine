@@ -302,7 +302,7 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     frame.commandBuffer->transitionImageLayout(frame.image, RHIImageLayout::General);
 
     frame.commandBuffer->bindComputePipeline(computePipeline.get());
-    // frame.commandBuffer->bindDescriptorBuffer(pipelineLayout.get(), 0, arena->buffer(), setAlloc.offset);
+    frame.commandBuffer->bindDescriptorBuffer(pipelineLayout.get(), 0, arena->buffer(), setAlloc.offset);
 
     // glm::vec4 clearColor(0.0f, 1.0f, 0.0f, 1.0f); // Green clear color
     // //frame.commandBuffer->pushConstants(pipelineLayout.get(), RHIShaderStage::Compute, 0, sizeof(clearColor), &clearColor);
