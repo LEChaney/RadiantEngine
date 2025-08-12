@@ -233,5 +233,8 @@ void RHIVkCommandBuffer::pushConstants(RHIPipelineLayout* layout,
         data
     );
 }
+void RHIVkCommandBuffer::dispatch(uint32 groupCountX, uint32 groupCountY, uint32 groupCountZ) {
+    vkCmdDispatch(m_cmdBuffer, groupCountX, groupCountY, groupCountZ);
+}
 
 } // namespace rhi::vulkan

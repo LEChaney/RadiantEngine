@@ -44,7 +44,8 @@ public:
     void bindDescriptorSets(const Array<RHIDescriptorSetBinding>& setBindings,
         RHIPipelineLayout* pipelineLayout, RHIPipelineBindPoint bindPoint) override;
     void pushConstants(RHIPipelineLayout* layout, RHIShaderStageFlags shaderStageFlags,
-        uint32 offset, uint32 size, const void* data);
+        uint32 offset, uint32 size, const void* data) override;
+    void dispatch(uint32 groupCountX, uint32 groupCountY, uint32 groupCountZ) override;
 
     VkCommandBuffer getVk() const { return m_cmdBuffer; }
 

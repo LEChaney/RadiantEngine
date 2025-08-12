@@ -31,6 +31,7 @@ public:
         RHIPipelineLayout* pipelineLayout, RHIPipelineBindPoint bindPoint) = 0;
     virtual void pushConstants(RHIPipelineLayout* layout, RHIShaderStageFlags shaderStageFlags,
         uint32 offset, uint32 size, const void* data) = 0;
+    virtual void dispatch(uint32 groupCountX, uint32 groupCountY, uint32 groupCountZ) = 0;
 
     RHIPipeline* getBoundComputePipeline() const {
         return m_boundPipeline;
