@@ -1,14 +1,17 @@
 #pragma once
 #include "rhi/interface/core/RHIContext.h"
 #include "core/CoreDefs.h"
+#include "rhi/interface/pipeline/RHIPipelineLayoutBuilder.h"
 #include "rhi/vulkan/core/RHIVulkanInclude.h"
 #include <functional>
 #include <vk_mem_alloc.h>
 
 namespace rhi {
 class RHIDescriptorBufferCreateInfo;
-struct RHIDescriptorWriterOps; // forward declare ops
-struct RHIDescriptorSetLayoutBuilderOps; // forward declare builder ops
+// Forward declare builder ops
+struct RHIDescriptorWriterOps;
+struct RHIDescriptorSetLayoutBuilderOps;
+struct RHIPipelineLayoutBuilderOps;
 }
 
 namespace rhi::vulkan {
@@ -52,7 +55,6 @@ public:
     UniquePtr<RHISwapchain> createSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount, RHIImageUsageFlags extraImageUsage = 0) override;
     UniquePtr<RHIBuffer> createBuffer(uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps) override;
     UniquePtr<RHIImage> createImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsageFlags usage, RHIMemoryPropertyFlags memProps) override;
-    UniquePtr<RHIPipelineLayoutBuilder> createPipelineLayoutBuilder() override;
     UniquePtr<RHIShaderModule> createShaderModule(const Path& spvFilePath) override;
     UniquePtr<RHIShaderModule> createShaderModule(const Array<uint32>& shaderCode) override;
     UniquePtr<RHIPipeline> createComputePipeline(const RHIComputePipelineDescriptor& desc) override;
@@ -61,6 +63,7 @@ public:
     // Backend ops table providers for value types
     const RHIDescriptorWriterOps* getDescriptorWriterOps() const override;
     const RHIDescriptorSetLayoutBuilderOps* getDescriptorSetLayoutBuilderOps() const override;
+    const RHIPipelineLayoutBuilderOps* getPipelineLayoutBuilderOps() const override;
 
     // Vulkan RHI factory methods
     UniquePtr<RHIVkCommandBuffer> createRhiVkCommandBuffer();
@@ -70,7 +73,6 @@ public:
     UniquePtr<RHIVkBuffer> createRhiVkBuffer(uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps);
     // TODO: Finish implementation of createRhiVkImage
     UniquePtr<RHIVkImage> createRhiVkImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsageFlags usage, RHIMemoryPropertyFlags memProps);
-    UniquePtr<RHIVkPipelineLayoutBuilder> createRhiVkPipelineLayoutBuilder();
     UniquePtr<RHIVkShaderModule> createRhiVkShaderModule(const Path& spvFilePath);
     UniquePtr<RHIVkShaderModule> createRhiVkShaderModule(const Array<uint32>& shaderCode);
     UniquePtr<RHIVkPipeline> createRhiVkComputePipeline(const RHIComputePipelineDescriptor& desc);

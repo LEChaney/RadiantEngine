@@ -402,9 +402,8 @@ const RHIDescriptorWriterOps* RHIVkContext::getDescriptorWriterOps() const {
 const RHIDescriptorSetLayoutBuilderOps* RHIVkContext::getDescriptorSetLayoutBuilderOps() const {
     return getVkDescriptorSetLayoutBuilderOps();
 }
-
-UniquePtr<RHIPipelineLayoutBuilder> RHIVkContext::createPipelineLayoutBuilder() {
-    return createRhiVkPipelineLayoutBuilder();
+const RHIPipelineLayoutBuilderOps* RHIVkContext::getPipelineLayoutBuilderOps() const {
+    return getVkPipelineLayoutBuilderOps();
 }
 
 UniquePtr<RHISwapchain> RHIVkContext::createSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount, RHIImageUsageFlags extraImageUsage) {
@@ -443,11 +442,6 @@ UniquePtr<RHIVkImage> RHIVkContext::createRhiVkImage(uint32 width, uint32 height
     return RHIVkImage::createUnique(this, width, height, format, usage, memProps);
 }
 
-UniquePtr<RHIVkPipelineLayoutBuilder> RHIVkContext::createRhiVkPipelineLayoutBuilder()
-{
-    return RHIVkPipelineLayoutBuilder::createUnique(this);
-}
-
 UniquePtr<RHIVkShaderModule> RHIVkContext::createRhiVkShaderModule(const Path& spvFilePath)
 {
     return RHIVkShaderModule::createUnique(this, spvFilePath);
@@ -459,7 +453,7 @@ UniquePtr<RHIVkShaderModule> RHIVkContext::createRhiVkShaderModule(const Array<u
 }
 
 UniquePtr<RHIVkPipeline> RHIVkContext::createRhiVkComputePipeline(
-    const RHIComputePipelineDescriptor& desc) 
+    const RHIComputePipelineDescriptor& desc)
 {
     return RHIVkPipeline::createUniqueCompute(this, desc);
 }

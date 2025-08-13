@@ -22,8 +22,11 @@ class RHIDescriptorBufferCreateInfo;
 class RHIPipelineLayoutBuilder;
 class RHIComputePipelineDescriptor;
 class RHIDescriptorWriter;
-struct RHIDescriptorWriterOps; // new forward decl
-struct RHIDescriptorSetLayoutBuilderOps; // ops for value-type builder
+
+// ops for value-type builders
+struct RHIDescriptorWriterOps;
+struct RHIDescriptorSetLayoutBuilderOps;
+struct RHIPipelineLayoutBuilderOps;
 
 class RHIContext {
 public:
@@ -43,7 +46,6 @@ public:
     virtual UniquePtr<RHISwapchain> createSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 bufferCount, RHIImageUsageFlags extraImageUsage = 0) = 0;
     virtual UniquePtr<RHIBuffer> createBuffer(uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps) = 0;
     virtual UniquePtr<RHIImage> createImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsageFlags usage, RHIMemoryPropertyFlags memProps) = 0;
-    virtual UniquePtr<RHIPipelineLayoutBuilder> createPipelineLayoutBuilder() = 0;
     virtual UniquePtr<RHIShaderModule> createShaderModule(const Path& spvFilePath) = 0;
     virtual UniquePtr<RHIShaderModule> createShaderModule(const Array<uint32>& shaderCode) = 0;
     virtual UniquePtr<RHIPipeline> createComputePipeline(const RHIComputePipelineDescriptor& desc) = 0;
@@ -52,6 +54,7 @@ public:
     // Backend ops table providers for value-types
     virtual const RHIDescriptorWriterOps* getDescriptorWriterOps() const = 0;
     virtual const RHIDescriptorSetLayoutBuilderOps* getDescriptorSetLayoutBuilderOps() const = 0;
+    virtual const RHIPipelineLayoutBuilderOps* getPipelineLayoutBuilderOps() const = 0;
 
 protected:
     // Only derived context or implementation should create RHIContext objects

@@ -265,11 +265,10 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     ASSERT_NE(storageSetLayout, nullptr);
 
     // 2. Pipeline layout
-    auto plBuilder = m_context->createPipelineLayoutBuilder();
-    ASSERT_NE(plBuilder, nullptr);
-    plBuilder->addDescriptorSetLayout(storageSetLayout.get());
-    plBuilder->addPushConstantRange(RHIShaderStage::Compute, 0, sizeof(glm::vec4)); // Push constant for clear color
-    auto pipelineLayout = plBuilder->build();
+    RHIPipelineLayoutBuilder plBuilder(m_context.get());
+    plBuilder.addDescriptorSetLayout(storageSetLayout.get());
+    plBuilder.addPushConstantRange(RHIShaderStage::Compute, 0, sizeof(glm::vec4)); // Push constant for clear color
+    auto pipelineLayout = plBuilder.build();
     ASSERT_NE(pipelineLayout, nullptr);
 
     // 3. Compute shader + pipeline
