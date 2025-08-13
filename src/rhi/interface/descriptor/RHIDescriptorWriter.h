@@ -1,34 +1,56 @@
 #pragma once
 #include "core/CoreDefs.h"
-#include "RHIDescriptorBuffer.h"
-#include "RHIDescriptorSet.h"
+#include "RHIDescriptorSetData.h"
 
 namespace rhi {
 
-class RHIImageView; // forward (to be added when image view abstraction exists)
+class RHIImageView;
 class RHISampler;
 class RHIBuffer;
+class RHIContext;
+class RHIDescriptorSetLayout;
+
+// Backend-dispatched operations for descriptor writing. Implemented per API (e.g., Vulkan).
+struct RHIDescriptorWriterOps {
+    RHIDescriptorWriter& (*writeSampledImage)(RHIDescriptorWriter&, uint32 binding, uint32 arrayElement, RHIImageView* view, RHISampler* sampler) = nullptr;
+    RHIDescriptorWriter& (*writeStorageImage)(RHIDescriptorWriter&, uint32 binding, uint32 arrayElement, RHIImageView* view) = nullptr;
+    RHIDescriptorWriter& (*writeStorageBuffer)(RHIDescriptorWriter&, uint32 binding, uint32 arrayElement, RHIBuffer* buffer, size_t offset, size_t range) = nullptr;
+    void (*flush)(RHIDescriptorWriter&) = nullptr; // Flush non-coherent memory if required
+};
+
+// Internal-only accessor (defined in a private header)
+namespace detail { struct RHIDescriptorWriterAccess; }
 
 class RHIDescriptorWriter {
 public:
-    virtual ~RHIDescriptorWriter() = default;
+    // POD-like; trivially copyable/movable. No virtuals, no destructor required.
+    RHIDescriptorWriter(RHIContext* ctx, const RHIDescriptorSetData& data)
+        : m_ctx(ctx), m_data(data), m_ops(ctx->getDescriptorWriterOps()) {}
 
-    RHIDescriptorWriter(const RHIDescriptorWriter&) = delete;
-    RHIDescriptorWriter& operator=(const RHIDescriptorWriter&) = delete;
-    RHIDescriptorWriter(RHIDescriptorWriter&&) = delete;
-    RHIDescriptorWriter& operator=(RHIDescriptorWriter&&) = delete;
+    // Shortcut API forwards to backend ops
+    RHIDescriptorWriter& writeSampledImage(uint32 binding, uint32 arrayElement, RHIImageView* view, RHISampler* sampler) {
+        ASSERT(m_ops && m_ops->writeSampledImage && "RHIDescriptorWriter ops not bound");
+        return m_ops->writeSampledImage(*this, binding, arrayElement, view, sampler);
+    }
+    RHIDescriptorWriter& writeStorageImage(uint32 binding, uint32 arrayElement, RHIImageView* view) {
+        ASSERT(m_ops && m_ops->writeStorageImage && "RHIDescriptorWriter ops not bound");
+        return m_ops->writeStorageImage(*this, binding, arrayElement, view);
+    }
+    RHIDescriptorWriter& writeStorageBuffer(uint32 binding, uint32 arrayElement, RHIBuffer* buffer, size_t offset, size_t range) {
+        ASSERT(m_ops && m_ops->writeStorageBuffer && "RHIDescriptorWriter ops not bound");
+        return m_ops->writeStorageBuffer(*this, binding, arrayElement, buffer, offset, range);
+    }
+    void flush() {
+        ASSERT(m_ops && m_ops->flush && "RHIDescriptorWriter ops not bound");
+        m_ops->flush(*this);
+    }
 
-    // Pure virtual interface for writing descriptor records
-    virtual RHIDescriptorWriter& writeSampledImage(uint32 binding, uint32 arrayElement, RHIImageView* view, RHISampler* sampler) = 0;
-    virtual RHIDescriptorWriter& writeStorageImage(uint32 binding, uint32 arrayElement, RHIImageView* view) = 0;
-    virtual RHIDescriptorWriter& writeStorageBuffer(uint32 binding, uint32 arrayElement, RHIBuffer* buffer, size_t offset, size_t range) = 0;
-    virtual void flush() = 0; // Flush non-coherent memory if required
+private:
+    friend struct detail::RHIDescriptorWriterAccess; // Allow backend ops to access internals if needed
 
-protected:
-    explicit RHIDescriptorWriter(const RHIDescriptorSet& descSet)
-        : m_descSet(descSet) {}
-
-    RHIDescriptorSet m_descSet{};
+    RHIContext* m_ctx = nullptr;                   // context kept separately from data
+    RHIDescriptorSetData m_data{};                 // value snapshot of the set data (no ctx)
+    const RHIDescriptorWriterOps* m_ops = nullptr; // backend function table
 };
 
 } // namespace rhi

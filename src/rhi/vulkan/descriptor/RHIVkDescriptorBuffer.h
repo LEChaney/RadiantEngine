@@ -13,7 +13,7 @@ class RHIVkBuffer;
 
 class RHIVkDescriptorBuffer final : public RHIDescriptorBuffer {
 public:
-    static UniquePtr<RHIVkDescriptorBuffer> createUnique(RHIVkContext* ctx, const CreateInfo& ci);
+    static UniquePtr<RHIVkDescriptorBuffer> createUnique(RHIVkContext* ctx, const RHIDescriptorBufferCreateInfo& ci);
 
     ~RHIVkDescriptorBuffer() override;
 
@@ -27,7 +27,7 @@ public:
     void resetLinear() override;
 
 private:
-    RHIVkDescriptorBuffer(RHIVkContext* ctx, const CreateInfo& ci);
+    RHIVkDescriptorBuffer(RHIVkContext* ctx, const RHIDescriptorBufferCreateInfo& ci);
 
     bool allocateRaw(uint64 size, uint64 alignment, uint64& outOffset);
 

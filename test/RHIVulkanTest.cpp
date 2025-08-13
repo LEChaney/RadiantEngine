@@ -286,20 +286,12 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
 
     // 4. Descriptor buffer and set allocation
     auto buffer = m_context->createDescriptorBuffer({
-        .sizeBytes = 128 * 1024,
-        .persistentMapped = true,
-        .usage = RHIBufferUsage::ResourceDescriptorBuffer
+        .sizeBytes = 128 * 1024
     });
     ASSERT_NE(buffer, nullptr);
     auto set = buffer->allocateSet(storageSetLayout.get(), "ComputeClearSet");
     ASSERT_TRUE(set.isValid());
-
-    // TODO: Refactor descriptor writer. Instead we can just have write methods directly on the RHIDescriptorSet
-    {
-        m_context->createDescriptorWriter(set)
-            ->writeStorageImage(0, 0, frame.imageView)
-            .flush();
-    }
+    set.writeStorageImage(0, 0, frame.imageView).flush();
     
     // 5. Record commands
     frame.commandBuffer->reset();

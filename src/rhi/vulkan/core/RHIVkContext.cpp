@@ -9,11 +9,9 @@
 #include "rhi/vulkan/pipeline/RHIVkPipeline.h"
 #include "rhi/vulkan/sync/RHIVkFence.h"
 #include "rhi/vulkan/sync/RHIVkSemaphore.h"
-#include "rhi/vulkan/core/RHIVkTypeConversion.h"
-#include "rhi/vulkan/core/RHIVkContext.h"
-#include "rhi/interface/swapchain/RHISwapchain.h"
-#include "..\descriptor\RHIVkDescriptorBuffer.h"
+#include "rhi/vulkan/descriptor/RHIVkDescriptorBuffer.h"
 #include "rhi/vulkan/descriptor/RHIVkDescriptorWriter.h"
+#include "rhi/interface/swapchain/RHISwapchain.h"
 
 #define VMA_STATIC_VULKAN_FUNCTIONS 1
 #define VMA_IMPLEMENTATION
@@ -392,14 +390,13 @@ UniquePtr<RHIPipeline> RHIVkContext::createComputePipeline(const RHIComputePipel
     return createRhiVkComputePipeline(desc);
 }
 
-UniquePtr<RHIDescriptorBuffer> RHIVkContext::createDescriptorBuffer(const RHIDescriptorBuffer::CreateInfo& createInfo)
+UniquePtr<RHIDescriptorBuffer> RHIVkContext::createDescriptorBuffer(const RHIDescriptorBufferCreateInfo& createInfo)
 {
-    return createRhiVkDescriptorBufferArena(createInfo);
+    return createRhiVkDescriptorBuffer(createInfo);
 }
 
-UniquePtr<RHIDescriptorWriter> RHIVkContext::createDescriptorWriter(const RHIDescriptorSet & alloc)
-{
-    return createRhiVkDescriptorWriter(alloc);
+const RHIDescriptorWriterOps* RHIVkContext::getDescriptorWriterOps() const {
+    return getVkDescriptorWriterOps();
 }
 
 UniquePtr<RHIDescriptorSetLayoutBuilder> RHIVkContext::createDescriptorSetLayoutBuilder() {
@@ -481,15 +478,9 @@ UniquePtr<RHIVkPipeline> RHIVkContext::createRhiVkComputePipeline(
     return RHIVkPipeline::createUniqueCompute(this, desc);
 }
 
-UniquePtr<RHIVkDescriptorBuffer> RHIVkContext::createRhiVkDescriptorBufferArena(const RHIDescriptorBuffer::CreateInfo& createInfo)
+UniquePtr<RHIVkDescriptorBuffer> RHIVkContext::createRhiVkDescriptorBuffer(const RHIDescriptorBufferCreateInfo& createInfo)
 {
     return RHIVkDescriptorBuffer::createUnique(this, createInfo);
 }
-
-UniquePtr<RHIDescriptorWriter> RHIVkContext::createRhiVkDescriptorWriter(const RHIDescriptorSet& alloc) {
-    return RHIVkDescriptorWriter::createUnique(this, alloc);
-}
-
-
 
 } // namespace rhi::vulkan

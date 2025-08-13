@@ -1,39 +1,54 @@
 #pragma once
+#include "RHIDescriptorWriter.h"
 #include "RHIDescriptorBuffer.h"
+#include "RHIDescriptorSetData.h"
 #include "core/CoreDefs.h"
 
 namespace rhi {
 
 class RHIDescriptorSetLayout;
+class RHISampler;
+class RHIImageView; // forward declare image view
+class RHIContext; // forward to use getDescriptorWriterOps()
 
-struct RHIDescriptorSet {
-    RHIDescriptorBuffer* buffer = nullptr; // pointer to the buffer this slice belongs to
-    uint64 offset = 0;
-    uint64 size = 0;
-    RHIDescriptorSetLayout* layout = nullptr;
+class RHIDescriptorSet {
+public:
+    RHIDescriptorSet(RHIContext* ctx, RHIDescriptorSetLayout* layout, RHIDescriptorBuffer* buffer,
+        uint64 offset, uint64 size)
+        : m_ctx(ctx), m_data{ layout, buffer, offset, size }, m_writer(ctx, m_data) {}
+    RHIDescriptorSet(RHIContext* ctx, const RHIDescriptorSetData& data)
+        : m_ctx(ctx), m_data(data), m_writer(ctx, m_data) {}
 
-    bool isValid() const {
-        return buffer && offset + size <= buffer->getSize() && size > 0;
-    }
+    RHIDescriptorSetData getData() const { return m_data; }
+    RHIDescriptorSetLayout* getLayout() const { return m_data.layout; }
+    RHIDescriptorBuffer* getBuffer() const { return m_data.buffer; }
+    uint64 getOffset() const { return m_data.offset; }
+    uint64 getSize() const { return m_data.size; }
 
-    bool isMapped() const {
-        return buffer && buffer->isMapped() && isValid();
-    }
+    RHIDescriptorWriter& writeSampledImage(uint32 binding, uint32 arrayElement, RHIImageView* view,
+        RHISampler* sampler) {
+        return m_writer.writeSampledImage(binding, arrayElement, view, sampler);
+    };
+    RHIDescriptorWriter& writeStorageImage(uint32 binding, uint32 arrayElement, RHIImageView* view) {
+        return m_writer.writeStorageImage(binding, arrayElement, view);
+    };
+    RHIDescriptorWriter& writeStorageBuffer(uint32 binding, uint32 arrayElement, RHIBuffer* buffer,
+        uint64 offset, uint64 range) {
+        return m_writer.writeStorageBuffer(binding, arrayElement, buffer, offset, range);
+    };
 
-    void* getMapped() const {
-        return isMapped() ? static_cast<uint8*>(buffer->getMapped()) + offset : nullptr;
-    }
+    bool isMapped() const { return m_data.isMapped(); }
+    void* getMapped() const { return m_data.getMapped(); }
 
-    bool isValidAddress(const void* ptr) const {
-        return isValid() && ptr >= getMapped() && ptr < static_cast<uint8*>(getMapped()) + size;
-    }
+    bool isValid() const { return m_data.isValid(); }
+    bool isValidAddress(const void* ptr) const { return m_data.isValidAddress(ptr); }
+    bool isValidRange(const void* ptr, uint64 inSize) const { return m_data.isValidRange(ptr, inSize); }
 
-    bool isValidRange(const void* ptr, uint64 inSize) const {
-        return isValid() && ptr >= getMapped()
-            && static_cast<const uint8*>(ptr) + inSize <= static_cast<uint8*>(getMapped()) + size;
-    }
+private:
+    RHIContext* m_ctx = nullptr;     // keep separate context pointer
+    RHIDescriptorSetData m_data{};   // value-type descriptor set data (POD)
+    RHIDescriptorWriter m_writer;    // value-type writer (POD)
 };
-
 struct RHIDescriptorSetBinding {
     uint32 setIndex = 0; // index of the descriptor set this binding belongs to
     RHIDescriptorSet set; // descriptor set allocation

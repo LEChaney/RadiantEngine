@@ -6,12 +6,12 @@
 
 namespace rhi::vulkan {
 
-UniquePtr<RHIVkDescriptorBuffer> RHIVkDescriptorBuffer::createUnique(RHIVkContext* ctx, const CreateInfo& ci) {
+UniquePtr<RHIVkDescriptorBuffer> RHIVkDescriptorBuffer::createUnique(RHIVkContext* ctx, const RHIDescriptorBufferCreateInfo& ci) {
     return UniquePtr<RHIVkDescriptorBuffer>(new RHIVkDescriptorBuffer(ctx, ci));
 }
 
 RHIVkDescriptorBuffer::RHIVkDescriptorBuffer(RHIVkContext* ctx,
-    const CreateInfo& ci)
+    const RHIDescriptorBufferCreateInfo& ci)
     :  m_ctx(ctx)
 {
     RHIBufferUsageFlags usage = ci.usage 
@@ -57,13 +57,7 @@ RHIDescriptorSet RHIVkDescriptorBuffer::allocateSet(RHIDescriptorSetLayout* layo
     ASSERT(allocateRaw(layoutSize, alignment, offset) && 
         "RHIVkDescriptorBufferArena::allocateSet: failed to allocate descriptor set");
 
-    RHIDescriptorSet set {
-        .buffer = this,
-        .offset = offset,
-        .size   = layoutSize,
-        .layout = layout
-    };
-    return set;
+    return RHIDescriptorSet(m_ctx, layout, this, offset, layoutSize);
 }
 
 void RHIVkDescriptorBuffer::resetLinear() {

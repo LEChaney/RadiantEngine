@@ -1,7 +1,7 @@
 #pragma once
+#include "rhi/interface/buffer/RHIBuffer.h"
 #include "rhi/interface/core/RHICoreDefs.h"
 #include "core/CoreDefs.h"
-#include "rhi/interface/buffer/RHIBuffer.h"
 #include <string>
 
 namespace rhi {
@@ -10,14 +10,14 @@ class RHIContext;
 class RHIDescriptorSet;
 class RHIDescriptorSetLayout;
 
+struct RHIDescriptorBufferCreateInfo {
+    uint64 sizeBytes = 0;
+    bool persistentMapped = true;
+    RHIBufferUsageFlags usage = RHIBufferUsage::ResourceDescriptorBuffer;
+};
+
 class RHIDescriptorBuffer {
 public:
-    struct CreateInfo {
-        uint64 sizeBytes = 0;
-        bool persistentMapped = true;
-        RHIBufferUsageFlags usage = RHIBufferUsage::ResourceDescriptorBuffer;
-    };
-
     virtual ~RHIDescriptorBuffer() = default;
 
     RHIDescriptorBuffer(const RHIDescriptorBuffer&) = delete;

@@ -203,10 +203,10 @@ void RHIVkCommandBuffer::bindDescriptorSets(const Array<RHIDescriptorSetBinding>
             prevSetIndex = setIndex - 1;
         }
         ASSERT(setIndex == prevSetIndex + 1 && "Descriptor set indices must be contiguous");
-        ASSERT(set.buffer && "Descriptor buffer is NULL");
-        ASSERT(m_boundDescriptorBuffersToIndex.contains(set.buffer) && "Descriptor buffer not bound");
-        bufferIndices.push_back(m_boundDescriptorBuffersToIndex[set.buffer]);
-        setOffsetsInBuffer.push_back(set.offset);
+        ASSERT(set.getBuffer() && "Descriptor buffer is NULL");
+        ASSERT(m_boundDescriptorBuffersToIndex.contains(set.getBuffer()) && "Descriptor buffer not bound");
+        bufferIndices.push_back(m_boundDescriptorBuffersToIndex[set.getBuffer()]);
+        setOffsetsInBuffer.push_back(set.getOffset());
         prevSetIndex = setIndex;
     }
 

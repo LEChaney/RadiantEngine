@@ -1,8 +1,6 @@
 #pragma once
-#include "..\descriptor\RHIDescriptorBuffer.h"
 #include "rhi/interface/core/RHICoreDefs.h"
 #include "core/CoreDefs.h"
-#include <string>
 
 class SDL_Window;
 
@@ -17,11 +15,15 @@ class RHIBuffer;
 class RHIImage;
 class RHIShaderModule;
 class RHIPipeline;
+class RHIDescriptorSet;
 class RHIDescriptorSetLayoutBuilder;
 class RHIDescriptorSetBuilder;
+class RHIDescriptorBuffer;
+class RHIDescriptorBufferCreateInfo;
 class RHIPipelineLayoutBuilder;
 class RHIComputePipelineDescriptor;
 class RHIDescriptorWriter;
+struct RHIDescriptorWriterOps; // new forward decl
 
 class RHIContext {
 public:
@@ -47,8 +49,10 @@ public:
     virtual UniquePtr<RHIShaderModule> createShaderModule(const Path& spvFilePath) = 0;
     virtual UniquePtr<RHIShaderModule> createShaderModule(const Array<uint32>& shaderCode) = 0;
     virtual UniquePtr<RHIPipeline> createComputePipeline(const RHIComputePipelineDescriptor& desc) = 0;
-    virtual UniquePtr<RHIDescriptorBuffer> createDescriptorBuffer(const RHIDescriptorBuffer::CreateInfo& createInfo) = 0;
-    virtual UniquePtr<RHIDescriptorWriter> createDescriptorWriter(const RHIDescriptorSet& alloc) = 0;
+    virtual UniquePtr<RHIDescriptorBuffer> createDescriptorBuffer(const RHIDescriptorBufferCreateInfo& createInfo) = 0;
+
+    // Backend ops table provider for value-type descriptor writer
+    virtual const RHIDescriptorWriterOps* getDescriptorWriterOps() const = 0;
 
 protected:
     // Only derived context or implementation should create RHIContext objects

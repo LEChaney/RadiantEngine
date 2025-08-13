@@ -1,11 +1,14 @@
 #pragma once
 #include "rhi/interface/core/RHIContext.h"
-#include "..\descriptor\RHIVkDescriptorBuffer.h"
 #include "core/CoreDefs.h"
 #include "rhi/vulkan/core/RHIVulkanInclude.h"
 #include <functional>
-#include <string>
 #include <vk_mem_alloc.h>
+
+namespace rhi {
+class RHIDescriptorBufferCreateInfo;
+struct RHIDescriptorWriterOps; // forward declare ops
+}
 
 namespace rhi::vulkan {
 
@@ -20,8 +23,8 @@ class RHIVkShaderModule;
 class RHIVkPipeline;
 class RHIVkDescriptorSetLayoutBuilder;
 class RHIVkDescriptorSetBuilder;
+class RHIVkDescriptorBuffer;
 class RHIVkPipelineLayoutBuilder;
-class RHIVkDescriptorWriter;
 
 class RHIVkContext : public RHIContext {
 public:
@@ -56,8 +59,10 @@ public:
     UniquePtr<RHIShaderModule> createShaderModule(const Path& spvFilePath) override;
     UniquePtr<RHIShaderModule> createShaderModule(const Array<uint32>& shaderCode) override;
     UniquePtr<RHIPipeline> createComputePipeline(const RHIComputePipelineDescriptor& desc) override;
-    UniquePtr<RHIDescriptorBuffer> createDescriptorBuffer(const RHIDescriptorBuffer::CreateInfo& createInfo) override; // New override
-    UniquePtr<RHIDescriptorWriter> createDescriptorWriter(const RHIDescriptorSet& alloc) override; // new override
+    UniquePtr<RHIDescriptorBuffer> createDescriptorBuffer(const RHIDescriptorBufferCreateInfo& createInfo) override;
+
+    // Provide ops for value-type writer
+    const RHIDescriptorWriterOps* getDescriptorWriterOps() const override;
 
     // Vulkan RHI factory methods
     UniquePtr<RHIVkCommandBuffer> createRhiVkCommandBuffer();
@@ -73,8 +78,7 @@ public:
     UniquePtr<RHIVkShaderModule> createRhiVkShaderModule(const Path& spvFilePath);
     UniquePtr<RHIVkShaderModule> createRhiVkShaderModule(const Array<uint32>& shaderCode);
     UniquePtr<RHIVkPipeline> createRhiVkComputePipeline(const RHIComputePipelineDescriptor& desc);
-    UniquePtr<RHIVkDescriptorBuffer> createRhiVkDescriptorBufferArena(const RHIDescriptorBuffer::CreateInfo& createInfo);
-    UniquePtr<RHIDescriptorWriter> createRhiVkDescriptorWriter(const RHIDescriptorSet& alloc);
+    UniquePtr<RHIVkDescriptorBuffer> createRhiVkDescriptorBuffer(const RHIDescriptorBufferCreateInfo& createInfo);
 
     // Vulkan object accessors
     const VkInstance& getVkInstance() const { return m_instance; }

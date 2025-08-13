@@ -1,6 +1,6 @@
 #pragma once
 #include "rhi/interface/descriptor/RHIDescriptorHeap.h"
-#include "rhi/vulkan/descriptor/RHIVkDescriptorBufferArena.h"
+#include "RHIVkDescriptorBuffer.h"
 
 namespace rhi::vulkan {
 
