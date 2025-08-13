@@ -36,8 +36,16 @@ public:
         Error
     };
     using ValidationCallback = std::function<void(const char* message, ValidationLevel level)>;
+
+    // Validation mode to control how validation layers are configured
+    enum class ValidationMode {
+        None,          // No validation layers
+        Standard,      // Standard CPU validation via VK_LAYER_KHRONOS_validation
+        GpuAssisted,   // GPU-assisted validation via VK_EXT_validation_features
+        Auto           // Use a sensible default based on build configuration
+    };
     
-    static UniquePtr<RHIVkContext> createUnique(bool enableValidation = false);
+    static UniquePtr<RHIVkContext> createUnique(ValidationMode mode = ValidationMode::Auto);
     ~RHIVkContext() override;
 
     RHIVkContext(const RHIVkContext&) = delete;
@@ -92,7 +100,7 @@ public:
     static void setValidationCallback(ValidationCallback callback);
 
 private:
-    RHIVkContext(bool enableValidation = false);
+    RHIVkContext(ValidationMode mode = ValidationMode::Auto);
     
     void createInstance();
     void pickPhysicalDevice();
@@ -102,7 +110,7 @@ private:
     void queryDescriptorBufferProperties();
     void createVmaAllocator();
     
-    bool m_validationEnabled = false;
+    ValidationMode m_validationMode = ValidationMode::None;
     VkInstance m_instance{};
     VkPhysicalDevice m_physicalDevice{};
     VkDevice m_device{};

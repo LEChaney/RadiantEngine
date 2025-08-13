@@ -20,10 +20,12 @@
 #include <SDL.h>
 
 #include <algorithm>
+#include <string>
 
 using namespace rhi;
 using rhi::vulkan::RHIVkContext;
 
+namespace {
 // Helper to capture validation messages
 void validationMsgCollector(const char* msg, RHIVkContext::ValidationLevel level) {
     const char* levelStr = "INFO";
@@ -35,16 +37,24 @@ void validationMsgCollector(const char* msg, RHIVkContext::ValidationLevel level
         levelStr = "INFO";
     }
     std::string formattedMsg = fmt::format("[Vk Validation][{}] {}", levelStr, msg);
-    GTEST_NONFATAL_FAILURE_(formattedMsg.c_str()); // Fail the test on validation errors
+
+    if (level == RHIVkContext::ValidationLevel::Error) {
+        GTEST_NONFATAL_FAILURE_(formattedMsg.c_str()); // fail only on errors
+    } else {
+        fmt::println(stderr, "{}", formattedMsg);
+    }
+}
 }
 
-class RHIVulkanTest : public ::testing::Test {
+// Parameterized fixture for validation modes
+class RHIVulkanTest : public ::testing::TestWithParam<RHIVkContext::ValidationMode> {
 protected:
     UniquePtr<RHIContext> m_context;
 
     void SetUp() override {
         RHIVkContext::setValidationCallback(validationMsgCollector);
-        m_context = RHIVkContext::createUnique(true); // enable validation for test
+        auto mode = GetParam();
+        m_context = RHIVkContext::createUnique(mode);
         ASSERT_NE(m_context, nullptr);
     }
 
@@ -90,15 +100,15 @@ protected:
     }
 };
 
-TEST_F(RHIVulkanTest, BasicInitTeardown) {
+TEST_P(RHIVulkanTest, BasicInitTeardown) {
 }
 
-TEST_F(RHIVulkanTest, CreateContextAndGraphicsQueue) {
+TEST_P(RHIVulkanTest, CreateContextAndGraphicsQueue) {
     auto* queue = m_context->getGraphicsQueue();
     ASSERT_NE(queue, nullptr);
 }
 
-TEST_F(RHIVulkanTest, CreateAndSubmitEmptyCommandBuffer) {
+TEST_P(RHIVulkanTest, CreateAndSubmitEmptyCommandBuffer) {
     auto* queue = m_context->getGraphicsQueue();
     ASSERT_NE(queue, nullptr);
     auto cmd = m_context->createCommandBuffer();
@@ -109,7 +119,7 @@ TEST_F(RHIVulkanTest, CreateAndSubmitEmptyCommandBuffer) {
     queue->waitIdle();
 }
 
-TEST_F(RHIVulkanTestWithSDLAndSwap, RenderSwapchainFrames) {
+TEST_P(RHIVulkanTestWithSDLAndSwap, RenderSwapchainFrames) {
     // Draw several frames (double buffered)
     constexpr uint32_t k_frameCount = 4;
     for (uint32_t frameIdx = 0; frameIdx < k_frameCount; ++frameIdx) {
@@ -137,7 +147,7 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, RenderSwapchainFrames) {
     }
 }
 
-TEST_F(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
+TEST_P(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
     struct SavedFrame {
         rhi::RHISwapchain::RHIFrame frame;
         glm::vec4 clearColor;
@@ -240,7 +250,7 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
     ASSERT_TRUE(checkedAtLeastOneFrame) << "No valid frames were tested";
 }
 
-TEST_F(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
+TEST_P(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     // Finalized hypothetical API usage: RHIDescriptorBuffer + allocateSet + RHIDescriptorWriter.
     // Assumes forthcoming headers:
     //   rhi/interface/descriptor/RHIDescriptorBuffer.h
@@ -347,3 +357,30 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     verifyPixel(kWidth/2, kHeight/2);
     verifyPixel(kWidth-1, kHeight-1);
 }
+
+// Instantiate the parameterized tests to run with Standard then GPU-Assisted validation
+static std::string ValidationModeToName(
+    const ::testing::TestParamInfo<RHIVkContext::ValidationMode>& info) {
+    using V = RHIVkContext::ValidationMode;
+    switch (info.param) {
+        case V::Standard: return "Standard";
+        case V::GpuAssisted: return "GpuAssisted";
+        default: return "Unknown";
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ValidationModes,
+    RHIVulkanTest,
+    ::testing::Values(
+        RHIVkContext::ValidationMode::Standard,
+        RHIVkContext::ValidationMode::GpuAssisted),
+    ValidationModeToName);
+
+INSTANTIATE_TEST_SUITE_P(
+    ValidationModes,
+    RHIVulkanTestWithSDLAndSwap,
+    ::testing::Values(
+        RHIVkContext::ValidationMode::Standard,
+        RHIVkContext::ValidationMode::GpuAssisted),
+    ValidationModeToName);

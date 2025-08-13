@@ -20,17 +20,18 @@
 #include "fmt/format.h"
 #include <iostream>
 #include <cstring>
+#include <ranges>
 
 namespace rhi::vulkan {
 
 // Anonymous namespace for internal utilities
 namespace {
 
-// Global constant for default validation enable
+// Global constant for default validation mode
 #ifdef _DEBUG
-constexpr bool gk_defaultEnableValidation = true;
+constexpr RHIVkContext::ValidationMode gk_defaultValidationMode = RHIVkContext::ValidationMode::Standard;
 #else
-constexpr bool gk_defaultEnableValidation = false;
+constexpr RHIVkContext::ValidationMode gk_defaultValidationMode = RHIVkContext::ValidationMode::None;
 #endif
 // Global constant for validation layers
 const Array<const char*> gk_validationLayers = {
@@ -96,12 +97,12 @@ void RHIVkContext::setValidationCallback(ValidationCallback callback) {
     g_validationCallback = std::move(callback);
 }
 
-UniquePtr<RHIVkContext> RHIVkContext::createUnique(bool enableValidation) {
-    return UniquePtr<RHIVkContext>(new RHIVkContext(enableValidation));
+UniquePtr<RHIVkContext> RHIVkContext::createUnique(ValidationMode mode) {
+    return UniquePtr<RHIVkContext>(new RHIVkContext(mode));
 }
 
-RHIVkContext::RHIVkContext(bool enableValidation)
-    : m_validationEnabled(enableValidation || gk_defaultEnableValidation)
+RHIVkContext::RHIVkContext(ValidationMode mode)
+    : m_validationMode(mode == ValidationMode::Auto ? gk_defaultValidationMode : mode)
 {
     if (volkInitialize() != VK_SUCCESS) {
         throw std::runtime_error("Failed to initialize Vulkan loader (volk)");
@@ -128,7 +129,7 @@ RHIVkContext::~RHIVkContext() {
     if (m_device) {
         vkDestroyDevice(m_device, nullptr);
     }
-    if (m_validationEnabled && m_debugMessenger) {
+    if (m_validationMode != ValidationMode::None && m_debugMessenger) {
         auto func = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
             vkGetInstanceProcAddr(m_instance, "vkDestroyDebugUtilsMessengerEXT"));
         if (func) {
@@ -153,8 +154,10 @@ void RHIVkContext::createInstance() {
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
 
+    const bool enableValidation = (m_validationMode != ValidationMode::None);
+
     Array<const char*> enabledLayers;
-    if (m_validationEnabled) {
+    if (enableValidation) {
         if (!checkValidationLayerSupport()) {
             throw std::runtime_error("Validation layers requested, but not available!");
         }
@@ -181,29 +184,60 @@ void RHIVkContext::createInstance() {
     surfaceExts.push_back("VK_KHR_android_surface");
 #endif
 
-    // Query required instance extensions
+    // Query available instance extensions
     uint32 extCount = 0;
     Array<const char*> enabledExts;
     vkEnumerateInstanceExtensionProperties(nullptr, &extCount, nullptr);
     Array<VkExtensionProperties> availableExts(extCount);
     vkEnumerateInstanceExtensionProperties(nullptr, &extCount, availableExts.data());
+    auto hasInstExt = [&availableExts](const char* name) {
+        return std::ranges::find_if(availableExts, [name](const VkExtensionProperties& ext) {
+                   return strcmp(ext.extensionName, name) == 0;
+               }) != availableExts.end();
+    };
     for (const auto& surfaceExt : surfaceExts) {
-        if (std::ranges::find_if(availableExts, [&surfaceExt](const VkExtensionProperties& ext) {
-                                     return strcmp(ext.extensionName, surfaceExt) == 0;
-                                 }) != availableExts.end()) 
-        {
+        if (hasInstExt(surfaceExt)) {
             enabledExts.push_back(surfaceExt);
         }
     }
     // Enable debug utils if validation is enabled
-    if (m_validationEnabled) {
+    if (enableValidation && hasInstExt("VK_EXT_debug_utils")) {
         enabledExts.push_back("VK_EXT_debug_utils");
+    }
+    // Enable validation features extension if GPU-assisted is requested
+    const bool useGpuAv = (m_validationMode == ValidationMode::GpuAssisted);
+    if (enableValidation && useGpuAv) {
+        enabledExts.push_back("VK_EXT_validation_features");
     }
     createInfo.enabledExtensionCount = static_cast<uint32>(enabledExts.size());
     createInfo.ppEnabledExtensionNames = enabledExts.empty() ? nullptr : enabledExts.data();
 
+    // Instance pNext chain
+    VkValidationFeaturesEXT validationFeatures{};
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-    if (m_validationEnabled) {
+    void* pNextChain = nullptr;
+
+    if (enableValidation) {
+        // Optionally add validation features for GPU-AV
+        if (useGpuAv) {
+            static const VkValidationFeatureEnableEXT enables[] = {
+                VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,
+                VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT
+            };
+            static const VkValidationFeatureDisableEXT disables[] = {
+                // Disable core CPU checks to avoid double validation/slowness when using GPU-AV only
+                VK_VALIDATION_FEATURE_DISABLE_CORE_CHECKS_EXT
+            };
+            validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+            validationFeatures.pNext = nullptr;
+            validationFeatures.enabledValidationFeatureCount = (uint32)std::size(enables);
+            validationFeatures.pEnabledValidationFeatures = enables;
+            validationFeatures.disabledValidationFeatureCount = (uint32)std::size(disables);
+            validationFeatures.pDisabledValidationFeatures = disables;
+            pNextChain = &validationFeatures;
+        }
+
+        // Chain initial debug messenger for early messages
         debugCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
         debugCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
                                            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
@@ -211,17 +245,19 @@ void RHIVkContext::createInstance() {
                                        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                                        VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
         debugCreateInfo.pfnUserCallback = debugCallback;
-        createInfo.pNext = &debugCreateInfo;
-    } else {
-        createInfo.pNext = nullptr;
+        debugCreateInfo.pNext = pNextChain;
+        pNextChain = &debugCreateInfo;
     }
+
+    createInfo.pNext = pNextChain;
+
     if (vkCreateInstance(&createInfo, nullptr, &m_instance) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create Vulkan instance");
     }
 }
 
 void RHIVkContext::setupDebugMessenger() {
-    if (!m_validationEnabled) { 
+    if (m_validationMode == ValidationMode::None) { 
         return; 
     }
 
@@ -293,8 +329,10 @@ void RHIVkContext::createLogicalDevice() {
     createInfo.queueCreateInfoCount = 1;
     createInfo.pQueueCreateInfos = &queueCreateInfo;
 
+    const bool enableValidation = (m_validationMode != ValidationMode::None);
+
     Array<const char*> enabledLayers;
-    if (m_validationEnabled) {
+    if (enableValidation) {
         enabledLayers = gk_validationLayers;
         createInfo.enabledLayerCount = static_cast<uint32>(enabledLayers.size());
         createInfo.ppEnabledLayerNames = enabledLayers.data();
