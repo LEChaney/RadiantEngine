@@ -399,13 +399,8 @@ const RHIDescriptorWriterOps* RHIVkContext::getDescriptorWriterOps() const {
     return getVkDescriptorWriterOps();
 }
 
-UniquePtr<RHIDescriptorSetLayoutBuilder> RHIVkContext::createDescriptorSetLayoutBuilder() {
-    return createRhiVkDescriptorSetLayoutBuilder();
-}
-
-UniquePtr<RHIDescriptorSetBuilder> RHIVkContext::createDescriptorSetBuilder() {
-    throw std::runtime_error("Descriptor set builder not implemented yet");
-    //return createRhiVkDescriptorSetBuilder();
+const RHIDescriptorSetLayoutBuilderOps* RHIVkContext::getDescriptorSetLayoutBuilderOps() const {
+    return getVkDescriptorSetLayoutBuilderOps();
 }
 
 UniquePtr<RHIPipelineLayoutBuilder> RHIVkContext::createPipelineLayoutBuilder() {
@@ -446,15 +441,6 @@ UniquePtr<RHIVkBuffer> RHIVkContext::createRhiVkBuffer(uint64 size, RHIBufferUsa
 
 UniquePtr<RHIVkImage> RHIVkContext::createRhiVkImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsageFlags usage, RHIMemoryPropertyFlags memProps) {
     return RHIVkImage::createUnique(this, width, height, format, usage, memProps);
-}
-
-UniquePtr<RHIVkDescriptorSetLayoutBuilder> RHIVkContext::createRhiVkDescriptorSetLayoutBuilder() {
-    return RHIVkDescriptorSetLayoutBuilder::createUnique(this);
-}
-
-UniquePtr<RHIVkDescriptorSetBuilder> RHIVkContext::createRhiVkDescriptorSetBuilder() {
-    throw std::runtime_error("Descriptor set builder not implemented yet");
-    //return RHIVkDescriptorSetBuilder::createUnique(this);
 }
 
 UniquePtr<RHIVkPipelineLayoutBuilder> RHIVkContext::createRhiVkPipelineLayoutBuilder()

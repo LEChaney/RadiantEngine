@@ -259,10 +259,9 @@ TEST_F(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     frame.fence->reset();
 
     // 1. Descriptor set layout (set 0, binding 0 = storage image)
-    auto setLayoutBuilder = m_context->createDescriptorSetLayoutBuilder();
-    ASSERT_NE(setLayoutBuilder, nullptr);
-    setLayoutBuilder->addBinding(0, RHIDescriptorType::StorageImage);
-    auto storageSetLayout = setLayoutBuilder->build(RHIShaderStage::Compute);
+    RHIDescriptorSetLayoutBuilder setLayoutBuilder(m_context.get());
+    setLayoutBuilder.addBinding(0, RHIDescriptorType::StorageImage);
+    auto storageSetLayout = setLayoutBuilder.build(RHIShaderStage::Compute);
     ASSERT_NE(storageSetLayout, nullptr);
 
     // 2. Pipeline layout
