@@ -1,4 +1,5 @@
 #pragma once
+#include "rhi/interface/core/RHIContext.h"
 #include "core/CoreDefs.h"
 #include "RHIDescriptorSetData.h"
 
@@ -7,8 +8,6 @@ namespace rhi {
 class RHIImageView;
 class RHISampler;
 class RHIBuffer;
-class RHIContext;
-class RHIDescriptorSetLayout;
 
 // Backend-dispatched operations for descriptor writing. Implemented per API (e.g., Vulkan).
 struct RHIDescriptorWriterOps {
@@ -17,9 +16,6 @@ struct RHIDescriptorWriterOps {
     RHIDescriptorWriter& (*writeStorageBuffer)(RHIDescriptorWriter&, uint32 binding, uint32 arrayElement, RHIBuffer* buffer, size_t offset, size_t range) = nullptr;
     void (*flush)(RHIDescriptorWriter&) = nullptr; // Flush non-coherent memory if required
 };
-
-// Internal-only accessor (defined in a private header)
-namespace detail { struct RHIDescriptorWriterAccess; }
 
 class RHIDescriptorWriter {
 public:
@@ -45,9 +41,11 @@ public:
         m_ops->flush(*this);
     }
 
-private:
-    friend struct detail::RHIDescriptorWriterAccess; // Allow backend ops to access internals if needed
+    // Accessors for backend
+    RHIContext* getContext() const { return m_ctx; }
+    const RHIDescriptorSetData& getData() const { return m_data; }
 
+private:
     RHIContext* m_ctx = nullptr;                   // context kept separately from data
     RHIDescriptorSetData m_data{};                 // value snapshot of the set data (no ctx)
     const RHIDescriptorWriterOps* m_ops = nullptr; // backend function table

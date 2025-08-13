@@ -5,22 +5,19 @@
 #include "rhi/vulkan/buffer/RHIVkBuffer.h"
 #include "rhi/interface/descriptor/RHIDescriptorSet.h"
 #include "rhi/interface/descriptor/RHIDescriptorWriter.h"
-#include "rhi/interface/descriptor/detail/RHIDescriptorWriterAccess.h"
 
 namespace rhi::vulkan {
-
-using rhi::detail::RHIDescriptorWriterAccess;
 
 // Internal helpers operating on value-type writer
 namespace {
     inline RHIVkContext* getCtx(const RHIDescriptorWriter& w) {
-        return static_cast<RHIVkContext*>(RHIDescriptorWriterAccess::ctx(w));
+        return static_cast<RHIVkContext*>(w.getContext());
     }
     inline RHIVkDescriptorSetLayout* getLayout(const RHIDescriptorWriter& w) {
-        return static_cast<RHIVkDescriptorSetLayout*>(RHIDescriptorWriterAccess::data(w).layout);
+        return static_cast<RHIVkDescriptorSetLayout*>(w.getData().layout);
     }
     inline uint8* basePtr(const RHIDescriptorWriter& w) {
-        return static_cast<uint8*>(RHIDescriptorWriterAccess::mapped(w));
+        return static_cast<uint8*>(w.getData().getMapped());
     }
     inline size_t getBindingOffset(const RHIDescriptorWriter& w, uint32 binding) {
         VkDeviceSize offset = 0;
