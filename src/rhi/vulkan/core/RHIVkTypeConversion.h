@@ -47,4 +47,8 @@ RHIMemoryPropertyFlags toRhiMemoryPropertyFlags(VkMemoryPropertyFlags flags);
 VkShaderStageFlags toVkShaderStageFlags(RHIShaderStageFlags flags);
 RHIShaderStageFlags toRhiShaderStageFlags(VkShaderStageFlags flags);
 
+// RHIPipelineStageFlags <-> VkPipelineStageFlags2
+VkPipelineStageFlags2 toVkPipelineStageFlags2(RHIPipelineStageFlags flags);
+RHIPipelineStageFlags toRhiPipelineStageFlags(VkPipelineStageFlags2 flags);
+
 } // namespace rhi::vulkan

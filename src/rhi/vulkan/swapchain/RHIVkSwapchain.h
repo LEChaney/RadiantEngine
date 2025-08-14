@@ -26,7 +26,7 @@ public:
     ~RHIVkSwapchain() override;
 
     RHIFrame acquireNextFrame() override;
-    void present(const RHIFrame& frame) override;
+    void present(const RHIFrame& frame, RHISemaphore* waitSemaphore) override;
     uint32_t imageCount() const override;
     void resize(uint32_t width, uint32_t height) override;
 
@@ -48,13 +48,14 @@ private:
     RHIVkSwapchain(RHIVkSwapchain&&) = delete;
     RHIVkSwapchain& operator=(RHIVkSwapchain&&) = delete;
 
-    RHIVkContext* m_rhiContext = nullptr;
-    Array<UniquePtr<RHIVkCommandBuffer>> m_rhiCommandBuffers;
-    Array<UniquePtr<RHIVkImage>> m_rhiImages;
-    Array<UniquePtr<RHIVkImageView>> m_rhiImageViews;
-    Array<UniquePtr<RHIVkSemaphore>> m_usedRhiAcquireSemaphores;
-    Array<UniquePtr<RHIVkSemaphore>> m_freeRhiAcquireSemaphores;
-    Array<UniquePtr<RHIVkFence>> m_rhiFences;
+    RHIVkContext* m_ctx = nullptr;
+    Array<UniquePtr<RHIVkCommandBuffer>> m_commandBuffers;
+    Array<UniquePtr<RHIVkImage>> m_images;
+    Array<UniquePtr<RHIVkImageView>> m_imageViews;
+    Array<UniquePtr<RHIVkSemaphore>> m_imgAvailableSemaphores;
+    Array<UniquePtr<RHIVkSemaphore>> m_freeImgAvailableSemaphores;
+    Array<UniquePtr<RHIVkSemaphore>> m_renderFinishedSemaphores;
+    Array<UniquePtr<RHIVkFence>> m_renderFinishedFences;
     VkSurfaceKHR m_surface = VK_NULL_HANDLE;
     VkSurfaceFormatKHR m_surfaceFormat = {};
     VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;

@@ -19,7 +19,9 @@ public:
     RHIVkQueue(RHIVkQueue&&) = delete;
     RHIVkQueue& operator=(RHIVkQueue&&) = delete;
 
-    void submit(const Array<RHICommandBuffer*>& commandBuffers, RHIFence* fence, RHISemaphore* waitSemaphore) override;
+    void submit(const SmallArray<RHICommandBuffer*, 1>& commandBuffers, RHISemaphore* waitSemaphore,
+        RHISemaphore* signalSemaphore, RHIFence* fence) override;
+    void submit(const RHIQueueSubmitDesc& desc) override; // extended submit
     void waitIdle() override;
     void submitAndWait(RHICommandBuffer* cmd) override;
 

@@ -106,20 +106,8 @@ void RHIVkCommandBuffer::transitionImageLayout(RHIImage* image, RHIImageLayout o
 
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    // Map RHI ImageLayout to Vulkan VkImageLayout
-    auto toVkLayout = [](RHIImageLayout layout) {
-        switch (layout) {
-            case RHIImageLayout::Undefined: return VK_IMAGE_LAYOUT_UNDEFINED;
-            case RHIImageLayout::General: return VK_IMAGE_LAYOUT_GENERAL;
-            case RHIImageLayout::TransferSrc: return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-            case RHIImageLayout::TransferDst: return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-            case RHIImageLayout::ColorAttachment: return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            case RHIImageLayout::Present: return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-            default: return VK_IMAGE_LAYOUT_UNDEFINED;
-        }
-    };
-    barrier.oldLayout = toVkLayout(oldLayout);
-    barrier.newLayout = toVkLayout(newLayout);
+    barrier.oldLayout = toVkImageLayout(oldLayout);
+    barrier.newLayout = toVkImageLayout(newLayout);
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.image = vkImage;

@@ -613,4 +613,74 @@ RHIShaderStageFlags toRhiShaderStageFlags(VkShaderStageFlags flags) {
     return result;
 }
 
+// --- RHIPipelineStageFlags <-> VkPipelineStageFlags2 conversions ---
+namespace {
+const Map<rhi::RHIPipelineStage, VkPipelineStageFlagBits2> gk_rhiToVkPipelineStageBit2 = {
+    {rhi::RHIPipelineStage::None, VK_PIPELINE_STAGE_2_NONE},
+    {rhi::RHIPipelineStage::DrawIndirect, VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT},
+    {rhi::RHIPipelineStage::VertexInput, VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT},
+    {rhi::RHIPipelineStage::VertexShader, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT},
+    {rhi::RHIPipelineStage::TessellationControlShader, VK_PIPELINE_STAGE_2_TESSELLATION_CONTROL_SHADER_BIT},
+    {rhi::RHIPipelineStage::TessellationEvaluationShader, VK_PIPELINE_STAGE_2_TESSELLATION_EVALUATION_SHADER_BIT},
+    {rhi::RHIPipelineStage::GeometryShader, VK_PIPELINE_STAGE_2_GEOMETRY_SHADER_BIT},
+    {rhi::RHIPipelineStage::FragmentShader, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT},
+    {rhi::RHIPipelineStage::EarlyFragmentTests, VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT},
+    {rhi::RHIPipelineStage::LateFragmentTests, VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT},
+    {rhi::RHIPipelineStage::ColorAttachmentOutput, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT},
+    {rhi::RHIPipelineStage::ComputeShader, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT},
+    {rhi::RHIPipelineStage::AllTransfer, VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT},
+    {rhi::RHIPipelineStage::Transfer, VK_PIPELINE_STAGE_2_TRANSFER_BIT},
+    {rhi::RHIPipelineStage::Host, VK_PIPELINE_STAGE_2_HOST_BIT},
+    {rhi::RHIPipelineStage::AllGraphics, VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT},
+    {rhi::RHIPipelineStage::AllCommands, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT},
+    {rhi::RHIPipelineStage::Copy, VK_PIPELINE_STAGE_2_COPY_BIT},
+    {rhi::RHIPipelineStage::Resolve, VK_PIPELINE_STAGE_2_RESOLVE_BIT},
+    {rhi::RHIPipelineStage::Blit, VK_PIPELINE_STAGE_2_BLIT_BIT},
+    {rhi::RHIPipelineStage::Clear, VK_PIPELINE_STAGE_2_CLEAR_BIT},
+    {rhi::RHIPipelineStage::IndexInput, VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT},
+    {rhi::RHIPipelineStage::VertexAttributeInput, VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT},
+    {rhi::RHIPipelineStage::PreRasterizationShaders, VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT},
+    {rhi::RHIPipelineStage::VideoDecode, VK_PIPELINE_STAGE_2_VIDEO_DECODE_BIT_KHR},
+    {rhi::RHIPipelineStage::VideoEncode, VK_PIPELINE_STAGE_2_VIDEO_ENCODE_BIT_KHR},
+    {rhi::RHIPipelineStage::TransformFeedback, VK_PIPELINE_STAGE_2_TRANSFORM_FEEDBACK_BIT_EXT},
+    {rhi::RHIPipelineStage::ConditionalRendering, VK_PIPELINE_STAGE_2_CONDITIONAL_RENDERING_BIT_EXT},
+    {rhi::RHIPipelineStage::CommandPreprocess, VK_PIPELINE_STAGE_2_COMMAND_PREPROCESS_BIT_EXT},
+    {rhi::RHIPipelineStage::FragmentShadingRateAttachment, VK_PIPELINE_STAGE_2_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR},
+    {rhi::RHIPipelineStage::ShadingRateImageNV, VK_PIPELINE_STAGE_2_SHADING_RATE_IMAGE_BIT_NV},
+    {rhi::RHIPipelineStage::AccelerationStructureBuild, VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR},
+    {rhi::RHIPipelineStage::RayTracingShader, VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR},
+    {rhi::RHIPipelineStage::FragmentDensityProcess, VK_PIPELINE_STAGE_2_FRAGMENT_DENSITY_PROCESS_BIT_EXT},
+    {rhi::RHIPipelineStage::TaskShader, VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT},
+    {rhi::RHIPipelineStage::MeshShader, VK_PIPELINE_STAGE_2_MESH_SHADER_BIT_EXT},
+    {rhi::RHIPipelineStage::SubpassShaderHuawei, VK_PIPELINE_STAGE_2_SUBPASS_SHADER_BIT_HUAWEI},
+    {rhi::RHIPipelineStage::SubpassShadingHuawei, VK_PIPELINE_STAGE_2_SUBPASS_SHADING_BIT_HUAWEI},
+    {rhi::RHIPipelineStage::InvocationMaskHuawei, VK_PIPELINE_STAGE_2_INVOCATION_MASK_BIT_HUAWEI},
+    {rhi::RHIPipelineStage::AccelerationStructureCopy, VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_COPY_BIT_KHR},
+    {rhi::RHIPipelineStage::MicromapBuild, VK_PIPELINE_STAGE_2_MICROMAP_BUILD_BIT_EXT},
+    {rhi::RHIPipelineStage::ClusterCullingShaderHuawei, VK_PIPELINE_STAGE_2_CLUSTER_CULLING_SHADER_BIT_HUAWEI},
+    {rhi::RHIPipelineStage::OpticalFlowNV, VK_PIPELINE_STAGE_2_OPTICAL_FLOW_BIT_NV},
+    {rhi::RHIPipelineStage::ConvertCooperativeVectorMatrixNV, VK_PIPELINE_STAGE_2_CONVERT_COOPERATIVE_VECTOR_MATRIX_BIT_NV},
+};
+}
+
+VkPipelineStageFlags2 toVkPipelineStageFlags2(rhi::RHIPipelineStageFlags flags) {
+    VkPipelineStageFlags2 result = 0;
+    for (const auto& [rhiBit, vkBit] : gk_rhiToVkPipelineStageBit2) {
+        if (flags.hasFlag(rhiBit)) {
+            result |= vkBit;
+        }
+    }
+    return result;
+}
+
+RHIPipelineStageFlags toRhiPipelineStageFlags(VkPipelineStageFlags2 flags) {
+    rhi::RHIPipelineStageFlags result;
+    for (const auto& [rhiBit, vkBit] : gk_rhiToVkPipelineStageBit2) {
+        if (flags & vkBit) {
+            result |= rhiBit;
+        }
+    }
+    return result;
+}
+
 } // namespace rhi::vulkan

@@ -49,13 +49,13 @@ void validationMsgCollector(const char* msg, RHIVkContext::ValidationLevel level
 // Parameterized fixture for validation modes
 class RHIVulkanTest : public ::testing::TestWithParam<RHIVkContext::ValidationMode> {
 protected:
-    UniquePtr<RHIContext> m_context;
+    UniquePtr<RHIContext> m_ctx;
 
     void SetUp() override {
         RHIVkContext::setValidationCallback(validationMsgCollector);
         auto mode = GetParam();
-        m_context = RHIVkContext::createUnique(mode);
-        ASSERT_NE(m_context, nullptr);
+        m_ctx = RHIVkContext::createUnique(mode);
+        ASSERT_NE(m_ctx, nullptr);
     }
 
     void TearDown() override {
@@ -82,7 +82,7 @@ protected:
         ASSERT_NE(m_window, nullptr);
 
         // Create swapchain (API assumed: createSwapchain(SDL_Window*, width, height, buffer_count))
-        m_swapchain = m_context->createSwapchain(m_window, width, height, k_bufferCount,
+        m_swapchain = m_ctx->createSwapchain(m_window, width, height, k_bufferCount,
                                                  RHIImageUsage::TransferSrc |  // So we can read back images
                                                  RHIImageUsage::Storage); // So we can use in compute shaders
         ASSERT_NE(m_swapchain, nullptr);
@@ -104,18 +104,18 @@ TEST_P(RHIVulkanTest, BasicInitTeardown) {
 }
 
 TEST_P(RHIVulkanTest, CreateContextAndGraphicsQueue) {
-    auto* queue = m_context->getGraphicsQueue();
+    auto* queue = m_ctx->getGraphicsQueue();
     ASSERT_NE(queue, nullptr);
 }
 
 TEST_P(RHIVulkanTest, CreateAndSubmitEmptyCommandBuffer) {
-    auto* queue = m_context->getGraphicsQueue();
+    auto* queue = m_ctx->getGraphicsQueue();
     ASSERT_NE(queue, nullptr);
-    auto cmd = m_context->createCommandBuffer();
+    auto cmd = m_ctx->createCommandBuffer();
     ASSERT_NE(cmd, nullptr);
     cmd->begin();
     cmd->end();
-    queue->submit({cmd.get()}, nullptr, nullptr);
+    queue->submit({cmd.get()});
     queue->waitIdle();
 }
 
@@ -126,10 +126,18 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, RenderSwapchainFrames) {
         auto frameData = m_swapchain->acquireNextFrame();
         ASSERT_NE(frameData.commandBuffer, nullptr);
         ASSERT_NE(frameData.imageView, nullptr);
+        ASSERT_NE(frameData.image, nullptr);
+        ASSERT_NE(frameData.imgAvailableSemaphore, nullptr);
+        ASSERT_NE(frameData.renderFinishedSemaphore, nullptr);
+        ASSERT_NE(frameData.renderFinishedFence, nullptr);
 
         // Wait for the fence to ensure the frame is ready
-        frameData.fence->wait();
-        frameData.fence->reset();
+        // NOTE: Controls latency / how far ahead the CPU can run.
+        //       In this case, we block if we see the frame again before it has finished
+        //       rendering (and this CPU fence has been signaled). Max latency here is essentially
+        //       the swapchain image count number of frames (in FIFO present mode).
+        frameData.renderFinishedFence->wait();
+        frameData.renderFinishedFence->reset();
 
         // Record RHI commands
         frameData.commandBuffer->begin();
@@ -139,11 +147,17 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, RenderSwapchainFrames) {
         frameData.commandBuffer->end();
 
         // Submit command buffer to the graphics queue
-        auto* queue = m_context->getGraphicsQueue();
-        queue->submit({frameData.commandBuffer}, frameData.fence, nullptr);
+        auto* queue = m_ctx->getGraphicsQueue();
+        RHIQueueSubmitDesc submitInfo{
+            .commandBuffers = {frameData.commandBuffer},
+            .waits = {{frameData.imgAvailableSemaphore, RHIPipelineStage::AllCommands}},
+            .signals = {{frameData.renderFinishedSemaphore, RHIPipelineStage::AllCommands}},
+            .fence = frameData.renderFinishedFence
+        };
+        queue->submit(submitInfo);
 
         // Present the frame
-        m_swapchain->present(frameData);
+        m_swapchain->present(frameData, frameData.renderFinishedSemaphore);
     }
 }
 
@@ -165,8 +179,8 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
         glm::vec4 clearColor(0.1f * (frameIdx % 10), 0.2f, 0.3f, 1.0f);
 
         // Wait for the fence to ensure the frame is ready
-        frameData.fence->wait();
-        frameData.fence->reset();
+        frameData.renderFinishedFence->wait();
+        frameData.renderFinishedFence->reset();
 
         frameData.commandBuffer->reset();
         frameData.commandBuffer->begin();
@@ -179,10 +193,16 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
         );
         frameData.commandBuffer->end();
 
-        auto* queue = m_context->getGraphicsQueue();
-        queue->submit({frameData.commandBuffer}, frameData.fence, nullptr);
+        auto* queue = m_ctx->getGraphicsQueue();
+        RHIQueueSubmitDesc submitInfo{
+            .commandBuffers = {frameData.commandBuffer},
+            .waits = {{frameData.imgAvailableSemaphore, RHIPipelineStage::Transfer}},
+            .signals = {{frameData.renderFinishedSemaphore, RHIPipelineStage::Transfer}},
+            .fence = frameData.renderFinishedFence
+        };
+        queue->submit(submitInfo);
 
-        m_swapchain->present(frameData);
+        m_swapchain->present(frameData, frameData.renderFinishedSemaphore);
 
         savedFrames[frameData.imageIndex % k_bufferCount] = { frameData, clearColor };
     }
@@ -205,7 +225,7 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
         // Get image size (assuming swapchain exposes width/height or use known values)
         uint32_t width = 640, height = 480;
         std::vector<uint8> imageData;
-        bool readBackOk = rhi::readImageToCpu(m_context.get(), frameData.image, width, height, imageData);
+        bool readBackOk = rhi::readImageToCpu(m_ctx.get(), frameData.image, width, height, imageData);
         ASSERT_TRUE(readBackOk) << "Failed to read back image data from GPU";
         ASSERT_EQ(imageData.size(), width * height * 4);
 
@@ -265,17 +285,17 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     ASSERT_NE(frame.imageView, nullptr);
     ASSERT_NE(frame.commandBuffer, nullptr);
 
-    frame.fence->wait();
-    frame.fence->reset();
+    frame.renderFinishedFence->wait();
+    frame.renderFinishedFence->reset();
 
     // 1. Descriptor set layout (set 0, binding 0 = storage image)
-    RHIDescriptorSetLayoutBuilder setLayoutBuilder(m_context.get());
+    RHIDescriptorSetLayoutBuilder setLayoutBuilder(m_ctx.get());
     setLayoutBuilder.addBinding(0, RHIDescriptorType::StorageImage);
     auto storageSetLayout = setLayoutBuilder.build(RHIShaderStage::Compute);
     ASSERT_NE(storageSetLayout, nullptr);
 
     // 2. Pipeline layout
-    RHIPipelineLayoutBuilder plBuilder(m_context.get());
+    RHIPipelineLayoutBuilder plBuilder(m_ctx.get());
     plBuilder.addDescriptorSetLayout(storageSetLayout.get());
     plBuilder.addPushConstantRange(RHIShaderStage::Compute, 0, sizeof(glm::vec4)); // Push constant for clear color
     auto pipelineLayout = plBuilder.build();
@@ -283,17 +303,17 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
 
     // 3. Compute shader + pipeline
     Path shaderPath = "../shaders/clear.comp.spv";
-    auto computeShader = m_context->createShaderModule(shaderPath);
+    auto computeShader = m_ctx->createShaderModule(shaderPath);
     ASSERT_NE(computeShader, nullptr);
     RHIComputePipelineDescriptor desc {
         .layout = pipelineLayout.get(),
         .computeShader = computeShader.get(),
     };
-    UniquePtr<RHIPipeline> computePipeline = m_context->createComputePipeline(desc);
+    UniquePtr<RHIPipeline> computePipeline = m_ctx->createComputePipeline(desc);
     ASSERT_NE(computePipeline, nullptr);
 
     // 4. Descriptor buffer and set allocation
-    auto buffer = m_context->createDescriptorBuffer({
+    auto buffer = m_ctx->createDescriptorBuffer({
         .sizeBytes = 128 * 1024
     });
     ASSERT_NE(buffer, nullptr);
@@ -326,14 +346,20 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     frame.commandBuffer->transitionImageLayout(frame.image, RHIImageLayout::Present);
     frame.commandBuffer->end();
 
-    auto* queue = m_context->getGraphicsQueue();
-    queue->submit({ frame.commandBuffer }, frame.fence, nullptr);
-    frame.fence->wait();
-    m_swapchain->present(frame);
+    auto* queue = m_ctx->getGraphicsQueue();
+    RHIQueueSubmitDesc submitInfo{
+        .commandBuffers = {frame.commandBuffer},
+        .waits = {{frame.imgAvailableSemaphore, RHIPipelineStage::ComputeShader}},
+        .signals = {{frame.renderFinishedSemaphore, RHIPipelineStage::ComputeShader}},
+        .fence = frame.renderFinishedFence
+    };
+    queue->submit(submitInfo);
+
+    m_swapchain->present(frame, frame.renderFinishedSemaphore);
 
     // 6. Readback & validation (green clear (0,255,0,255) expected once shader works)
     std::vector<uint8> imageData;
-    bool readBackOk = rhi::readImageToCpu(m_context.get(), frame.image, kWidth, kHeight, imageData);
+    bool readBackOk = rhi::readImageToCpu(m_ctx.get(), frame.image, kWidth, kHeight, imageData);
     ASSERT_TRUE(readBackOk) << "Failed to read back image data from GPU";
     ASSERT_EQ(imageData.size(), kWidth * kHeight * 4);
 
@@ -358,8 +384,9 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     verifyPixel(kWidth-1, kHeight-1);
 }
 
+namespace {
 // Instantiate the parameterized tests to run with Standard then GPU-Assisted validation
-static std::string ValidationModeToName(
+std::string ValidationModeToName(
     const ::testing::TestParamInfo<RHIVkContext::ValidationMode>& info) {
     using V = RHIVkContext::ValidationMode;
     switch (info.param) {
@@ -384,3 +411,4 @@ INSTANTIATE_TEST_SUITE_P(
         RHIVkContext::ValidationMode::Standard,
         RHIVkContext::ValidationMode::GpuAssisted),
     ValidationModeToName);
+} // namespace

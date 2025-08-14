@@ -72,10 +72,60 @@ enum class RHIShaderStage : uint32 {
     FlagBitsMaxEnum = 0x7FFFFFFF
 };
 
+// Mirror of VkPipelineStageFlagBits2 values (core 1.3 + common extensions). Values follow Vulkan spec.
+// Use uint64 because VkPipelineStageFlags2 is 64-bit.
+enum class RHIPipelineStage : uint64 {
+    None = 0ULL,
+    DrawIndirect = 0x00000002ULL,
+    VertexInput = 0x00000004ULL,
+    VertexShader = 0x00000008ULL,
+    TessellationControlShader = 0x00000010ULL,
+    TessellationEvaluationShader = 0x00000020ULL,
+    GeometryShader = 0x00000040ULL,
+    FragmentShader = 0x00000080ULL,
+    EarlyFragmentTests = 0x00000100ULL,
+    LateFragmentTests = 0x00000200ULL,
+    ColorAttachmentOutput = 0x00000400ULL,
+    ComputeShader = 0x00000800ULL,
+    AllTransfer = 0x00001000ULL,
+    Transfer = 0x00001000ULL,
+    Host = 0x00004000ULL,
+    AllGraphics = 0x00008000ULL,
+    AllCommands = 0x00010000ULL,
+    Copy = 0x100000000ULL,
+    Resolve = 0x200000000ULL,
+    Blit = 0x400000000ULL,
+    Clear = 0x800000000ULL,
+    IndexInput = 0x1000000000ULL,
+    VertexAttributeInput = 0x2000000000ULL,
+    PreRasterizationShaders = 0x4000000000ULL,
+    VideoDecode = 0x04000000ULL,
+    VideoEncode = 0x08000000ULL,
+    TransformFeedback = 0x01000000ULL,
+    ConditionalRendering = 0x00040000ULL,
+    CommandPreprocess = 0x00020000ULL,
+    FragmentShadingRateAttachment = 0x00400000ULL,
+    ShadingRateImageNV = 0x00400000ULL,
+    AccelerationStructureBuild = 0x02000000ULL,
+    RayTracingShader = 0x00200000ULL,
+    FragmentDensityProcess = 0x00800000ULL,
+    TaskShader = 0x00080000ULL,
+    MeshShader = 0x00100000ULL,
+    SubpassShaderHuawei = 0x8000000000ULL,
+    SubpassShadingHuawei = 0x8000000000ULL,
+    InvocationMaskHuawei = 0x10000000000ULL,
+    AccelerationStructureCopy = 0x10000000ULL,
+    MicromapBuild = 0x40000000ULL,
+    ClusterCullingShaderHuawei = 0x20000000000ULL,
+    OpticalFlowNV = 0x20000000ULL,
+    ConvertCooperativeVectorMatrixNV = 0x100000000000ULL
+};
+
 DECLARE_FLAGS(RHIBufferUsage, RHIBufferUsageFlags)
 DECLARE_FLAGS(RHIImageUsage, RHIImageUsageFlags)
 DECLARE_FLAGS(RHIMemoryProperty, RHIMemoryPropertyFlags)
 DECLARE_FLAGS(RHIShaderStage, RHIShaderStageFlags)
+DECLARE_FLAGS(RHIPipelineStage, RHIPipelineStageFlags)
 
 enum class RHIImageLayout : uint32 {
     Undefined = 0,
