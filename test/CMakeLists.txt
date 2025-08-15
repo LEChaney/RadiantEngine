@@ -89,6 +89,7 @@ add_test(NAME SceneManagerTest COMMAND SceneManagerTest)
 # RHI Vulkan test
 add_executable(RHIVulkanTest
     RHIVulkanTest.cpp
+    ${CMAKE_SOURCE_DIR}/src/renderer/FrameManager.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/core/RHIVkContext.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/queue/RHIVkQueue.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/command/RHIVkCommandBuffer.cpp

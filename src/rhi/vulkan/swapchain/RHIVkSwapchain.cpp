@@ -103,7 +103,6 @@ RHIVkSwapchain::RHIVkSwapchain(
     m_imageCount = imageCount;
     m_images.resize(imageCount);
     m_imageViews.resize(imageCount);
-    m_commandBuffers.resize(imageCount);
     for (uint32_t i = 0; i < imageCount; ++i) {
         m_images[i] = RHIVkImage::createUnique(
             m_ctx,
@@ -119,30 +118,9 @@ RHIVkSwapchain::RHIVkSwapchain(
             m_ctx,
             m_images[i].get()
         );
-        m_commandBuffers[i] = context->createRhiVkCommandBuffer();
     }
     m_swapchain = swapchain;
     m_imageIndex = 0;
-
-    // Initialize semaphores for image acquisition
-    m_imgAvailableSemaphores.resize(m_imageCount);
-    m_freeImgAvailableSemaphores.resize(m_imageCount);
-    for (uint32_t i = 0; i < m_imageCount; ++i) {
-        m_imgAvailableSemaphores[i] = RHIVkSemaphore::createUnique(m_ctx);
-        m_freeImgAvailableSemaphores[i] = RHIVkSemaphore::createUnique(m_ctx);
-    }
-
-    // Initialize semaphores for render-finished signaling
-    m_renderFinishedSemaphores.resize(m_imageCount);
-    for (uint32_t i = 0; i < m_imageCount; ++i) {
-        m_renderFinishedSemaphores[i] = RHIVkSemaphore::createUnique(m_ctx);
-    }
-
-    // Initialize fences for synchronization
-    m_renderFinishedFences.resize(m_imageCount);
-    for (uint32_t i = 0; i < m_imageCount; ++i) {
-        m_renderFinishedFences[i] = RHIVkFence::createUnique(m_ctx);
-    }
 }
 
 RHIVkSwapchain::~RHIVkSwapchain() {
@@ -160,42 +138,22 @@ RHIVkSwapchain::~RHIVkSwapchain() {
 }
 
 
-RHISwapchain::RHIFrame RHIVkSwapchain::acquireNextFrame() {
+uint32 RHIVkSwapchain::acquireNextImage(RHISemaphore* imageAvailableSemaphore) {
     VkDevice device = m_ctx->getVkDevice();
-
-    // This is a guess for the next image index and may change based on actual acquire result
-    m_imageIndex = (m_imageIndex + 1) % m_imageCount;
-
-    // Acquire the next image from the swapchain using one of the free semaphores
-    auto& imgAvailableSemaphore = m_freeImgAvailableSemaphores[m_imageIndex];
+    VkSemaphore vkSemaphore = imageAvailableSemaphore ? static_cast<RHIVkSemaphore*>(imageAvailableSemaphore)->getVk() : VK_NULL_HANDLE;
     VkResult acquireResult = vkAcquireNextImageKHR(
         device,
         m_swapchain,
-        UINT64_MAX, // timeout
-        imgAvailableSemaphore->getVk(),
+        UINT64_MAX,
+        vkSemaphore,
         VK_NULL_HANDLE,
         &m_imageIndex
     );
     ASSERT(acquireResult == VK_SUCCESS || acquireResult == VK_SUBOPTIMAL_KHR);
-
-    // Swap used acquire semaphore with the one for the current image index to track semaphore usage.
-    std::swap(
-        imgAvailableSemaphore,
-        m_imgAvailableSemaphores[m_imageIndex]
-    );
-
-    return RHIFrame{
-        m_imageIndex,
-        m_images[m_imageIndex].get(),
-        m_imageViews[m_imageIndex].get(),
-        m_commandBuffers[m_imageIndex].get(),
-        m_imgAvailableSemaphores[m_imageIndex].get(),
-        m_renderFinishedSemaphores[m_imageIndex].get(),
-        m_renderFinishedFences[m_imageIndex].get()
-    };
+    return m_imageIndex;
 }
 
-void RHIVkSwapchain::present(const RHIFrame& frame, RHISemaphore* waitSemaphore) {
+void RHIVkSwapchain::present(uint32 imageIndex, RHISemaphore* waitSemaphore) {
     // Submit the present to the queue
     VkQueue queue = m_ctx->getVkGraphicsQueue()->getVk();
     VkSemaphore vkWaitSemaphore = waitSemaphore ?
@@ -206,7 +164,7 @@ void RHIVkSwapchain::present(const RHIFrame& frame, RHISemaphore* waitSemaphore)
     presentInfo.pWaitSemaphores = &vkWaitSemaphore;
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = &m_swapchain;
-    presentInfo.pImageIndices = &frame.imageIndex;
+    presentInfo.pImageIndices = &imageIndex;
     presentInfo.pResults = nullptr;
     VkResult presentResult = vkQueuePresentKHR(queue, &presentInfo);
     ASSERT(presentResult == VK_SUCCESS || presentResult == VK_SUBOPTIMAL_KHR);
