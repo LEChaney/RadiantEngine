@@ -181,8 +181,9 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
         );
 
         m_frameManager->submitAndPresent(frameData, {
-            RHIPipelineStage::Transfer,
-            RHIPipelineStage::Transfer
+            .queue = m_ctx->getGraphicsQueue(),
+            .waitAcquireStage = RHIPipelineStage::Transfer,
+            .signalPresentStage = RHIPipelineStage::Transfer
         });
 
         // Note: Indexing by swapchain image index here, since we're reading back data from the
@@ -331,8 +332,9 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::Present);
 
     m_frameManager->submitAndPresent(frame, {
-        RHIPipelineStage::ComputeShader,
-        RHIPipelineStage::ComputeShader});
+        .queue = m_ctx->getGraphicsQueue(),
+        .waitAcquireStage = RHIPipelineStage::ComputeShader,
+        .signalPresentStage = RHIPipelineStage::ComputeShader});
 
     // 6. Readback & validation (green clear (0,255,0,255) expected once shader works)
     std::vector<uint8> imageData;

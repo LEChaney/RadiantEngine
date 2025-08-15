@@ -11,8 +11,7 @@ class RHIContext;
 class RHISwapchain;
 class RHIImage;
 class RHIImageView;
-class RHICommandBuffer;
-class RHIFence;
+class RHIQueue;
 }
 
 namespace renderer {
@@ -34,15 +33,16 @@ struct FrameContext {
     // Swapchain
     SwapchainImageResources swapImgs;
 
-    // CPU<->GPU pacing
+    // Synchronization
     rhi::RHISemaphore* imgAvailableSemaphore;   // acquire semaphore
     rhi::RHISemaphore* renderFinishedSemaphore; // present wait semaphore
     rhi::RHIFence* renderFinishedFence;         // signaled when this frame's GPU work is done
 };
 
 struct FrameSubmitInfo {
-    rhi::RHIPipelineStageFlags waitStageFlags = rhi::RHIPipelineStage::AllCommands;
-    rhi::RHIPipelineStageFlags signalStageFlags = rhi::RHIPipelineStage::AllCommands;
+    rhi::RHIQueue* queue = nullptr;
+    rhi::RHIPipelineStageFlags waitAcquireStage = rhi::RHIPipelineStage::AllCommands;
+    rhi::RHIPipelineStageFlags signalPresentStage = rhi::RHIPipelineStage::AllCommands;
 };
 
 class FrameManager {
@@ -51,6 +51,11 @@ public:
         uint32 maxFramesInFlight);
 
     ~FrameManager();
+
+    FrameManager(const FrameManager&) = delete;
+    FrameManager& operator=(const FrameManager&) = delete;
+    FrameManager(FrameManager&&) = delete;
+    FrameManager& operator=(FrameManager&&) = delete;
 
     FrameContext acquireFrame();
     void submitAndPresent(const FrameContext& frame) { submitAndPresent(frame, {}); };

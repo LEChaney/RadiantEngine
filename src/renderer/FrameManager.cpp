@@ -2,8 +2,8 @@
 #include "renderer/FrameManager.h"
 #include "rhi/interface/swapchain/RHISwapchain.h"
 #include "rhi/interface/core/RHIContext.h"
-#include "core/CoreDefs.h"
 #include "rhi/interface/queue/RHIQueue.h"
+#include "core/CoreDefs.h"
 
 using namespace rhi;
 
@@ -34,9 +34,13 @@ FrameManager::FrameManager(RHIContext* ctx, RHISwapchain* swapchain, uint32 maxF
     }
 }
 FrameManager::~FrameManager() {
-    // Wait for present operations to complete before destroying objects that could be in use
-    // by the Queue.
-    // TODO: Handle resources submitted to other queues
+    // Wait for command buffer executions to complete on the queues they were submitted to
+    for (auto& fence : m_renderFinishedFences) {
+        fence->wait();
+    }
+
+    // Wait for the graphics queue to be idle explicitly, to catch any queue present
+    // operations that might be using resources.
     m_ctx->getGraphicsQueue()->waitIdle();
 }
 
@@ -78,11 +82,11 @@ void FrameManager::submitAndPresent(const FrameContext& frame, const FrameSubmit
     m_commandBuffers[m_currentFrame]->end();
 
     // TODO: Add ability to pass in queue to submit to
-    auto* queue = m_ctx->getGraphicsQueue();
+    auto* queue = frameSubmitInfo.queue ? frameSubmitInfo.queue : m_ctx->getGraphicsQueue();
     RHIQueueSubmitDesc queueSubmitInfo{
         .commandBuffers = {frame.cmd},
-        .waits = {{frame.imgAvailableSemaphore, frameSubmitInfo.waitStageFlags}},
-        .signals = {{frame.renderFinishedSemaphore, frameSubmitInfo.signalStageFlags}},
+        .waits = {{frame.imgAvailableSemaphore, frameSubmitInfo.waitAcquireStage}},
+        .signals = {{frame.renderFinishedSemaphore, frameSubmitInfo.signalPresentStage}},
         .fence = frame.renderFinishedFence
     };
     queue->submit(queueSubmitInfo);
