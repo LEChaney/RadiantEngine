@@ -21,6 +21,7 @@
 #include <iostream>
 #include <cstring>
 #include <ranges>
+#include <array>
 
 namespace RHI::Vulkan {
 
@@ -213,20 +214,20 @@ void RHIVkContext::createInstance() {
     if (enableValidation) {
         // Optionally add validation features for GPU-AV
         if (useGpuAv) {
-            static const VkValidationFeatureEnableEXT enables[] = {
+            static constexpr std::array<VkValidationFeatureEnableEXT,2> enables = {
                 VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,
                 VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT
             };
-            static const VkValidationFeatureDisableEXT disables[] = {
+            static constexpr std::array<VkValidationFeatureDisableEXT,1> disables = {
                 // Disable core CPU checks to avoid double validation/slowness when using GPU-AV only
                 VK_VALIDATION_FEATURE_DISABLE_CORE_CHECKS_EXT
             };
             validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
             validationFeatures.pNext = nullptr;
-            validationFeatures.enabledValidationFeatureCount = static_cast<uint32>(std::size(enables));
-            validationFeatures.pEnabledValidationFeatures = enables;
-            validationFeatures.disabledValidationFeatureCount = static_cast<uint32>(std::size(disables));
-            validationFeatures.pDisabledValidationFeatures = disables;
+            validationFeatures.enabledValidationFeatureCount = static_cast<uint32>(enables.size());
+            validationFeatures.pEnabledValidationFeatures = enables.data();
+            validationFeatures.disabledValidationFeatureCount = static_cast<uint32>(disables.size());
+            validationFeatures.pDisabledValidationFeatures = disables.data();
             pNextChain = &validationFeatures;
         }
 
@@ -334,7 +335,7 @@ void RHIVkContext::createLogicalDevice() {
         createInfo.ppEnabledLayerNames = nullptr;
     }
 
-    // Enable required device extensions
+    // Enable required base device extensions
     Array<const char*> deviceExtensions = { 
         "VK_KHR_swapchain",
         "VK_KHR_buffer_device_address",
@@ -342,34 +343,194 @@ void RHIVkContext::createLogicalDevice() {
         "VK_EXT_descriptor_indexing",
         "VK_KHR_synchronization2"
     };
+    // Always attempt to enable ray tracing pipeline (callable shaders, etc.) if supported.
+    // Ray query remains optional and is only enabled if present.
+    bool enableRayTracingPipeline = false;
+    bool enableRayQuery = false;
+    {
+        uint32 devExtCount = 0;
+        vkEnumerateDeviceExtensionProperties(m_physicalDevice, nullptr, &devExtCount, nullptr);
+        Array<VkExtensionProperties> devExts(devExtCount);
+        vkEnumerateDeviceExtensionProperties(m_physicalDevice, nullptr, &devExtCount, devExts.data());
+        auto hasDevExt = [&devExts](const char* name) {
+            return std::ranges::any_of(devExts, [name](const VkExtensionProperties& e){ return strcmp(e.extensionName, name) == 0; });
+        };
+        const bool hasDeferredHost = hasDevExt("VK_KHR_deferred_host_operations");
+        const bool hasAccel        = hasDevExt("VK_KHR_acceleration_structure");
+        const bool hasRtPipeline   = hasDevExt("VK_KHR_ray_tracing_pipeline");
+        const bool hasRayQueryExt  = hasDevExt("VK_KHR_ray_query");
+
+        if (hasDeferredHost && hasAccel && hasRtPipeline) {
+            deviceExtensions.push_back("VK_KHR_deferred_host_operations");
+            deviceExtensions.push_back("VK_KHR_acceleration_structure");
+            deviceExtensions.push_back("VK_KHR_ray_tracing_pipeline");
+            enableRayTracingPipeline = true;
+        }
+        if (hasRayQueryExt && hasAccel) { // ray query also needs acceleration structure
+            deviceExtensions.push_back("VK_KHR_ray_query");
+            enableRayQuery = true;
+        }
+    }
+    // Enforce requirement: ray tracing pipeline must be available for engine (future callable shaders / ReSTIR)
+    if (!enableRayTracingPipeline) {
+        throw std::runtime_error("Required ray tracing pipeline extensions not supported by selected GPU");
+    }
     createInfo.enabledExtensionCount = static_cast<uint32>(deviceExtensions.size());
     createInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
-    // Enable core Vulkan 1.2/1.3 features
-    VkPhysicalDeviceVulkan12Features vulkan12{};
-    vulkan12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-    vulkan12.descriptorIndexing = VK_TRUE;
-    vulkan12.bufferDeviceAddress = VK_TRUE;
+    // --- Feature enabling --------------------------------------------------
+    // We use VkPhysicalDeviceFeatures2 + promoted Vulkan 1.2/1.3 feature structs
+    // so that we can explicitly enable the features GPU-Assisted Validation
+    // would otherwise auto-enable (emitting WARNINGs about "Forcing ... to VK_TRUE").
+    // By querying first, we only enable what the device supports, suppressing those warnings.
+
+    // Query chain
+    VkPhysicalDeviceFeatures2 queryFeatures2{}; queryFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    VkPhysicalDeviceDescriptorBufferFeaturesEXT queryDescBuffer{}; queryDescBuffer.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT;
+    VkPhysicalDeviceVulkan13Features queryVulkan13{}; queryVulkan13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+    VkPhysicalDeviceVulkan12Features queryVulkan12{}; queryVulkan12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    VkPhysicalDeviceAccelerationStructureFeaturesKHR queryAccel{}; queryAccel.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+    VkPhysicalDeviceRayTracingPipelineFeaturesKHR queryRayTracingPipeline{}; queryRayTracingPipeline.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+    VkPhysicalDeviceRayQueryFeaturesKHR queryRayQuery{}; queryRayQuery.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
+
+    queryFeatures2.pNext = &queryDescBuffer;
+    queryDescBuffer.pNext = &queryVulkan13;
+    queryVulkan13.pNext = &queryVulkan12;
+    if (enableRayTracingPipeline || enableRayQuery) {
+        queryVulkan12.pNext = &queryAccel;
+        if (enableRayTracingPipeline) {
+            queryAccel.pNext = &queryRayTracingPipeline;
+            if (enableRayQuery) {
+                queryRayTracingPipeline.pNext = &queryRayQuery;
+            }
+        } else if (enableRayQuery) { // only ray query (rare without RT pipeline)
+            queryAccel.pNext = &queryRayQuery;
+        }
+    }
+
+    vkGetPhysicalDeviceFeatures2(m_physicalDevice, &queryFeatures2);
+
+    // Enable chain (separate structs so we don't accidentally modify the query copy)
+    VkPhysicalDeviceFeatures2 enableFeatures2{}; enableFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    VkPhysicalDeviceDescriptorBufferFeaturesEXT enableDescBuffer{}; enableDescBuffer.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT;
+    VkPhysicalDeviceVulkan13Features enableVulkan13{}; enableVulkan13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+    VkPhysicalDeviceVulkan12Features enableVulkan12{}; enableVulkan12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    VkPhysicalDeviceAccelerationStructureFeaturesKHR enableAccel{}; enableAccel.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+    VkPhysicalDeviceRayTracingPipelineFeaturesKHR enableRayTracingPipelineFeatures{}; enableRayTracingPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+    VkPhysicalDeviceRayQueryFeaturesKHR enableRayQueryFeatures{}; enableRayQueryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
+
+    enableFeatures2.pNext = &enableDescBuffer;
+    enableDescBuffer.pNext = &enableVulkan13;
+    enableVulkan13.pNext = &enableVulkan12;
+    if (enableRayTracingPipeline || enableRayQuery) {
+        enableVulkan12.pNext = &enableAccel;
+        if (enableRayTracingPipeline) {
+            enableAccel.pNext = &enableRayTracingPipelineFeatures;
+            if (enableRayQuery) {
+                enableRayTracingPipelineFeatures.pNext = &enableRayQueryFeatures;
+            }
+        } else if (enableRayQuery) {
+            enableAccel.pNext = &enableRayQueryFeatures;
+        }
+    }
+
+    // Core (VkPhysicalDeviceFeatures) features required by GPU-AV instrumentation
+    if (queryFeatures2.features.fragmentStoresAndAtomics) {
+        enableFeatures2.features.fragmentStoresAndAtomics = VK_TRUE;
+    }
+    if (queryFeatures2.features.vertexPipelineStoresAndAtomics) {
+        enableFeatures2.features.vertexPipelineStoresAndAtomics = VK_TRUE;
+    }
+    if (queryFeatures2.features.shaderInt64) {
+        enableFeatures2.features.shaderInt64 = VK_TRUE;
+    }
+
+    // Vulkan 1.2 features
+    if (queryVulkan12.descriptorIndexing) {
+        enableVulkan12.descriptorIndexing = VK_TRUE;
+    }
+    if (queryVulkan12.bufferDeviceAddress) {
+        enableVulkan12.bufferDeviceAddress = VK_TRUE;
+    }
+    if (queryVulkan12.bufferDeviceAddressCaptureReplay) {
+        enableVulkan12.bufferDeviceAddressCaptureReplay = VK_TRUE;
+    }
+    if (queryVulkan12.storageBuffer8BitAccess) {
+        enableVulkan12.storageBuffer8BitAccess = VK_TRUE;
+    }
+    if (queryVulkan12.uniformAndStorageBuffer8BitAccess) {
+        enableVulkan12.uniformAndStorageBuffer8BitAccess = VK_TRUE;
+    }
+    if (queryVulkan12.storagePushConstant8) {
+        enableVulkan12.storagePushConstant8 = VK_TRUE;
+    }
+    if (queryVulkan12.timelineSemaphore) {
+        enableVulkan12.timelineSemaphore = VK_TRUE;
+    }
+    if (queryVulkan12.vulkanMemoryModel) {
+        enableVulkan12.vulkanMemoryModel = VK_TRUE;
+    }
+    if (queryVulkan12.vulkanMemoryModelDeviceScope) {
+        enableVulkan12.vulkanMemoryModelDeviceScope = VK_TRUE;
+    }
+
+    // Vulkan 1.3 features
+    if (queryVulkan13.synchronization2) {
+        enableVulkan13.synchronization2 = VK_TRUE;
+    }
+
+    // Descriptor buffer extension features (not yet fully supported by GPU-AV instrumentation)
+    if (queryDescBuffer.descriptorBuffer) {
+        enableDescBuffer.descriptorBuffer = VK_TRUE;
+    }
 #ifdef _DEBUG
-    vulkan12.bufferDeviceAddressCaptureReplay = VK_TRUE;
+    if (queryDescBuffer.descriptorBufferCaptureReplay) {
+        enableDescBuffer.descriptorBufferCaptureReplay = VK_TRUE;
+    }
 #endif
 
-    VkPhysicalDeviceVulkan13Features vulkan13{};
-    vulkan13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-    vulkan13.synchronization2 = VK_TRUE;
+    // Ray tracing pipeline / ray query / acceleration structure
+    if (enableRayTracingPipeline || enableRayQuery) {
+        if (!queryAccel.accelerationStructure) {
+            throw std::runtime_error("Acceleration structure feature not supported despite extensions");
+        }
+        enableAccel.accelerationStructure = VK_TRUE;
+        if (enableRayTracingPipeline) {
+            if (!queryRayTracingPipeline.rayTracingPipeline) {
+                throw std::runtime_error("Ray tracing pipeline feature not supported despite extensions");
+            }
+            enableRayTracingPipelineFeatures.rayTracingPipeline = VK_TRUE;
+            // Optional enhancements if available
+            if (queryRayTracingPipeline.rayTracingPipelineTraceRaysIndirect) {
+                enableRayTracingPipelineFeatures.rayTracingPipelineTraceRaysIndirect = VK_TRUE;
+            }
+            if (queryRayTracingPipeline.rayTraversalPrimitiveCulling) {
+                enableRayTracingPipelineFeatures.rayTraversalPrimitiveCulling = VK_TRUE;
+            }
+            if (queryRayTracingPipeline.rayTracingPipelineShaderGroupHandleCaptureReplay) {
+                // Useful for offline shader group handle capture (debug / tooling)
+                enableRayTracingPipelineFeatures.rayTracingPipelineShaderGroupHandleCaptureReplay = VK_TRUE;
+            }
+        }
+        if (enableRayQuery) {
+            if (queryRayQuery.rayQuery) {
+                enableRayQueryFeatures.rayQuery = VK_TRUE;
+            }
+        }
+        // Optional acceleration structure extras
+        if (queryAccel.accelerationStructureCaptureReplay) {
+            enableAccel.accelerationStructureCaptureReplay = VK_TRUE;
+        }
+        if (queryAccel.accelerationStructureIndirectBuild) {
+            enableAccel.accelerationStructureIndirectBuild = VK_TRUE;
+        }
+        if (queryAccel.descriptorBindingAccelerationStructureUpdateAfterBind) {
+            enableAccel.descriptorBindingAccelerationStructureUpdateAfterBind = VK_TRUE;
+        }
+    }
 
-    // Enable descriptor buffer features
-    VkPhysicalDeviceDescriptorBufferFeaturesEXT descriptorBufferFeatures{};
-    descriptorBufferFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT;
-    descriptorBufferFeatures.descriptorBuffer = VK_TRUE;
-#ifdef _DEBUG
-    descriptorBufferFeatures.descriptorBufferCaptureReplay = VK_TRUE;
-#endif
-
-    // Chain: descriptorBuffer -> vulkan13 -> vulkan12
-    vulkan13.pNext = &vulkan12;
-    descriptorBufferFeatures.pNext = &vulkan13;
-    createInfo.pNext = &descriptorBufferFeatures;
+    createInfo.pNext = &enableFeatures2; // Supply extended feature chain
+    createInfo.pEnabledFeatures = nullptr; // Must be null when using Features2 chain
 
     if (vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create logical device");
