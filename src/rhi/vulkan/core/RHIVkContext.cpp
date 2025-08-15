@@ -38,15 +38,8 @@ const Array<const char*> gk_validationLayers = {
     "VK_LAYER_KHRONOS_validation"
 };
 
-// Static state for validation error tracking
-struct ValidationMsg {
-    std::string message;
-    RHIVkContext::ValidationLevel level;
-};
-// Global variable for validation errors
-Array<ValidationMsg> g_validationErrors;
 // Global variable for validation callback
-RHI::Vulkan::RHIVkContext::ValidationCallback g_validationCallback = nullptr;
+RHIVkContext::ValidationCallback g_validationCallback = nullptr;
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -230,9 +223,9 @@ void RHIVkContext::createInstance() {
             };
             validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
             validationFeatures.pNext = nullptr;
-            validationFeatures.enabledValidationFeatureCount = (uint32)std::size(enables);
+            validationFeatures.enabledValidationFeatureCount = static_cast<uint32>(std::size(enables));
             validationFeatures.pEnabledValidationFeatures = enables;
-            validationFeatures.disabledValidationFeatureCount = (uint32)std::size(disables);
+            validationFeatures.disabledValidationFeatureCount = static_cast<uint32>(std::size(disables));
             validationFeatures.pDisabledValidationFeatures = disables;
             pNextChain = &validationFeatures;
         }
