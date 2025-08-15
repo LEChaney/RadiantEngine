@@ -1,7 +1,7 @@
 #include "rhi/vulkan/sync/RHIVkSemaphore.h"
 #include "rhi/vulkan/core/RHIVkContext.h"
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
 UniquePtr<RHIVkSemaphore> RHIVkSemaphore::createUnique(RHIVkContext* context) {
     return UniquePtr<RHIVkSemaphore>(new RHIVkSemaphore(context));

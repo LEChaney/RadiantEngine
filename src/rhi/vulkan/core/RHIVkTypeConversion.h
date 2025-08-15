@@ -5,7 +5,7 @@
 
 // TODO: Rename this file to rhivk_type_conversions.h or similar
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
 // RHIImageLayout <-> VkImageLayout
 VkImageLayout toVkImageLayout(RHIImageLayout layout);

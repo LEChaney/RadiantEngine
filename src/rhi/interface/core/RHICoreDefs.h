@@ -1,7 +1,7 @@
 #pragma once
 #include "core/CoreDefs.h"
 
-namespace rhi {
+namespace RHI {
 
 enum class RHIBufferUsage : uint32 {
     TransferSrc = 0x00000001,

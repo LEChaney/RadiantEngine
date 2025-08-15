@@ -1,10 +1,10 @@
 #pragma once
 
-namespace rhi {
+namespace RHI {
 struct RHIDescriptorSetLayoutBuilderOps;
 }
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
 // Returns the Vulkan ops for the value-type RHIDescriptorSetLayoutBuilder
 const RHIDescriptorSetLayoutBuilderOps* getVkDescriptorSetLayoutBuilderOps();

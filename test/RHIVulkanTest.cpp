@@ -24,8 +24,8 @@
 #include <algorithm>
 #include <string>
 
-using namespace rhi;
-using rhi::vulkan::RHIVkContext;
+using namespace RHI;
+using Vulkan::RHIVkContext;
 
 namespace {
 // Helper to capture validation messages
@@ -69,8 +69,8 @@ protected:
 class RHIVulkanTestWithSDLAndSwap : public RHIVulkanTest {
 protected:
     SDL_Window* m_window = nullptr;
-    UniquePtr<rhi::RHISwapchain> m_swapchain = nullptr;
-    UniquePtr<renderer::FrameManager> m_frameManager = nullptr;
+    UniquePtr<RHI::RHISwapchain> m_swapchain = nullptr;
+    UniquePtr<Renderer::FrameManager> m_frameManager = nullptr;
     const uint32 k_bufferCount = 2; // double buffering
     const uint32 k_maxFramesInFlight = 2; // Max CPU run ahead
 
@@ -92,7 +92,7 @@ protected:
                                                  RHIImageUsage::Storage); // So we can use in compute shaders
         ASSERT_NE(m_swapchain, nullptr);
         EXPECT_EQ(m_swapchain->imageCount(), k_bufferCount);
-        m_frameManager = renderer::FrameManager::createUnique(m_ctx.get(),
+        m_frameManager = Renderer::FrameManager::createUnique(m_ctx.get(),
             m_swapchain.get(), k_maxFramesInFlight);
     }
 
@@ -154,7 +154,7 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, RenderSwapchainFrames) {
 
 TEST_P(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
     struct SavedFrame {
-        renderer::FrameContext frame;
+        Renderer::FrameContext frame;
         glm::vec4 clearColor;
     };
     Array<SavedFrame> savedFrames(k_bufferCount);
@@ -194,8 +194,8 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
     bool checkedAtLeastOneFrame = false;
     // Determine channel order based on swapchain format
     auto format = m_swapchain->getFormat();
-    bool isBGRA = (format == rhi::RHIFormat::RHI_FORMAT_B8G8R8A8_UNORM ||
-                   format == rhi::RHIFormat::RHI_FORMAT_B8G8R8A8_SRGB);
+    bool isBGRA = (format == RHI::RHIFormat::RHI_FORMAT_B8G8R8A8_UNORM ||
+                   format == RHI::RHIFormat::RHI_FORMAT_B8G8R8A8_SRGB);
 
     for (uint32_t frameIdx = 0; frameIdx < savedFrames.size(); ++frameIdx) {
         auto& frameData = savedFrames[frameIdx].frame;
@@ -209,7 +209,7 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
         // Get image size (assuming swapchain exposes width/height or use known values)
         uint32_t width = 640, height = 480;
         std::vector<uint8> imageData;
-        bool readBackOk = rhi::readImageToCpu(m_ctx.get(), frameData.swapImgs.color,
+        bool readBackOk = RHI::readImageToCpu(m_ctx.get(), frameData.swapImgs.color,
             width, height, imageData);
         ASSERT_TRUE(readBackOk) << "Failed to read back image data from GPU";
         ASSERT_EQ(imageData.size(), width * height * 4);
@@ -338,15 +338,15 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
 
     // 6. Readback & validation (green clear (0,255,0,255) expected once shader works)
     std::vector<uint8> imageData;
-    bool readBackOk = rhi::readImageToCpu(m_ctx.get(), frame.swapImgs.color,
+    bool readBackOk = RHI::readImageToCpu(m_ctx.get(), frame.swapImgs.color,
         kWidth, kHeight, imageData);
     ASSERT_TRUE(readBackOk) << "Failed to read back image data from GPU";
     ASSERT_EQ(imageData.size(), kWidth * kHeight * 4);
 
     auto verifyPixel = [&](uint32_t x, uint32_t y) {
         size_t idx = (y * kWidth + x) * 4;
-        bool isBGRA = (m_swapchain->getFormat() == rhi::RHIFormat::RHI_FORMAT_B8G8R8A8_UNORM ||
-                        m_swapchain->getFormat() == rhi::RHIFormat::RHI_FORMAT_B8G8R8A8_SRGB);
+        bool isBGRA = (m_swapchain->getFormat() == RHI::RHIFormat::RHI_FORMAT_B8G8R8A8_UNORM ||
+                        m_swapchain->getFormat() == RHI::RHIFormat::RHI_FORMAT_B8G8R8A8_SRGB);
         if (isBGRA) {
             EXPECT_EQ(imageData[idx + 0], 0u);     // B
             EXPECT_EQ(imageData[idx + 1], 255u);   // G

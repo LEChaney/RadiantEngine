@@ -4,7 +4,7 @@
 #include "rhi/interface/descriptor/RHIDescriptorSet.h"
 #include "fmt/format.h"
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
 UniquePtr<RHIVkDescriptorBuffer> RHIVkDescriptorBuffer::createUnique(RHIVkContext* ctx, const RHIDescriptorBufferCreateInfo& ci) {
     return UniquePtr<RHIVkDescriptorBuffer>(new RHIVkDescriptorBuffer(ctx, ci));

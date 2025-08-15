@@ -4,7 +4,7 @@
 #include "core/CoreDefs.h"
 #include "RHIPipelineLayout.h"
 
-namespace rhi {
+namespace RHI {
 
 class RHIDescriptorSetLayout;
 

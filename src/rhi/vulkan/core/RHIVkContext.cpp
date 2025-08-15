@@ -22,7 +22,7 @@
 #include <cstring>
 #include <ranges>
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
 // Anonymous namespace for internal utilities
 namespace {
@@ -46,7 +46,7 @@ struct ValidationMsg {
 // Global variable for validation errors
 Array<ValidationMsg> g_validationErrors;
 // Global variable for validation callback
-rhi::vulkan::RHIVkContext::ValidationCallback g_validationCallback = nullptr;
+RHI::Vulkan::RHIVkContext::ValidationCallback g_validationCallback = nullptr;
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,

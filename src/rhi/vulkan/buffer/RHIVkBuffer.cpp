@@ -4,7 +4,7 @@
 
 #include <cstring>
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
 
 UniquePtr<RHIVkBuffer> RHIVkBuffer::createUnique(RHIVkContext *context, uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps) {

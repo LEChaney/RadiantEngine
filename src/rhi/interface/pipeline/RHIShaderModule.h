@@ -2,7 +2,7 @@
 #include "rhi/interface/core/RHICoreDefs.h"
 #include "core/CoreDefs.h"
 
-namespace rhi {
+namespace RHI {
 
 class RHIShaderModule {
 public:

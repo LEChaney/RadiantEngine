@@ -4,7 +4,7 @@
 #include "RHIDescriptorSetData.h"
 #include "core/CoreDefs.h"
 
-namespace rhi {
+namespace RHI {
 
 class RHIDescriptorSetLayout;
 class RHISampler;

@@ -4,7 +4,7 @@
 #include "core/CoreDefs.h"
 #include <glm/vec4.hpp>
 
-namespace rhi {
+namespace RHI {
 
 class RHIPipeline;
 class RHIPipelineLayout;

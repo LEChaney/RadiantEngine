@@ -1,6 +1,6 @@
 #include "rhi/vulkan/sync/RHIVkFence.h"
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
 UniquePtr<RHIVkFence> RHIVkFence::createUnique(RHIVkContext* context) {
     return UniquePtr<RHIVkFence>(new RHIVkFence(context));

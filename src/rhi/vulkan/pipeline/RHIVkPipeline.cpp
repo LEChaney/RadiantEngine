@@ -3,7 +3,7 @@
 #include "RHIVkPipelineLayout.h"
 #include "rhi/vulkan/core/RHIVkContext.h"
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
 RHIVkPipeline::RHIVkPipeline(RHIVkContext* context, VkPipeline pipeline) 
     : m_context(context), m_pipeline(pipeline) 

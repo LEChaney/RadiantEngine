@@ -9,7 +9,7 @@
 
 #include <vulkan/vk_enum_string_helper.h>
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
 namespace {
 UniquePtr<RHIPipelineLayout> vkBuildPipelineLayout(

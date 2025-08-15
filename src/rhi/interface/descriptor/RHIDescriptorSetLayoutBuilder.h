@@ -4,7 +4,7 @@
 #include "core/CoreDefs.h"
 #include "RHIDescriptorSetLayout.h"
 
-namespace rhi {
+namespace RHI {
 
 class RHIContext;
 

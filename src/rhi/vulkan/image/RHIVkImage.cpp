@@ -3,7 +3,7 @@
 #include "rhi/vulkan/core/RHIVkTypeConversion.h"
 #include "rhi/vulkan/core/RHIVulkanInclude.h"
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
 UniquePtr<RHIVkImage> RHIVkImage::createUnique(
     RHIVkContext* context,

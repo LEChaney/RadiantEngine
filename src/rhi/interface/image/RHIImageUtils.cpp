@@ -8,7 +8,7 @@
 #include <vector>
 #include <cstring>
 
-namespace rhi {
+namespace RHI {
 
 bool readImageToCpu(
     RHIContext* context,

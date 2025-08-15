@@ -6,7 +6,7 @@
 #include <functional>
 #include <vk_mem_alloc.h>
 
-namespace rhi {
+namespace RHI {
 class RHIDescriptorBufferCreateInfo;
 // Forward declare builder ops
 struct RHIDescriptorWriterOps;
@@ -14,7 +14,7 @@ struct RHIDescriptorSetLayoutBuilderOps;
 struct RHIPipelineLayoutBuilderOps;
 }
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
 class RHIVkQueue;
 class RHIVkCommandBuffer;

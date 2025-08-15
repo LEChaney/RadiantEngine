@@ -2,7 +2,7 @@
 #include "core/CoreDefs.h"
 #include <vector>
 
-namespace rhi {
+namespace RHI {
 class RHIImage;
 class RHIContext;
 

@@ -6,7 +6,7 @@
 #include "rhi/vulkan/core/RhiVkTypeConversion.h"
 #include <vector>
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
 UniquePtr<RHIVkQueue> RHIVkQueue::createUnique(RHIVkContext* context, uint32 queueFamilyIndex) {
     return UniquePtr<RHIVkQueue>(new RHIVkQueue(context, queueFamilyIndex));

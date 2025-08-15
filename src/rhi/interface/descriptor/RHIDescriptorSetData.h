@@ -2,7 +2,7 @@
 #include "core/CoreDefs.h"
 #include "rhi/interface/descriptor/RHIDescriptorBuffer.h"
 
-namespace rhi {
+namespace RHI {
 
 class RHIDescriptorSetLayout;
 

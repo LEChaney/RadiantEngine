@@ -10,7 +10,7 @@
 #include "rhi/vulkan/core/RHIVkTypeConversion.h"
 #include <limits>
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
 
 UniquePtr<RHIVkCommandBuffer> RHIVkCommandBuffer::createUnique(RHIVkContext* context) {
@@ -127,7 +127,7 @@ void RHIVkCommandBuffer::transitionImageLayout(RHIImage* image, RHIImageLayout o
     m_trackedImageLayouts[image] = newLayout;
 }
 
-void RHIVkCommandBuffer::copyImageToBuffer(rhi::RHIImage* image, rhi::RHIBuffer* buffer, uint32 width, uint32 height) {
+void RHIVkCommandBuffer::copyImageToBuffer(RHI::RHIImage* image, RHI::RHIBuffer* buffer, uint32 width, uint32 height) {
     VkImage vkImage = static_cast<RHIVkImage*>(image)->getVk();
     VkBuffer vkBuffer = static_cast<RHIVkBuffer*>(buffer)->getVk();
     VkBufferImageCopy region{};

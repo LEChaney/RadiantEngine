@@ -5,9 +5,9 @@
 #include "rhi/interface/queue/RHIQueue.h"
 #include "core/CoreDefs.h"
 
-using namespace rhi;
+using namespace RHI;
 
-namespace renderer {
+namespace Renderer {
 
 UniquePtr<FrameManager> FrameManager::createUnique(RHIContext* ctx, RHISwapchain* swapchain,
     uint32 maxFramesInFlight)

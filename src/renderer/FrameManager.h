@@ -6,7 +6,7 @@
 #include "rhi/interface/sync/RHIFence.h"
 #include "core/CoreDefs.h"
 
-namespace rhi {
+namespace RHI {
 class RHIContext;
 class RHISwapchain;
 class RHIImage;
@@ -14,13 +14,13 @@ class RHIImageView;
 class RHIQueue;
 }
 
-namespace renderer {
+namespace Renderer {
 
 // --- Swapchain-scoped (indexed by imageIndex) ---
 struct SwapchainImageResources {
     uint32              imageIndex;
-    rhi::RHIImage*      color;
-    rhi::RHIImageView*  colorView;
+    RHI::RHIImage*      color;
+    RHI::RHIImageView*  colorView;
 };
 
 // --- Per-Frame-In-Flight (indexed by currentFrame) ---
@@ -28,26 +28,26 @@ struct FrameContext {
     uint32 frameIndex;
 
     // Commands
-    rhi::RHICommandBuffer* cmd;
+    RHI::RHICommandBuffer* cmd;
 
     // Swapchain
     SwapchainImageResources swapImgs;
 
     // Synchronization
-    rhi::RHISemaphore* imgAvailableSemaphore;   // acquire semaphore
-    rhi::RHISemaphore* renderFinishedSemaphore; // present wait semaphore
-    rhi::RHIFence* renderFinishedFence;         // signaled when this frame's GPU work is done
+    RHI::RHISemaphore* imgAvailableSemaphore;   // acquire semaphore
+    RHI::RHISemaphore* renderFinishedSemaphore; // present wait semaphore
+    RHI::RHIFence* renderFinishedFence;         // signaled when this frame's GPU work is done
 };
 
 struct FrameSubmitInfo {
-    rhi::RHIQueue* queue = nullptr;
-    rhi::RHIPipelineStageFlags waitAcquireStage = rhi::RHIPipelineStage::AllCommands;
-    rhi::RHIPipelineStageFlags signalPresentStage = rhi::RHIPipelineStage::AllCommands;
+    RHI::RHIQueue* queue = nullptr;
+    RHI::RHIPipelineStageFlags waitAcquireStage = RHI::RHIPipelineStage::AllCommands;
+    RHI::RHIPipelineStageFlags signalPresentStage = RHI::RHIPipelineStage::AllCommands;
 };
 
 class FrameManager {
 public:
-    static UniquePtr<FrameManager> createUnique(rhi::RHIContext* ctx, rhi::RHISwapchain* swapchain,
+    static UniquePtr<FrameManager> createUnique(RHI::RHIContext* ctx, RHI::RHISwapchain* swapchain,
         uint32 maxFramesInFlight);
 
     ~FrameManager();
@@ -64,18 +64,18 @@ public:
     uint32 maxFramesInFlight() const { return m_maxFramesInFlight; }
 
 private:
-    FrameManager(rhi::RHIContext* ctx, rhi::RHISwapchain* swapchain, uint32 maxFramesInFlight);
+    FrameManager(RHI::RHIContext* ctx, RHI::RHISwapchain* swapchain, uint32 maxFramesInFlight);
 
     uint32 m_maxFramesInFlight = 3;
     uint32 m_currentFrame = 0; // 0...maxFramesInFlight-1
-    rhi::RHIContext* m_ctx = nullptr;
-    rhi::RHISwapchain* m_swapchain = nullptr;
+    RHI::RHIContext* m_ctx = nullptr;
+    RHI::RHISwapchain* m_swapchain = nullptr;
 
     static constexpr uint32 k_expectedFrameCount = 3;
-    SmallArray<UniquePtr<rhi::RHICommandBuffer>, k_expectedFrameCount> m_commandBuffers;       // Per-frame-in-flight
-    SmallArray<UniquePtr<rhi::RHISemaphore>, k_expectedFrameCount> m_imgAvailableSemaphores;   // Per-frame-in-flight
-    SmallArray<UniquePtr<rhi::RHISemaphore>, k_expectedFrameCount> m_renderFinishedSemaphores; // Per-frame-in-flight
-    SmallArray<UniquePtr<rhi::RHIFence>, k_expectedFrameCount> m_renderFinishedFences;         // Per-frame-in-flight
+    SmallArray<UniquePtr<RHI::RHICommandBuffer>, k_expectedFrameCount> m_commandBuffers;       // Per-frame-in-flight
+    SmallArray<UniquePtr<RHI::RHISemaphore>, k_expectedFrameCount> m_imgAvailableSemaphores;   // Per-frame-in-flight
+    SmallArray<UniquePtr<RHI::RHISemaphore>, k_expectedFrameCount> m_renderFinishedSemaphores; // Per-frame-in-flight
+    SmallArray<UniquePtr<RHI::RHIFence>, k_expectedFrameCount> m_renderFinishedFences;         // Per-frame-in-flight
 };
 
 } // namespace renderer

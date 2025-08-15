@@ -1,7 +1,7 @@
 #pragma once
 #include "core/CoreDefs.h"
 
-namespace rhi {
+namespace RHI {
 class RHIImage;
 class RHIImageView;
 class RHICommandBuffer;

@@ -3,7 +3,7 @@
 #include "core/CoreDefs.h"
 #include "RHIDescriptorSetData.h"
 
-namespace rhi {
+namespace RHI {
 
 class RHIImageView;
 class RHISampler;

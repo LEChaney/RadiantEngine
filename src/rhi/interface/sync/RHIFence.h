@@ -1,6 +1,6 @@
 #pragma once
 
-namespace rhi {
+namespace RHI {
 
 class RHIFence {
 public:

@@ -2,7 +2,7 @@
 #include "rhi/interface/pipeline/RHIPipeline.h"
 #include "rhi/vulkan/core/RHIVulkanInclude.h"
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
 class RHIVkContext;
 

@@ -6,7 +6,7 @@
 #include "rhi/interface/descriptor/RHIDescriptorSet.h"
 #include "rhi/interface/descriptor/RHIDescriptorWriter.h"
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
 // Internal helpers operating on value-type writer
 namespace {

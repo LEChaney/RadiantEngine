@@ -1,7 +1,7 @@
 #pragma once
 #include "rhi/interface/core/RHICoreDefs.h"
 
-namespace rhi {
+namespace RHI {
 
 class RHIImage {
 public:  

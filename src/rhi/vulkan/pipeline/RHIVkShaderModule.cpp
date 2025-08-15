@@ -3,7 +3,7 @@
 #include <fstream>
 #include <ios>
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
 UniquePtr<RHIVkShaderModule> RHIVkShaderModule::createUnique(RHIVkContext* context,
     const Path& spvFilePath)

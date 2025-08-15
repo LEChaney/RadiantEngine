@@ -3,12 +3,12 @@
 #include "rhi/vulkan/image/RHIVkImage.h"
 #include "rhi/vulkan/core/RHIVulkanInclude.h"
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
 class RHIVkImage;
 class RHIVkContext;
 
-class RHIVkImageView : public rhi::RHIImageView {
+class RHIVkImageView : public RHI::RHIImageView {
 public:
     static UniquePtr<RHIVkImageView> createUnique(RHIVkContext* context, RHIVkImage* image);
     ~RHIVkImageView() override;
@@ -19,7 +19,7 @@ public:
     RHIVkImageView& operator=(RHIVkImageView&&) = delete;
 
     // RHIImageView interface
-    rhi::RHIImage* getImage() const override { return m_rhiImage; };
+    RHI::RHIImage* getImage() const override { return m_rhiImage; };
     
     // Vulkan object accessors
     VkImageView getVk() const { return m_imageView; }

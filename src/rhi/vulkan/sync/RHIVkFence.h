@@ -3,9 +3,9 @@
 #include "rhi/interface/sync/RHIFence.h"
 #include "rhi/vulkan/core/RHIVulkanInclude.h"
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
-class RHIVkFence : public rhi::RHIFence {
+class RHIVkFence : public RHI::RHIFence {
 public:
     static UniquePtr<RHIVkFence> createUnique(RHIVkContext* context);
     ~RHIVkFence();

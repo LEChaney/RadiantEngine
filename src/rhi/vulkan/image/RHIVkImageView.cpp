@@ -4,7 +4,7 @@
 #include "rhi/vulkan/core/RHIVkTypeConversion.h"
 #include "rhi/vulkan/core/RHIVulkanInclude.h"
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
 UniquePtr<RHIVkImageView> RHIVkImageView::createUnique(RHIVkContext* context, RHIVkImage* image) {
     return UniquePtr<RHIVkImageView>(new RHIVkImageView(context, image));

@@ -1,6 +1,6 @@
 #include "RHIVkTypeConversion.h"
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
 namespace {
 
@@ -469,71 +469,71 @@ RHIPipelineBindPoint toRhiPipelineBindPoint(VkPipelineBindPoint bindPoint) {
 
 // --- Flag conversion implementations ---
 namespace {
-const Map<rhi::RHIBufferUsage, VkBufferUsageFlagBits> gk_rhiToVkBufferUsageBit = {
-    {rhi::RHIBufferUsage::TransferSrc, VK_BUFFER_USAGE_TRANSFER_SRC_BIT},
-    {rhi::RHIBufferUsage::TransferDst, VK_BUFFER_USAGE_TRANSFER_DST_BIT},
-    {rhi::RHIBufferUsage::UniformTexelBuffer, VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT},
-    {rhi::RHIBufferUsage::StorageTexelBuffer, VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT},
-    {rhi::RHIBufferUsage::UniformBuffer, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT},
-    {rhi::RHIBufferUsage::StorageBuffer, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT},
-    {rhi::RHIBufferUsage::IndexBuffer, VK_BUFFER_USAGE_INDEX_BUFFER_BIT},
-    {rhi::RHIBufferUsage::VertexBuffer, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT},
-    {rhi::RHIBufferUsage::IndirectBuffer, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT},
-    {rhi::RHIBufferUsage::ShaderDeviceAddress, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT},
-    {rhi::RHIBufferUsage::VideoDecodeSrc, VK_BUFFER_USAGE_VIDEO_DECODE_SRC_BIT_KHR},
-    {rhi::RHIBufferUsage::VideoDecodeDst, VK_BUFFER_USAGE_VIDEO_DECODE_DST_BIT_KHR},
-    {rhi::RHIBufferUsage::TransformFeedbackBuffer, VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT},
-    {rhi::RHIBufferUsage::TransformFeedbackCounterBuffer, VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_COUNTER_BUFFER_BIT_EXT},
-    {rhi::RHIBufferUsage::ConditionalRendering, VK_BUFFER_USAGE_CONDITIONAL_RENDERING_BIT_EXT},
-    {rhi::RHIBufferUsage::AccelerationStructureBuildInputReadOnly, VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR},
-    {rhi::RHIBufferUsage::AccelerationStructureStorage, VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR},
-    {rhi::RHIBufferUsage::ShaderBindingTable, VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR},
-    {rhi::RHIBufferUsage::VideoEncodeDst, VK_BUFFER_USAGE_VIDEO_ENCODE_DST_BIT_KHR},
-    {rhi::RHIBufferUsage::VideoEncodeSrc, VK_BUFFER_USAGE_VIDEO_ENCODE_SRC_BIT_KHR},
-    {rhi::RHIBufferUsage::SamplerDescriptorBuffer, VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT},
-    {rhi::RHIBufferUsage::ResourceDescriptorBuffer, VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT},
-    {rhi::RHIBufferUsage::PushDescriptorsDescriptorBuffer, VK_BUFFER_USAGE_PUSH_DESCRIPTORS_DESCRIPTOR_BUFFER_BIT_EXT},
-    {rhi::RHIBufferUsage::MicromapBuildInputReadOnly, VK_BUFFER_USAGE_MICROMAP_BUILD_INPUT_READ_ONLY_BIT_EXT},
-    {rhi::RHIBufferUsage::MicromapStorage, VK_BUFFER_USAGE_MICROMAP_STORAGE_BIT_EXT},
-    {rhi::RHIBufferUsage::TileMemoryQCOM, VK_BUFFER_USAGE_TILE_MEMORY_QCOM},
+const Map<RHI::RHIBufferUsage, VkBufferUsageFlagBits> gk_rhiToVkBufferUsageBit = {
+    {RHI::RHIBufferUsage::TransferSrc, VK_BUFFER_USAGE_TRANSFER_SRC_BIT},
+    {RHI::RHIBufferUsage::TransferDst, VK_BUFFER_USAGE_TRANSFER_DST_BIT},
+    {RHI::RHIBufferUsage::UniformTexelBuffer, VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT},
+    {RHI::RHIBufferUsage::StorageTexelBuffer, VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT},
+    {RHI::RHIBufferUsage::UniformBuffer, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT},
+    {RHI::RHIBufferUsage::StorageBuffer, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT},
+    {RHI::RHIBufferUsage::IndexBuffer, VK_BUFFER_USAGE_INDEX_BUFFER_BIT},
+    {RHI::RHIBufferUsage::VertexBuffer, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT},
+    {RHI::RHIBufferUsage::IndirectBuffer, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT},
+    {RHI::RHIBufferUsage::ShaderDeviceAddress, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT},
+    {RHI::RHIBufferUsage::VideoDecodeSrc, VK_BUFFER_USAGE_VIDEO_DECODE_SRC_BIT_KHR},
+    {RHI::RHIBufferUsage::VideoDecodeDst, VK_BUFFER_USAGE_VIDEO_DECODE_DST_BIT_KHR},
+    {RHI::RHIBufferUsage::TransformFeedbackBuffer, VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT},
+    {RHI::RHIBufferUsage::TransformFeedbackCounterBuffer, VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_COUNTER_BUFFER_BIT_EXT},
+    {RHI::RHIBufferUsage::ConditionalRendering, VK_BUFFER_USAGE_CONDITIONAL_RENDERING_BIT_EXT},
+    {RHI::RHIBufferUsage::AccelerationStructureBuildInputReadOnly, VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR},
+    {RHI::RHIBufferUsage::AccelerationStructureStorage, VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR},
+    {RHI::RHIBufferUsage::ShaderBindingTable, VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR},
+    {RHI::RHIBufferUsage::VideoEncodeDst, VK_BUFFER_USAGE_VIDEO_ENCODE_DST_BIT_KHR},
+    {RHI::RHIBufferUsage::VideoEncodeSrc, VK_BUFFER_USAGE_VIDEO_ENCODE_SRC_BIT_KHR},
+    {RHI::RHIBufferUsage::SamplerDescriptorBuffer, VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT},
+    {RHI::RHIBufferUsage::ResourceDescriptorBuffer, VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT},
+    {RHI::RHIBufferUsage::PushDescriptorsDescriptorBuffer, VK_BUFFER_USAGE_PUSH_DESCRIPTORS_DESCRIPTOR_BUFFER_BIT_EXT},
+    {RHI::RHIBufferUsage::MicromapBuildInputReadOnly, VK_BUFFER_USAGE_MICROMAP_BUILD_INPUT_READ_ONLY_BIT_EXT},
+    {RHI::RHIBufferUsage::MicromapStorage, VK_BUFFER_USAGE_MICROMAP_STORAGE_BIT_EXT},
+    {RHI::RHIBufferUsage::TileMemoryQCOM, VK_BUFFER_USAGE_TILE_MEMORY_QCOM},
 };
 
-const Map<rhi::RHIImageUsage, VkImageUsageFlagBits> gk_rhiToVkImageUsageBit = {
-    {rhi::RHIImageUsage::TransferSrc,            VK_IMAGE_USAGE_TRANSFER_SRC_BIT},
-    {rhi::RHIImageUsage::TransferDst,            VK_IMAGE_USAGE_TRANSFER_DST_BIT},
-    {rhi::RHIImageUsage::Sampled,                VK_IMAGE_USAGE_SAMPLED_BIT},
-    {rhi::RHIImageUsage::Storage,                VK_IMAGE_USAGE_STORAGE_BIT},
-    {rhi::RHIImageUsage::ColorAttachment,        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT},
-    {rhi::RHIImageUsage::DepthStencilAttachment, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT},
+const Map<RHI::RHIImageUsage, VkImageUsageFlagBits> gk_rhiToVkImageUsageBit = {
+    {RHI::RHIImageUsage::TransferSrc,            VK_IMAGE_USAGE_TRANSFER_SRC_BIT},
+    {RHI::RHIImageUsage::TransferDst,            VK_IMAGE_USAGE_TRANSFER_DST_BIT},
+    {RHI::RHIImageUsage::Sampled,                VK_IMAGE_USAGE_SAMPLED_BIT},
+    {RHI::RHIImageUsage::Storage,                VK_IMAGE_USAGE_STORAGE_BIT},
+    {RHI::RHIImageUsage::ColorAttachment,        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT},
+    {RHI::RHIImageUsage::DepthStencilAttachment, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT},
 };
 
-const Map<rhi::RHIMemoryProperty, VkMemoryPropertyFlagBits> gk_rhiToVkMemoryPropertyBit = {
-    {rhi::RHIMemoryProperty::DeviceLocal,  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT},
-    {rhi::RHIMemoryProperty::HostVisible,  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT},
-    {rhi::RHIMemoryProperty::HostCoherent, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT},
+const Map<RHI::RHIMemoryProperty, VkMemoryPropertyFlagBits> gk_rhiToVkMemoryPropertyBit = {
+    {RHI::RHIMemoryProperty::DeviceLocal,  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT},
+    {RHI::RHIMemoryProperty::HostVisible,  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT},
+    {RHI::RHIMemoryProperty::HostCoherent, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT},
 };
 
-const Map<rhi::RHIShaderStage, VkShaderStageFlagBits> gk_rhiToVkShaderStageBit = {
-    {rhi::RHIShaderStage::Vertex, VK_SHADER_STAGE_VERTEX_BIT},
-    {rhi::RHIShaderStage::TessellationControl, VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT},
-    {rhi::RHIShaderStage::TessellationEvaluation, VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT},
-    {rhi::RHIShaderStage::Geometry, VK_SHADER_STAGE_GEOMETRY_BIT},
-    {rhi::RHIShaderStage::Fragment, VK_SHADER_STAGE_FRAGMENT_BIT},
-    {rhi::RHIShaderStage::Compute, VK_SHADER_STAGE_COMPUTE_BIT},
-    {rhi::RHIShaderStage::RayGen, VK_SHADER_STAGE_RAYGEN_BIT_KHR},
-    {rhi::RHIShaderStage::AnyHit, VK_SHADER_STAGE_ANY_HIT_BIT_KHR},
-    {rhi::RHIShaderStage::ClosestHit, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR},
-    {rhi::RHIShaderStage::Miss, VK_SHADER_STAGE_MISS_BIT_KHR},
-    {rhi::RHIShaderStage::Intersection, VK_SHADER_STAGE_INTERSECTION_BIT_KHR},
-    {rhi::RHIShaderStage::Callable, VK_SHADER_STAGE_CALLABLE_BIT_KHR},
-    {rhi::RHIShaderStage::Task, VK_SHADER_STAGE_TASK_BIT_EXT},
-    {rhi::RHIShaderStage::Mesh, VK_SHADER_STAGE_MESH_BIT_EXT},
-    {rhi::RHIShaderStage::SubpassShadingHuawei, VK_SHADER_STAGE_SUBPASS_SHADING_BIT_HUAWEI},
-    {rhi::RHIShaderStage::ClusterCullingHuawei, VK_SHADER_STAGE_CLUSTER_CULLING_BIT_HUAWEI},
+const Map<RHI::RHIShaderStage, VkShaderStageFlagBits> gk_rhiToVkShaderStageBit = {
+    {RHI::RHIShaderStage::Vertex, VK_SHADER_STAGE_VERTEX_BIT},
+    {RHI::RHIShaderStage::TessellationControl, VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT},
+    {RHI::RHIShaderStage::TessellationEvaluation, VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT},
+    {RHI::RHIShaderStage::Geometry, VK_SHADER_STAGE_GEOMETRY_BIT},
+    {RHI::RHIShaderStage::Fragment, VK_SHADER_STAGE_FRAGMENT_BIT},
+    {RHI::RHIShaderStage::Compute, VK_SHADER_STAGE_COMPUTE_BIT},
+    {RHI::RHIShaderStage::RayGen, VK_SHADER_STAGE_RAYGEN_BIT_KHR},
+    {RHI::RHIShaderStage::AnyHit, VK_SHADER_STAGE_ANY_HIT_BIT_KHR},
+    {RHI::RHIShaderStage::ClosestHit, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR},
+    {RHI::RHIShaderStage::Miss, VK_SHADER_STAGE_MISS_BIT_KHR},
+    {RHI::RHIShaderStage::Intersection, VK_SHADER_STAGE_INTERSECTION_BIT_KHR},
+    {RHI::RHIShaderStage::Callable, VK_SHADER_STAGE_CALLABLE_BIT_KHR},
+    {RHI::RHIShaderStage::Task, VK_SHADER_STAGE_TASK_BIT_EXT},
+    {RHI::RHIShaderStage::Mesh, VK_SHADER_STAGE_MESH_BIT_EXT},
+    {RHI::RHIShaderStage::SubpassShadingHuawei, VK_SHADER_STAGE_SUBPASS_SHADING_BIT_HUAWEI},
+    {RHI::RHIShaderStage::ClusterCullingHuawei, VK_SHADER_STAGE_CLUSTER_CULLING_BIT_HUAWEI},
 };
 } // anonymous namespace
 
-VkBufferUsageFlags toVkBufferUsageFlags(rhi::RHIBufferUsageFlags flags) {
+VkBufferUsageFlags toVkBufferUsageFlags(RHI::RHIBufferUsageFlags flags) {
     VkBufferUsageFlags result = 0;
     for (const auto& [rhiBit, vkBit] : gk_rhiToVkBufferUsageBit) {
         if (flags.hasFlag(rhiBit)) {
@@ -544,7 +544,7 @@ VkBufferUsageFlags toVkBufferUsageFlags(rhi::RHIBufferUsageFlags flags) {
 }
 
 RHIBufferUsageFlags toRhiBufferUsageFlags(VkBufferUsageFlags flags) {
-    rhi::RHIBufferUsageFlags result;
+    RHI::RHIBufferUsageFlags result;
     for (const auto& [rhiBit, vkBit] : gk_rhiToVkBufferUsageBit) {
         if (flags & vkBit) {
             result |= rhiBit;
@@ -553,7 +553,7 @@ RHIBufferUsageFlags toRhiBufferUsageFlags(VkBufferUsageFlags flags) {
     return result;
 }
 
-VkImageUsageFlags toVkImageUsageFlags(rhi::RHIImageUsageFlags flags) {
+VkImageUsageFlags toVkImageUsageFlags(RHI::RHIImageUsageFlags flags) {
     VkImageUsageFlags result = 0;
     for (const auto& [rhiBit, vkBit] : gk_rhiToVkImageUsageBit) {
         if (flags.hasFlag(rhiBit)) {
@@ -564,7 +564,7 @@ VkImageUsageFlags toVkImageUsageFlags(rhi::RHIImageUsageFlags flags) {
 }
 
 RHIImageUsageFlags toRhiImageUsageFlags(VkImageUsageFlags flags) {
-    rhi::RHIImageUsageFlags result;
+    RHI::RHIImageUsageFlags result;
     for (const auto& [rhiBit, vkBit] : gk_rhiToVkImageUsageBit) {
         if (flags & vkBit) {
             result |= rhiBit;
@@ -573,7 +573,7 @@ RHIImageUsageFlags toRhiImageUsageFlags(VkImageUsageFlags flags) {
     return result;
 }
 
-VkMemoryPropertyFlags toVkMemoryPropertyFlags(rhi::RHIMemoryPropertyFlags flags) {
+VkMemoryPropertyFlags toVkMemoryPropertyFlags(RHI::RHIMemoryPropertyFlags flags) {
     VkMemoryPropertyFlags result = 0;
     for (const auto& [rhiBit, vkBit] : gk_rhiToVkMemoryPropertyBit) {
         if (flags.hasFlag(rhiBit)) {
@@ -584,7 +584,7 @@ VkMemoryPropertyFlags toVkMemoryPropertyFlags(rhi::RHIMemoryPropertyFlags flags)
 }
 
 RHIMemoryPropertyFlags toRhiMemoryPropertyFlags(VkMemoryPropertyFlags flags) {
-    rhi::RHIMemoryPropertyFlags result;
+    RHI::RHIMemoryPropertyFlags result;
     for (const auto& [rhiBit, vkBit] : gk_rhiToVkMemoryPropertyBit) {
         if (flags & vkBit) {
             result |= rhiBit;
@@ -593,7 +593,7 @@ RHIMemoryPropertyFlags toRhiMemoryPropertyFlags(VkMemoryPropertyFlags flags) {
     return result;
 }
 
-VkShaderStageFlags toVkShaderStageFlags(rhi::RHIShaderStageFlags flags) {
+VkShaderStageFlags toVkShaderStageFlags(RHI::RHIShaderStageFlags flags) {
     VkShaderStageFlags result = 0;
     for (const auto& [rhiBit, vkBit] : gk_rhiToVkShaderStageBit) {
         if (flags.hasFlag(rhiBit)) {
@@ -604,7 +604,7 @@ VkShaderStageFlags toVkShaderStageFlags(rhi::RHIShaderStageFlags flags) {
 }
 
 RHIShaderStageFlags toRhiShaderStageFlags(VkShaderStageFlags flags) {
-    rhi::RHIShaderStageFlags result;
+    RHI::RHIShaderStageFlags result;
     for (const auto& [rhiBit, vkBit] : gk_rhiToVkShaderStageBit) {
         if (flags & vkBit) {
             result |= rhiBit;
@@ -615,55 +615,55 @@ RHIShaderStageFlags toRhiShaderStageFlags(VkShaderStageFlags flags) {
 
 // --- RHIPipelineStageFlags <-> VkPipelineStageFlags2 conversions ---
 namespace {
-const Map<rhi::RHIPipelineStage, VkPipelineStageFlagBits2> gk_rhiToVkPipelineStageBit2 = {
-    {rhi::RHIPipelineStage::None, VK_PIPELINE_STAGE_2_NONE},
-    {rhi::RHIPipelineStage::DrawIndirect, VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT},
-    {rhi::RHIPipelineStage::VertexInput, VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT},
-    {rhi::RHIPipelineStage::VertexShader, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT},
-    {rhi::RHIPipelineStage::TessellationControlShader, VK_PIPELINE_STAGE_2_TESSELLATION_CONTROL_SHADER_BIT},
-    {rhi::RHIPipelineStage::TessellationEvaluationShader, VK_PIPELINE_STAGE_2_TESSELLATION_EVALUATION_SHADER_BIT},
-    {rhi::RHIPipelineStage::GeometryShader, VK_PIPELINE_STAGE_2_GEOMETRY_SHADER_BIT},
-    {rhi::RHIPipelineStage::FragmentShader, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT},
-    {rhi::RHIPipelineStage::EarlyFragmentTests, VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT},
-    {rhi::RHIPipelineStage::LateFragmentTests, VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT},
-    {rhi::RHIPipelineStage::ColorAttachmentOutput, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT},
-    {rhi::RHIPipelineStage::ComputeShader, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT},
-    {rhi::RHIPipelineStage::AllTransfer, VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT},
-    {rhi::RHIPipelineStage::Transfer, VK_PIPELINE_STAGE_2_TRANSFER_BIT},
-    {rhi::RHIPipelineStage::Host, VK_PIPELINE_STAGE_2_HOST_BIT},
-    {rhi::RHIPipelineStage::AllGraphics, VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT},
-    {rhi::RHIPipelineStage::AllCommands, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT},
-    {rhi::RHIPipelineStage::Copy, VK_PIPELINE_STAGE_2_COPY_BIT},
-    {rhi::RHIPipelineStage::Resolve, VK_PIPELINE_STAGE_2_RESOLVE_BIT},
-    {rhi::RHIPipelineStage::Blit, VK_PIPELINE_STAGE_2_BLIT_BIT},
-    {rhi::RHIPipelineStage::Clear, VK_PIPELINE_STAGE_2_CLEAR_BIT},
-    {rhi::RHIPipelineStage::IndexInput, VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT},
-    {rhi::RHIPipelineStage::VertexAttributeInput, VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT},
-    {rhi::RHIPipelineStage::PreRasterizationShaders, VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT},
-    {rhi::RHIPipelineStage::VideoDecode, VK_PIPELINE_STAGE_2_VIDEO_DECODE_BIT_KHR},
-    {rhi::RHIPipelineStage::VideoEncode, VK_PIPELINE_STAGE_2_VIDEO_ENCODE_BIT_KHR},
-    {rhi::RHIPipelineStage::TransformFeedback, VK_PIPELINE_STAGE_2_TRANSFORM_FEEDBACK_BIT_EXT},
-    {rhi::RHIPipelineStage::ConditionalRendering, VK_PIPELINE_STAGE_2_CONDITIONAL_RENDERING_BIT_EXT},
-    {rhi::RHIPipelineStage::CommandPreprocess, VK_PIPELINE_STAGE_2_COMMAND_PREPROCESS_BIT_EXT},
-    {rhi::RHIPipelineStage::FragmentShadingRateAttachment, VK_PIPELINE_STAGE_2_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR},
-    {rhi::RHIPipelineStage::ShadingRateImageNV, VK_PIPELINE_STAGE_2_SHADING_RATE_IMAGE_BIT_NV},
-    {rhi::RHIPipelineStage::AccelerationStructureBuild, VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR},
-    {rhi::RHIPipelineStage::RayTracingShader, VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR},
-    {rhi::RHIPipelineStage::FragmentDensityProcess, VK_PIPELINE_STAGE_2_FRAGMENT_DENSITY_PROCESS_BIT_EXT},
-    {rhi::RHIPipelineStage::TaskShader, VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT},
-    {rhi::RHIPipelineStage::MeshShader, VK_PIPELINE_STAGE_2_MESH_SHADER_BIT_EXT},
-    {rhi::RHIPipelineStage::SubpassShaderHuawei, VK_PIPELINE_STAGE_2_SUBPASS_SHADER_BIT_HUAWEI},
-    {rhi::RHIPipelineStage::SubpassShadingHuawei, VK_PIPELINE_STAGE_2_SUBPASS_SHADING_BIT_HUAWEI},
-    {rhi::RHIPipelineStage::InvocationMaskHuawei, VK_PIPELINE_STAGE_2_INVOCATION_MASK_BIT_HUAWEI},
-    {rhi::RHIPipelineStage::AccelerationStructureCopy, VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_COPY_BIT_KHR},
-    {rhi::RHIPipelineStage::MicromapBuild, VK_PIPELINE_STAGE_2_MICROMAP_BUILD_BIT_EXT},
-    {rhi::RHIPipelineStage::ClusterCullingShaderHuawei, VK_PIPELINE_STAGE_2_CLUSTER_CULLING_SHADER_BIT_HUAWEI},
-    {rhi::RHIPipelineStage::OpticalFlowNV, VK_PIPELINE_STAGE_2_OPTICAL_FLOW_BIT_NV},
-    {rhi::RHIPipelineStage::ConvertCooperativeVectorMatrixNV, VK_PIPELINE_STAGE_2_CONVERT_COOPERATIVE_VECTOR_MATRIX_BIT_NV},
+const Map<RHI::RHIPipelineStage, VkPipelineStageFlagBits2> gk_rhiToVkPipelineStageBit2 = {
+    {RHI::RHIPipelineStage::None, VK_PIPELINE_STAGE_2_NONE},
+    {RHI::RHIPipelineStage::DrawIndirect, VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT},
+    {RHI::RHIPipelineStage::VertexInput, VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT},
+    {RHI::RHIPipelineStage::VertexShader, VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT},
+    {RHI::RHIPipelineStage::TessellationControlShader, VK_PIPELINE_STAGE_2_TESSELLATION_CONTROL_SHADER_BIT},
+    {RHI::RHIPipelineStage::TessellationEvaluationShader, VK_PIPELINE_STAGE_2_TESSELLATION_EVALUATION_SHADER_BIT},
+    {RHI::RHIPipelineStage::GeometryShader, VK_PIPELINE_STAGE_2_GEOMETRY_SHADER_BIT},
+    {RHI::RHIPipelineStage::FragmentShader, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT},
+    {RHI::RHIPipelineStage::EarlyFragmentTests, VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT},
+    {RHI::RHIPipelineStage::LateFragmentTests, VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT},
+    {RHI::RHIPipelineStage::ColorAttachmentOutput, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT},
+    {RHI::RHIPipelineStage::ComputeShader, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT},
+    {RHI::RHIPipelineStage::AllTransfer, VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT},
+    {RHI::RHIPipelineStage::Transfer, VK_PIPELINE_STAGE_2_TRANSFER_BIT},
+    {RHI::RHIPipelineStage::Host, VK_PIPELINE_STAGE_2_HOST_BIT},
+    {RHI::RHIPipelineStage::AllGraphics, VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT},
+    {RHI::RHIPipelineStage::AllCommands, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT},
+    {RHI::RHIPipelineStage::Copy, VK_PIPELINE_STAGE_2_COPY_BIT},
+    {RHI::RHIPipelineStage::Resolve, VK_PIPELINE_STAGE_2_RESOLVE_BIT},
+    {RHI::RHIPipelineStage::Blit, VK_PIPELINE_STAGE_2_BLIT_BIT},
+    {RHI::RHIPipelineStage::Clear, VK_PIPELINE_STAGE_2_CLEAR_BIT},
+    {RHI::RHIPipelineStage::IndexInput, VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT},
+    {RHI::RHIPipelineStage::VertexAttributeInput, VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT},
+    {RHI::RHIPipelineStage::PreRasterizationShaders, VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT},
+    {RHI::RHIPipelineStage::VideoDecode, VK_PIPELINE_STAGE_2_VIDEO_DECODE_BIT_KHR},
+    {RHI::RHIPipelineStage::VideoEncode, VK_PIPELINE_STAGE_2_VIDEO_ENCODE_BIT_KHR},
+    {RHI::RHIPipelineStage::TransformFeedback, VK_PIPELINE_STAGE_2_TRANSFORM_FEEDBACK_BIT_EXT},
+    {RHI::RHIPipelineStage::ConditionalRendering, VK_PIPELINE_STAGE_2_CONDITIONAL_RENDERING_BIT_EXT},
+    {RHI::RHIPipelineStage::CommandPreprocess, VK_PIPELINE_STAGE_2_COMMAND_PREPROCESS_BIT_EXT},
+    {RHI::RHIPipelineStage::FragmentShadingRateAttachment, VK_PIPELINE_STAGE_2_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR},
+    {RHI::RHIPipelineStage::ShadingRateImageNV, VK_PIPELINE_STAGE_2_SHADING_RATE_IMAGE_BIT_NV},
+    {RHI::RHIPipelineStage::AccelerationStructureBuild, VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR},
+    {RHI::RHIPipelineStage::RayTracingShader, VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR},
+    {RHI::RHIPipelineStage::FragmentDensityProcess, VK_PIPELINE_STAGE_2_FRAGMENT_DENSITY_PROCESS_BIT_EXT},
+    {RHI::RHIPipelineStage::TaskShader, VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT},
+    {RHI::RHIPipelineStage::MeshShader, VK_PIPELINE_STAGE_2_MESH_SHADER_BIT_EXT},
+    {RHI::RHIPipelineStage::SubpassShaderHuawei, VK_PIPELINE_STAGE_2_SUBPASS_SHADER_BIT_HUAWEI},
+    {RHI::RHIPipelineStage::SubpassShadingHuawei, VK_PIPELINE_STAGE_2_SUBPASS_SHADING_BIT_HUAWEI},
+    {RHI::RHIPipelineStage::InvocationMaskHuawei, VK_PIPELINE_STAGE_2_INVOCATION_MASK_BIT_HUAWEI},
+    {RHI::RHIPipelineStage::AccelerationStructureCopy, VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_COPY_BIT_KHR},
+    {RHI::RHIPipelineStage::MicromapBuild, VK_PIPELINE_STAGE_2_MICROMAP_BUILD_BIT_EXT},
+    {RHI::RHIPipelineStage::ClusterCullingShaderHuawei, VK_PIPELINE_STAGE_2_CLUSTER_CULLING_SHADER_BIT_HUAWEI},
+    {RHI::RHIPipelineStage::OpticalFlowNV, VK_PIPELINE_STAGE_2_OPTICAL_FLOW_BIT_NV},
+    {RHI::RHIPipelineStage::ConvertCooperativeVectorMatrixNV, VK_PIPELINE_STAGE_2_CONVERT_COOPERATIVE_VECTOR_MATRIX_BIT_NV},
 };
 }
 
-VkPipelineStageFlags2 toVkPipelineStageFlags2(rhi::RHIPipelineStageFlags flags) {
+VkPipelineStageFlags2 toVkPipelineStageFlags2(RHI::RHIPipelineStageFlags flags) {
     VkPipelineStageFlags2 result = 0;
     for (const auto& [rhiBit, vkBit] : gk_rhiToVkPipelineStageBit2) {
         if (flags.hasFlag(rhiBit)) {
@@ -674,7 +674,7 @@ VkPipelineStageFlags2 toVkPipelineStageFlags2(rhi::RHIPipelineStageFlags flags) 
 }
 
 RHIPipelineStageFlags toRhiPipelineStageFlags(VkPipelineStageFlags2 flags) {
-    rhi::RHIPipelineStageFlags result;
+    RHI::RHIPipelineStageFlags result;
     for (const auto& [rhiBit, vkBit] : gk_rhiToVkPipelineStageBit2) {
         if (flags & vkBit) {
             result |= rhiBit;

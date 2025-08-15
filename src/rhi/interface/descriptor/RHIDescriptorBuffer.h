@@ -4,7 +4,7 @@
 #include "core/CoreDefs.h"
 #include <string>
 
-namespace rhi {
+namespace RHI {
 class RHIBuffer;
 class RHIContext;
 class RHIDescriptorSet;

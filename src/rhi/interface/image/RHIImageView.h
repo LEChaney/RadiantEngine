@@ -1,7 +1,7 @@
 #pragma once
 #include "rhi/interface/image/RHIImage.h" // new include for usage queries
 
-namespace rhi {
+namespace RHI {
 
 class RHIImage;
 

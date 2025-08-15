@@ -4,7 +4,7 @@
 #include "rhi/vulkan/core/RHIVkTypeConversion.h"
 #include "rhi/interface/descriptor/RHIDescriptorSetLayoutBuilder.h"
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
 namespace {
 

@@ -2,7 +2,7 @@
 #include "rhi/vulkan/descriptor/RHIVkDescriptorSetLayout.h"
 #include "rhi/vulkan/core/RHIVulkanInclude.h"
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
 UniquePtr<RHIVkDescriptorSetLayout> RHIVkDescriptorSetLayout::createUnique(RHIVkContext* context, VkDescriptorSetLayout layout) {
     return UniquePtr<RHIVkDescriptorSetLayout>(new RHIVkDescriptorSetLayout(context, layout));

@@ -5,15 +5,15 @@
 #include "glm/vec4.hpp"
 #include "rhi/vulkan/core/RHIVulkanInclude.h"
 
-namespace rhi {
+namespace RHI {
 
 class RHIImage;
 class RHIBuffer;
 class RHIPipeline;
 class RHIPipelineLayout;
-struct RHIDescriptorSet;
+class RHIDescriptorSet;
 
-namespace vulkan {
+namespace Vulkan {
 
 class RHIVkContext;
 class RHIVkPipeline;

@@ -12,7 +12,7 @@
 
 class SDL_Window;
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 class RHIVkSwapchain : public RHISwapchain {
 public:
 

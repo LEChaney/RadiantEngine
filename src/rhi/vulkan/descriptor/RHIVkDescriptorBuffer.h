@@ -2,11 +2,11 @@
 #include "rhi/interface/descriptor/RHIDescriptorBuffer.h"
 #include "rhi/vulkan/buffer/RHIVkBuffer.h"
 
-namespace rhi {
+namespace RHI {
 class RHIDescriptorSetLayout;
 }
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
 class RHIVkContext;
 class RHIVkBuffer;

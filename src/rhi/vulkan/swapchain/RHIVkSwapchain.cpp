@@ -14,7 +14,7 @@
 #include <SDL.h>
 #include <SDL_vulkan.h>
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
 UniquePtr<RHIVkSwapchain> RHIVkSwapchain::createUnique(
     RHIVkContext* context,

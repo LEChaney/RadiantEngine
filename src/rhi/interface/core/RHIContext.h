@@ -4,7 +4,7 @@
 
 class SDL_Window;
 
-namespace rhi {
+namespace RHI {
 
 class RHIQueue;
 class RHICommandBuffer;

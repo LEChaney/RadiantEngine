@@ -2,7 +2,7 @@
 #include "core/CoreDefs.h"
 #include "rhi/interface/core/RHICoreDefs.h"
 
-namespace rhi {
+namespace RHI {
 
 class RHIBuffer {
 public:

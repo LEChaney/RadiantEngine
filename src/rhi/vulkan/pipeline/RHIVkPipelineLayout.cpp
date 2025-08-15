@@ -1,7 +1,7 @@
 #include "RHIVkPipelineLayout.h"
 #include "rhi/vulkan/core/RHIVkContext.h"
 
-namespace rhi::vulkan {
+namespace RHI::Vulkan {
 
 UniquePtr<RHIVkPipelineLayout> RHIVkPipelineLayout::createUnique(
     RHIVkContext* context, VkPipelineLayout layout) 
