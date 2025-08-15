@@ -44,6 +44,7 @@ Checks:
   # - '-modernize-use-using'
   - '-modernize-use-trailing-return-type'
   # - '-performance-enum-size'
+  - '-readability-ambiguous-smartptr-reset-call'
   - '-readability-uppercase-literal-suffix'
   - '-readability-magic-numbers'
   - '-readability-qualified-auto'
