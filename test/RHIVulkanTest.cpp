@@ -143,11 +143,6 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, RenderSwapchainFrames) {
         ASSERT_NE(frameData.renderFinishedSemaphore, nullptr);
         ASSERT_NE(frameData.renderFinishedFence, nullptr);
 
-        // Record RHI commands
-        frameData.cmd->transitionImageLayout(frameData.swapImgs.color,
-            RHIImageLayout::Present
-        );
-
         // Submit and Present the frame
         m_frameManager->submitAndPresent(frameData);
     }
@@ -177,9 +172,6 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
             RHIImageLayout::TransferDst
         );
         frameData.cmd->clearColor(frameData.swapImgs.color, clearColor);
-        frameData.cmd->transitionImageLayout(frameData.swapImgs.color,
-            RHIImageLayout::Present
-        );
 
         m_frameManager->submitAndPresent(frameData, {
             .queue = m_ctx->getGraphicsQueue(),
@@ -330,8 +322,6 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     uint32_t groupCountY = (kHeight + 7) / 8;
     frame.cmd->dispatch(groupCountX, groupCountY, 1);
 
-    frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::Present);
-
     m_frameManager->submitAndPresent(frame, {
         .queue = m_ctx->getGraphicsQueue(),
         .waitAcquireStage = RHIPipelineStage::ComputeShader,
@@ -434,44 +424,45 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
            .writeStorageBuffer(1, 0, ibuf->createSlice())
            .flush();
 
-    // // 3. Pipeline layout
-    // RHIPipelineLayoutBuilder plBuilder(m_ctx.get());
-    // plBuilder.addDescriptorSetLayout(meshSetLayout.get());
-    // plBuilder.addPushConstantRange(RHIShaderStage::Mesh | RHIShaderStage::Fragment, 0, sizeof(MeshDrawParamsPC));
-    // auto pipelineLayout = plBuilder.build();
-    // ASSERT_NE(pipelineLayout, nullptr);
-    //
-    // // 4. Shader modules (hypothetical): mesh shader consumes TrianglePushConstants to emit triangle
-    // Path meshShaderPath = "../shaders/mesh.vert.spv";       // Placeholder path (naming TBD)
-    // Path fragmentShaderPath = "../shaders/mesh.frag.spv";   // Could reuse existing fragment shader variant
-    // auto meshShader = m_ctx->createShaderModule(meshShaderPath);
-    // auto fragShader = m_ctx->createShaderModule(fragmentShaderPath);
-    // ASSERT_NE(meshShader, nullptr);
-    // ASSERT_NE(fragShader, nullptr);
-    //
-    // // 5. Graphics pipeline descriptor (mesh+fragment)
-    // RHIGraphicsPipelineDescriptor gpDesc {
-    //     .layout = pipelineLayout.get(),
-    //     .meshShader = meshShader.get(),
-    //     .fragmentShader = fragShader.get(),
-    // };
-    // // Hypothetical API call:
-    // UniquePtr<RHIPipeline> graphicsPipeline = m_ctx->createGraphicsPipeline(gpDesc);
-    // ASSERT_NE(graphicsPipeline, nullptr);
-    //
-    // // 6. Acquire frame from frame manager
-    // auto frame = m_frameManager->acquireFrame();
-    // ASSERT_NE(frame.cmd, nullptr);
-    // ASSERT_NE(frame.swapImgs.color, nullptr);
-    // ASSERT_NE(frame.swapImgs.colorView, nullptr);
-    //
-    // // 7. Record commands (implicit cmd->begin() done by FrameManager if that's the pattern)
-    // // Clear background to black
-    // frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::TransferDst);
-    // frame.cmd->clearColor(frame.swapImgs.color, glm::vec4(0,0,0,1));
-    // frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::ColorAttachment);
-    //
-    // // Bind pipeline, descriptor buffer & set, then push color
+    // 3. Pipeline layout
+    RHIPipelineLayoutBuilder plBuilder(m_ctx.get());
+    plBuilder.addDescriptorSetLayout(meshSetLayout.get());
+    plBuilder.addPushConstantRange(RHIShaderStage::Mesh | RHIShaderStage::Fragment, 0, sizeof(MeshDrawParamsPC));
+    auto pipelineLayout = plBuilder.build();
+    ASSERT_NE(pipelineLayout, nullptr);
+
+    // 4. Shader modules (hypothetical): mesh shader consumes TrianglePushConstants to emit triangle
+    Path meshShaderPath = "../shaders/colored_triangle.mesh.spv";       // Placeholder path (naming TBD)
+    Path fragmentShaderPath = "../shaders/colored_triangle.frag.spv";   // Could reuse existing fragment shader variant
+    auto meshShader = m_ctx->createShaderModule(meshShaderPath);
+    auto fragShader = m_ctx->createShaderModule(fragmentShaderPath);
+    ASSERT_NE(meshShader, nullptr);
+    ASSERT_NE(fragShader, nullptr);
+
+    // 5. Graphics pipeline descriptor (mesh+fragment)
+    RHIGraphicsPipelineDescriptor gpDesc {
+        .layout = pipelineLayout.get(),
+        .meshShader = meshShader.get(),
+        .fragmentShader = fragShader.get(),
+        .colorFormat = m_swapchain->getFormat()
+    };
+    // Hypothetical API call:
+    UniquePtr<RHIPipeline> graphicsPipeline = m_ctx->createGraphicsPipeline(gpDesc);
+    ASSERT_NE(graphicsPipeline, nullptr);
+
+    // 6. Acquire frame from frame manager
+    auto frame = m_frameManager->acquireFrame();
+    ASSERT_NE(frame.cmd, nullptr);
+    ASSERT_NE(frame.swapImgs.color, nullptr);
+    ASSERT_NE(frame.swapImgs.colorView, nullptr);
+
+    // 7. Record commands (implicit cmd->begin() done by FrameManager if that's the pattern)
+    // Clear background to black
+    frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::TransferDst);
+    frame.cmd->clearColor(frame.swapImgs.color, glm::vec4(0,0,0,1));
+    frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::ColorAttachment);
+
+    // Bind pipeline, descriptor buffer & set, then push color
     // frame.cmd->bindGraphicsPipeline(graphicsPipeline.get());
     // frame.cmd->bindDescriptorBuffers({descBuffer.get()});
     // frame.cmd->bindDescriptorSets({
@@ -487,12 +478,12 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
     // frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::TransferSrc);
     // // Then transition to Present after readback submission (we can transition later again if needed)
     //
-    // // 8. Submit (choose appropriate pipeline stage masks). We waited on imageAvailable semaphore earlier.
-    // m_frameManager->submitAndPresent(frame, {
-    //     .queue = m_ctx->getGraphicsQueue(),
-    //     .waitAcquireStage = RHIPipelineStage::ColorAttachmentOutput,
-    //     .signalPresentStage = RHIPipelineStage::ColorAttachmentOutput
-    // });
+    // 8. Submit (choose appropriate pipeline stage masks). We waited on imageAvailable semaphore earlier.
+    m_frameManager->submitAndPresent(frame, {
+        .queue = m_ctx->getGraphicsQueue(),
+        .waitAcquireStage = RHIPipelineStage::ColorAttachmentOutput,
+        .signalPresentStage = RHIPipelineStage::ColorAttachmentOutput
+    });
     //
     // // 9. Read back the image
     // std::vector<uint8> imageData;

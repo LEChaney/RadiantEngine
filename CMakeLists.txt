@@ -46,17 +46,24 @@ file(GLOB_RECURSE GLSL_SOURCE_FILES
     "${PROJECT_SOURCE_DIR}/shaders/*.frag"
     "${PROJECT_SOURCE_DIR}/shaders/*.vert"
     "${PROJECT_SOURCE_DIR}/shaders/*.comp"
+    "${PROJECT_SOURCE_DIR}/shaders/*.mesh"
     )
 
 foreach(GLSL ${GLSL_SOURCE_FILES})
   message(STATUS "BUILDING SHADER")
   get_filename_component(FILE_NAME ${GLSL} NAME)
+  get_filename_component(FILE_EXT ${GLSL} LAST_EXT)
   set(SPIRV "${SHADERS_OUTPUT_DIRECTORY}/${FILE_NAME}.spv")
   message(STATUS ${GLSL})
+  # All shaders target Vulkan 1.3; use list so args aren't concatenated into one token.
+  set(EXTRA_GLSL_ARGS --target-env vulkan1.3)
+  if (FILE_EXT STREQUAL ".mesh")
+    list(APPEND EXTRA_GLSL_ARGS -S mesh)
+  endif()
   add_custom_command(
     OUTPUT ${SPIRV}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADERS_OUTPUT_DIRECTORY}
-    COMMAND ${GLSL_VALIDATOR} -V ${GLSL} -o ${SPIRV}
+  COMMAND ${GLSL_VALIDATOR} ${EXTRA_GLSL_ARGS} -V ${GLSL} -o ${SPIRV}
     DEPENDS ${GLSL})
   list(APPEND SPIRV_BINARY_FILES ${SPIRV})
 endforeach(GLSL)

@@ -359,6 +359,7 @@ void RHIVkContext::createLogicalDevice() {
         const bool hasAccel        = hasDevExt("VK_KHR_acceleration_structure");
         const bool hasRtPipeline   = hasDevExt("VK_KHR_ray_tracing_pipeline");
         const bool hasRayQueryExt  = hasDevExt("VK_KHR_ray_query");
+        const bool hasMeshShader   = hasDevExt("VK_EXT_mesh_shader");
 
         if (hasDeferredHost && hasAccel && hasRtPipeline) {
             deviceExtensions.push_back("VK_KHR_deferred_host_operations");
@@ -370,6 +371,10 @@ void RHIVkContext::createLogicalDevice() {
             deviceExtensions.push_back("VK_KHR_ray_query");
             enableRayQuery = true;
         }
+        if (!hasMeshShader) {
+            throw std::runtime_error("Required mesh shader extension VK_EXT_mesh_shader not supported by selected GPU");
+        }
+        deviceExtensions.push_back("VK_EXT_mesh_shader");
     }
     // Enforce requirement: ray tracing pipeline must be available for engine (future callable shaders / ReSTIR)
     if (!enableRayTracingPipeline) {
@@ -389,21 +394,24 @@ void RHIVkContext::createLogicalDevice() {
     VkPhysicalDeviceDescriptorBufferFeaturesEXT queryDescBuffer{}; queryDescBuffer.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT;
     VkPhysicalDeviceVulkan13Features queryVulkan13{}; queryVulkan13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
     VkPhysicalDeviceVulkan12Features queryVulkan12{}; queryVulkan12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    VkPhysicalDeviceMeshShaderFeaturesEXT queryMeshShader{}; queryMeshShader.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT;
     VkPhysicalDeviceAccelerationStructureFeaturesKHR queryAccel{}; queryAccel.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
     VkPhysicalDeviceRayTracingPipelineFeaturesKHR queryRayTracingPipeline{}; queryRayTracingPipeline.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
     VkPhysicalDeviceRayQueryFeaturesKHR queryRayQuery{}; queryRayQuery.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
 
-    queryFeatures2.pNext = &queryDescBuffer;
-    queryDescBuffer.pNext = &queryVulkan13;
-    queryVulkan13.pNext = &queryVulkan12;
+    // Build query pNext chain ordering before acceleration features
+    queryFeatures2.pNext      = &queryDescBuffer;
+    queryDescBuffer.pNext     = &queryVulkan13;
+    queryVulkan13.pNext       = &queryVulkan12;
+    queryVulkan12.pNext       = &queryMeshShader; // dynamic rendering feature struct
     if (enableRayTracingPipeline || enableRayQuery) {
-        queryVulkan12.pNext = &queryAccel;
+        queryMeshShader.pNext = &queryAccel;
         if (enableRayTracingPipeline) {
             queryAccel.pNext = &queryRayTracingPipeline;
             if (enableRayQuery) {
                 queryRayTracingPipeline.pNext = &queryRayQuery;
             }
-        } else if (enableRayQuery) { // only ray query (rare without RT pipeline)
+        } else if (enableRayQuery) {
             queryAccel.pNext = &queryRayQuery;
         }
     }
@@ -416,14 +424,16 @@ void RHIVkContext::createLogicalDevice() {
     VkPhysicalDeviceVulkan13Features enableVulkan13{}; enableVulkan13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
     VkPhysicalDeviceVulkan12Features enableVulkan12{}; enableVulkan12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
     VkPhysicalDeviceAccelerationStructureFeaturesKHR enableAccel{}; enableAccel.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+    VkPhysicalDeviceMeshShaderFeaturesEXT enableMeshShader{}; enableMeshShader.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT;
     VkPhysicalDeviceRayTracingPipelineFeaturesKHR enableRayTracingPipelineFeatures{}; enableRayTracingPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
     VkPhysicalDeviceRayQueryFeaturesKHR enableRayQueryFeatures{}; enableRayQueryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
 
-    enableFeatures2.pNext = &enableDescBuffer;
-    enableDescBuffer.pNext = &enableVulkan13;
-    enableVulkan13.pNext = &enableVulkan12;
+    enableFeatures2.pNext      = &enableDescBuffer;
+    enableDescBuffer.pNext     = &enableVulkan13;
+    enableVulkan13.pNext       = &enableVulkan12;
+    enableVulkan12.pNext       = &enableMeshShader; // dynamic rendering feature
     if (enableRayTracingPipeline || enableRayQuery) {
-        enableVulkan12.pNext = &enableAccel;
+        enableMeshShader.pNext = &enableAccel;
         if (enableRayTracingPipeline) {
             enableAccel.pNext = &enableRayTracingPipelineFeatures;
             if (enableRayQuery) {
@@ -478,16 +488,29 @@ void RHIVkContext::createLogicalDevice() {
     if (queryVulkan13.synchronization2) {
         enableVulkan13.synchronization2 = VK_TRUE;
     }
+    if (queryVulkan13.dynamicRendering) {
+        enableVulkan13.dynamicRendering = VK_TRUE;
+    }
+    if (queryVulkan13.maintenance4) {
+        enableVulkan13.maintenance4 = VK_TRUE;
+    }
+
+    // Mesh shader extension features (required)
+    if (queryMeshShader.meshShader) {
+        enableMeshShader.meshShader = VK_TRUE;
+    }
+    if (queryMeshShader.taskShader) {
+        // Enable task shader if available (optional)
+        enableMeshShader.taskShader = VK_TRUE;
+    }
 
     // Descriptor buffer extension features (not yet fully supported by GPU-AV instrumentation)
     if (queryDescBuffer.descriptorBuffer) {
         enableDescBuffer.descriptorBuffer = VK_TRUE;
     }
-#ifdef _DEBUG
     if (queryDescBuffer.descriptorBufferCaptureReplay) {
         enableDescBuffer.descriptorBufferCaptureReplay = VK_TRUE;
     }
-#endif
 
     // Ray tracing pipeline / ray query / acceleration structure
     if (enableRayTracingPipeline || enableRayQuery) {
@@ -581,6 +604,10 @@ UniquePtr<RHIShaderModule> RHIVkContext::createShaderModule(const Array<uint32>&
 UniquePtr<RHIPipeline> RHIVkContext::createComputePipeline(const RHIComputePipelineDescriptor& desc) {
     return createRhiVkComputePipeline(desc);
 }
+UniquePtr<RHIPipeline> RHIVkContext::createGraphicsPipeline(
+    const RHIGraphicsPipelineDescriptor& gp_desc) {
+    return createRhiVkGraphicsPipeline(gp_desc);
+}
 
 UniquePtr<RHIDescriptorBuffer> RHIVkContext::createDescriptorBuffer(const RHIDescriptorBufferCreateInfo& createInfo)
 {
@@ -648,6 +675,10 @@ UniquePtr<RHIVkPipeline> RHIVkContext::createRhiVkComputePipeline(
     const RHIComputePipelineDescriptor& desc)
 {
     return RHIVkPipeline::createUniqueCompute(this, desc);
+}
+UniquePtr<RHIVkPipeline> RHIVkContext::createRhiVkGraphicsPipeline(
+    const RHIGraphicsPipelineDescriptor& gp_desc) {
+    return RHIVkPipeline::createUniqueGraphics(this, gp_desc);
 }
 
 UniquePtr<RHIVkDescriptorBuffer> RHIVkContext::createRhiVkDescriptorBuffer(const RHIDescriptorBufferCreateInfo& createInfo)

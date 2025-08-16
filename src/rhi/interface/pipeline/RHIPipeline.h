@@ -1,4 +1,5 @@
 #pragma once
+#include "rhi/interface/core/RHICoreDefs.h"
 #include "core/CoreDefs.h"
 
 namespace RHI {
@@ -10,6 +11,9 @@ struct RHIGraphicsPipelineDescriptor {
     RHIPipelineLayout* layout = nullptr;
     RHIShaderModule* meshShader = nullptr;
     RHIShaderModule* fragmentShader = nullptr;
+    RHIFormat colorFormat = RHIFormat::RHI_FORMAT_UNDEFINED;
+    RHIFormat depthFormat = RHIFormat::RHI_FORMAT_UNDEFINED;
+    RHIFormat stencilFormat = RHIFormat::RHI_FORMAT_UNDEFINED;
     // Add pipeline descriptor fields as needed
 };
 

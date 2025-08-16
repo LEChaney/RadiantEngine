@@ -1,6 +1,7 @@
 #pragma once
 #include "rhi/interface/core/RHICoreDefs.h"
 #include "core/CoreDefs.h"
+#include "rhi/interface/pipeline/RHIPipeline.h"
 
 class SDL_Window;
 
@@ -49,6 +50,7 @@ public:
     virtual UniquePtr<RHIShaderModule> createShaderModule(const Path& spvFilePath) = 0;
     virtual UniquePtr<RHIShaderModule> createShaderModule(const Array<uint32>& shaderCode) = 0;
     virtual UniquePtr<RHIPipeline> createComputePipeline(const RHIComputePipelineDescriptor& desc) = 0;
+    virtual UniquePtr<RHIPipeline> createGraphicsPipeline(const RHIGraphicsPipelineDescriptor& gp_desc) = 0;
     virtual UniquePtr<RHIDescriptorBuffer> createDescriptorBuffer(const RHIDescriptorBufferCreateInfo& createInfo) = 0;
 
     // Backend ops table providers for value-types

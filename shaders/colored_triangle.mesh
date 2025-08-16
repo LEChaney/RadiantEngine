@@ -1,0 +1,59 @@
+// Mesh shader for MeshShaderTriangleRenderTest
+// Generates a single red triangle (color provided via push constant) from
+// CPU-provided vertex & index buffers bound as storage buffers at set=0.
+// Test-side notes:
+//  * The current test binds two StorageBuffer descriptors (binding 0 = vertices, 1 = indices)
+//    even though the long-term goal is descriptors holding only raw device addresses.
+//  * This shader therefore treats them as classic SSBOs for now.
+//  * Push constants provide only the RGBA color (we use rgb for the fragment shader input).
+
+#version 460
+#extension GL_EXT_mesh_shader : require
+
+// Workgroup size: just 1 thread to build the triangle.
+layout(local_size_x = 1) in;
+
+// Output limits: 3 vertices, 1 triangle primitive.
+layout(triangles, max_vertices = 3, max_primitives = 1) out;
+
+// Per-vertex output to fragment stage (location 0 must match fragment shader input).
+layout(location = 0) out vec3 outColor[];
+
+// Vertex buffer: tightly packed vec3 positions.
+layout(set = 0, binding = 0) readonly buffer VertexBuffer {
+	vec3 positions[];
+};
+
+// Index buffer: uint indices forming the triangle.
+layout(set = 0, binding = 1) readonly buffer IndexBuffer {
+	uint indices[];
+};
+
+// Push constants: only color (matches test's MeshDrawParamsPC).
+layout(push_constant) uniform PushConstants {
+	vec4 color; // rgba
+} pc;
+
+void main() {
+	// We expect exactly 3 indices for one triangle.
+	// Fetch vertex indices.
+	uint i0 = indices[0];
+	uint i1 = indices[1];
+	uint i2 = indices[2];
+
+	// Declare how many vertices & primitives we'll output.
+	SetMeshOutputsEXT(3, 1);
+
+	// Write positions.
+	gl_MeshVerticesEXT[0].gl_Position = vec4(positions[i0], 1.0);
+	gl_MeshVerticesEXT[1].gl_Position = vec4(positions[i1], 1.0);
+	gl_MeshVerticesEXT[2].gl_Position = vec4(positions[i2], 1.0);
+
+	// All vertices share the same color (push constant rgb).
+	outColor[0] = pc.color.rgb;
+	outColor[1] = pc.color.rgb;
+	outColor[2] = pc.color.rgb;
+
+	// Define the single triangle primitive using the 3 vertices.
+	gl_PrimitiveTriangleIndicesEXT[0] = uvec3(0, 1, 2);
+}

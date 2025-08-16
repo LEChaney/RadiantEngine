@@ -79,6 +79,7 @@ FrameContext FrameManager::acquireFrame() {
 }
 
 void FrameManager::submitAndPresent(const FrameContext& frame, const FrameSubmitInfo& frameSubmitInfo) {
+    frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::Present);
     m_commandBuffers[m_currentFrame]->end();
 
     // TODO: Add ability to pass in queue to submit to
