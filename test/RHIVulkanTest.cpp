@@ -17,7 +17,6 @@
 #include "rhi/interface/image/RHIImageUtils.h"
 #include "fmt/format.h"
 #include "core/CoreDefs.h"
-#include "rhi/vulkan/core/RHIVkContext.h"
 
 #include <SDL.h>
 
