@@ -66,7 +66,7 @@ public:
     UniquePtr<RHIShaderModule> createShaderModule(const Path& spvFilePath) override;
     UniquePtr<RHIShaderModule> createShaderModule(const Array<uint32>& shaderCode) override;
     UniquePtr<RHIPipeline> createComputePipeline(const RHIComputePipelineDescriptor& desc) override;
-    UniquePtr<RHIPipeline> createGraphicsPipeline(const RHIGraphicsPipelineDescriptor& gp_desc) override;
+    UniquePtr<RHIPipeline> createGraphicsPipeline(const RHIGraphicsPipelineDescriptor& desc) override;
     UniquePtr<RHIDescriptorBuffer> createDescriptorBuffer(const RHIDescriptorBufferCreateInfo& createInfo) override;
 
     // Backend ops table providers for value types
@@ -85,7 +85,7 @@ public:
     UniquePtr<RHIVkShaderModule> createRhiVkShaderModule(const Path& spvFilePath);
     UniquePtr<RHIVkShaderModule> createRhiVkShaderModule(const Array<uint32>& shaderCode);
     UniquePtr<RHIVkPipeline> createRhiVkComputePipeline(const RHIComputePipelineDescriptor& desc);
-    UniquePtr<RHIVkPipeline> createRhiVkGraphicsPipeline(const RHIGraphicsPipelineDescriptor& gp_desc);
+    UniquePtr<RHIVkPipeline> createRhiVkGraphicsPipeline(const RHIGraphicsPipelineDescriptor& desc);
     UniquePtr<RHIVkDescriptorBuffer> createRhiVkDescriptorBuffer(const RHIDescriptorBufferCreateInfo& createInfo);
 
     // Vulkan object accessors

@@ -605,8 +605,8 @@ UniquePtr<RHIPipeline> RHIVkContext::createComputePipeline(const RHIComputePipel
     return createRhiVkComputePipeline(desc);
 }
 UniquePtr<RHIPipeline> RHIVkContext::createGraphicsPipeline(
-    const RHIGraphicsPipelineDescriptor& gp_desc) {
-    return createRhiVkGraphicsPipeline(gp_desc);
+    const RHIGraphicsPipelineDescriptor& desc) {
+    return createRhiVkGraphicsPipeline(desc);
 }
 
 UniquePtr<RHIDescriptorBuffer> RHIVkContext::createDescriptorBuffer(const RHIDescriptorBufferCreateInfo& createInfo)
@@ -677,8 +677,8 @@ UniquePtr<RHIVkPipeline> RHIVkContext::createRhiVkComputePipeline(
     return RHIVkPipeline::createUniqueCompute(this, desc);
 }
 UniquePtr<RHIVkPipeline> RHIVkContext::createRhiVkGraphicsPipeline(
-    const RHIGraphicsPipelineDescriptor& gp_desc) {
-    return RHIVkPipeline::createUniqueGraphics(this, gp_desc);
+    const RHIGraphicsPipelineDescriptor& desc) {
+    return RHIVkPipeline::createUniqueGraphics(this, desc);
 }
 
 UniquePtr<RHIVkDescriptorBuffer> RHIVkContext::createRhiVkDescriptorBuffer(const RHIDescriptorBufferCreateInfo& createInfo)

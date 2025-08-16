@@ -26,6 +26,7 @@ public:
     virtual void transitionImageLayout(class RHIImage* image, RHIImageLayout oldLayout, RHIImageLayout newLayout) = 0;
     virtual void copyImageToBuffer(class RHIImage* image, class RHIBuffer* buffer, uint32 width, uint32 height) = 0;
     virtual void bindComputePipeline(RHIPipeline* pipeline) = 0;
+    virtual void bindGraphicsPipeline(RHIPipeline* get) = 0;
     virtual void bindDescriptorBuffers(const Array<RHIDescriptorBuffer*>& descBuffers) = 0;
     virtual void bindDescriptorSets(const Array<RHIDescriptorSetBinding>& setBindings,
         RHIPipelineLayout* pipelineLayout, RHIPipelineBindPoint bindPoint) = 0;
@@ -33,7 +34,7 @@ public:
         uint32 offset, uint32 size, const void* data) = 0;
     virtual void dispatch(uint32 groupCountX, uint32 groupCountY, uint32 groupCountZ) = 0;
 
-    RHIPipeline* getBoundComputePipeline() const {
+    RHIPipeline* getBoundPipeline() const {
         return m_boundPipeline;
     }
     uint32 getBoundDescriptorBufferCount() const {

@@ -63,6 +63,10 @@ void RHIVkCommandBuffer::end() {
 
 void RHIVkCommandBuffer::reset()
 {
+    m_boundPipeline = nullptr;
+    m_boundDescriptorBuffers.clear();
+    m_boundDescriptorBuffersToIndex.clear();
+    m_trackedImageLayouts.clear();
     vkResetCommandBuffer(m_cmdBuffer, 0);
 }
 
@@ -143,11 +147,17 @@ void RHIVkCommandBuffer::copyImageToBuffer(RHI::RHIImage* image, RHI::RHIBuffer*
     vkCmdCopyImageToBuffer(m_cmdBuffer, vkImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, vkBuffer, 1, &region);
 }
 
-void RHIVkCommandBuffer::bindComputePipeline(RHIPipeline* pipeline) {
-    auto* vkPipe = static_cast<RHIVkPipeline*>(pipeline);
-    vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, vkPipe->getVk());
+void RHIVkCommandBuffer::bindVkPipeline(VkPipelineBindPoint bindPoint, RHIPipeline* pipeline) {
+    auto vkPipe = static_cast<RHIVkPipeline*>(pipeline);
+    vkCmdBindPipeline(m_cmdBuffer, bindPoint, vkPipe->getVk());
+}
 
-    m_boundPipeline = pipeline;
+void RHIVkCommandBuffer::bindComputePipeline(RHIPipeline* pipeline) {
+    bindVkPipeline(VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+}
+
+void RHIVkCommandBuffer::bindGraphicsPipeline(RHIPipeline* pipeline) {
+    bindVkPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 }
 
 void RHIVkCommandBuffer::bindDescriptorBuffers(const Array<RHIDescriptorBuffer*>& descBuffers) {

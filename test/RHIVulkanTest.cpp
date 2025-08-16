@@ -463,7 +463,7 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
     frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::ColorAttachment);
 
     // Bind pipeline, descriptor buffer & set, then push color
-    // frame.cmd->bindGraphicsPipeline(graphicsPipeline.get());
+    frame.cmd->bindGraphicsPipeline(graphicsPipeline.get());
     // frame.cmd->bindDescriptorBuffers({descBuffer.get()});
     // frame.cmd->bindDescriptorSets({
     //     { .setIndex = 0, .set = meshSet }
@@ -484,6 +484,12 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
         .waitAcquireStage = RHIPipelineStage::ColorAttachmentOutput,
         .signalPresentStage = RHIPipelineStage::ColorAttachmentOutput
     });
+
+    // TEMP: Wait on render finish so it's safe to destroy GPU objects
+    // Can remove this one CPU readback is implemented, since it will also force wait on GPU ops
+    frame.renderFinishedFence->wait();
+    frame.renderFinishedFence->reset();
+
     //
     // // 9. Read back the image
     // std::vector<uint8> imageData;

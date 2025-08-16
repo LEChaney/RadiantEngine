@@ -40,6 +40,7 @@ public:
     void transitionImageLayout(RHIImage* image, RHIImageLayout oldLayout, RHIImageLayout newLayout) override;
     void copyImageToBuffer(RHIImage* image, RHIBuffer* buffer, uint32_t width, uint32_t height) override;
     void bindComputePipeline(RHIPipeline* pipeline) override;
+    void bindGraphicsPipeline(RHIPipeline* pipeline) override;
     void bindDescriptorBuffers(const Array<RHIDescriptorBuffer*>& descBuffers) override;
     void bindDescriptorSets(const Array<RHIDescriptorSetBinding>& setBindings,
         RHIPipelineLayout* pipelineLayout, RHIPipelineBindPoint bindPoint) override;
@@ -51,6 +52,8 @@ public:
 
 private:
     RHIVkCommandBuffer(RHIVkContext* context);
+
+    void bindVkPipeline(VkPipelineBindPoint bindPoint, RHIPipeline* pipeline);
 
     VkCommandBuffer m_cmdBuffer = VK_NULL_HANDLE;
     RHIVkContext* m_context = nullptr;
