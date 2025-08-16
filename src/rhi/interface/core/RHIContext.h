@@ -52,6 +52,8 @@ public:
     virtual UniquePtr<RHIPipeline> createComputePipeline(const RHIComputePipelineDescriptor& desc) = 0;
     virtual UniquePtr<RHIPipeline> createGraphicsPipeline(const RHIGraphicsPipelineDescriptor& desc) = 0;
     virtual UniquePtr<RHIDescriptorBuffer> createDescriptorBuffer(const RHIDescriptorBufferCreateInfo& createInfo) = 0;
+    // Wait for all queue operations to complete
+    virtual void deviceWaitIdle() = 0;
 
     // Backend ops table providers for value-types
     virtual const RHIDescriptorWriterOps* getDescriptorWriterOps() const = 0;

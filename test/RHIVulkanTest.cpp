@@ -485,9 +485,9 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
         .signalPresentStage = RHIPipelineStage::ColorAttachmentOutput
     });
 
-    // TEMP: Wait on render finish so it's safe to destroy GPU objects
+    // TEMP: Wait on all queue operations to complete so it's safe to destroy GPU objects
     // Can remove this one CPU readback is implemented, since it will also force wait on GPU ops
-    frame.renderFinishedFence->wait();
+    m_ctx->deviceWaitIdle();
 
     //
     // // 9. Read back the image

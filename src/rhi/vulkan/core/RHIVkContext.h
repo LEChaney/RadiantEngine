@@ -68,6 +68,7 @@ public:
     UniquePtr<RHIPipeline> createComputePipeline(const RHIComputePipelineDescriptor& desc) override;
     UniquePtr<RHIPipeline> createGraphicsPipeline(const RHIGraphicsPipelineDescriptor& desc) override;
     UniquePtr<RHIDescriptorBuffer> createDescriptorBuffer(const RHIDescriptorBufferCreateInfo& createInfo) override;
+    void deviceWaitIdle() override;
 
     // Backend ops table providers for value types
     const RHIDescriptorWriterOps* getDescriptorWriterOps() const override;

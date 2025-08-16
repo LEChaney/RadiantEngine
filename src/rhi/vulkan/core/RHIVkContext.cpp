@@ -614,6 +614,10 @@ UniquePtr<RHIDescriptorBuffer> RHIVkContext::createDescriptorBuffer(const RHIDes
     return createRhiVkDescriptorBuffer(createInfo);
 }
 
+void RHIVkContext::deviceWaitIdle() {
+    vkDeviceWaitIdle(m_device);
+}
+
 const RHIDescriptorWriterOps* RHIVkContext::getDescriptorWriterOps() const {
     return getVkDescriptorWriterOps();
 }
