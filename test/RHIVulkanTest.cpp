@@ -488,7 +488,6 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
     // TEMP: Wait on render finish so it's safe to destroy GPU objects
     // Can remove this one CPU readback is implemented, since it will also force wait on GPU ops
     frame.renderFinishedFence->wait();
-    frame.renderFinishedFence->reset();
 
     //
     // // 9. Read back the image
