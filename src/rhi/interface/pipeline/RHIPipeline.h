@@ -8,7 +8,7 @@ class RHIShaderModule;
 
 struct RHIGraphicsPipelineDescriptor {
     RHIPipelineLayout* layout = nullptr;
-    RHIShaderModule* vertexShader = nullptr;
+    RHIShaderModule* meshShader = nullptr;
     RHIShaderModule* fragmentShader = nullptr;
     // Add pipeline descriptor fields as needed
 };

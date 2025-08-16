@@ -79,17 +79,16 @@ namespace {
         return self;
     }
 
-    RHIDescriptorWriter& vkWriteStorageBuffer(RHIDescriptorWriter& self, uint32 binding, uint32 arrayElement, RHIBuffer* buffer, size_t offset, size_t range) {
+    RHIDescriptorWriter& vkWriteStorageBuffer(RHIDescriptorWriter& self, uint32 binding,
+        uint32 arrayElement, const RHIBufferSlice& bufferSlice) {
         RHIVkContext* ctx = getCtx(self);
-        auto* rhiVkBuf = static_cast<RHIVkBuffer*>(buffer);
+        auto* rhiVkBuf = static_cast<RHIVkBuffer*>(bufferSlice.buffer);
         ASSERT(rhiVkBuf && "Null buffer provided to vkWriteStorageBuffer");
         ASSERT(rhiVkBuf->hasUsage(RHIBufferUsage::StorageBuffer) && "Buffer must have storage usage");
 
         VkDescriptorAddressInfoEXT addrInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_ADDRESS_INFO_EXT };
-        VkBufferDeviceAddressInfo addrInfoQuery{ VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
-        addrInfoQuery.buffer = rhiVkBuf->getVk();
-        addrInfo.address = vkGetBufferDeviceAddress(ctx->getVkDevice(), &addrInfoQuery) + offset;
-        addrInfo.range = range;
+        addrInfo.address = bufferSlice.getDeviceAddress();
+        addrInfo.range = bufferSlice.size;
         VkDescriptorGetInfoEXT getInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_GET_INFO_EXT };
         getInfo.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         getInfo.data.pStorageBuffer = &addrInfo;
@@ -105,7 +104,7 @@ namespace {
         // If descriptor buffer is non-coherent, flush here. For now, assume coherent; no-op.
     }
 
-    const RHIDescriptorWriterOps gk_vkWriterOps{
+    constexpr RHIDescriptorWriterOps gk_vkWriterOps{
         &vkWriteSampledImage,
         &vkWriteStorageImage,
         &vkWriteStorageBuffer,

@@ -21,13 +21,14 @@ public:
 
     void* map() override;
     void unmap() override;
+    uint64 getDeviceAddress() const override;
 
     VkBuffer getVk() const { return m_buffer; }
 
 protected:
     RHIVkBuffer(RHIVkContext* context, uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps);
     
-    RHIVkContext* m_context = nullptr;
+    RHIVkContext* m_ctx = nullptr;
     VkBuffer m_buffer = VK_NULL_HANDLE;
     VmaAllocation m_allocation = VK_NULL_HANDLE;
     VkDeviceMemory m_memory = VK_NULL_HANDLE;

@@ -15,8 +15,10 @@
 #include "rhi/interface/pipeline/RHIPipeline.h"
 #include "rhi/interface/sync/RHIFence.h"
 #include "rhi/interface/image/RHIImageUtils.h"
+#include "rhi/interface/buffer/RHIBuffer.h" // for vertex/index buffers (device address path)
 #include "fmt/format.h"
 #include "core/CoreDefs.h"
+#include "glm/vec3.hpp"
 
 #include <SDL.h>
 
@@ -361,6 +363,209 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     verifyPixel(0, 0);
     verifyPixel(kWidth/2, kHeight/2);
     verifyPixel(kWidth-1, kHeight-1);
+}
+
+TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
+    // Aspirational test: renders a simple red triangle using a Mesh + Fragment pipeline.
+    // Vertex & index buffers are regular GPU buffers with Buffer Device Address (BDA) enabled.
+    // Descriptor set (set=0) holds ONLY the 64-bit device addresses (not full storage buffer bindings):
+    //   layout(set=0,binding=0) uniform VertexAddress { uint64_t vertexAddr; };
+    //   layout(set=0,binding=1) uniform IndexAddress  { uint64_t indexAddr;  };
+    // Mesh shader uses those addresses with pointer-style fetches (e.g. via buffer references or
+    // manual address arithmetic) to load vertices & indices. Push constants only carry the color.
+    // Missing / assumed RHI APIs:
+    //   - Descriptor type / write function for raw buffer device address (e.g. writeBufferDeviceAddress)
+    //   - RHIBufferUsage::ShaderDeviceAddress + RHIBuffer::getDeviceAddress()
+    //   - Mesh shader pipeline creation & dispatchMesh
+    //   - Image layout transitions for ColorAttachment / TransferSrc
+    //   - Graphics bind point for descriptor sets with device address descriptors
+    // Notes:
+    //   * Avoids large push constants & avoids binding full storage buffers when only addresses needed.
+    //   * Scales to multi-mesh draws by re-writing address descriptors (tiny) or using array elements.
+
+    constexpr uint32_t kWidth = 640, kHeight = 480;
+    struct Vertex { glm::vec3 pos; }; // position (x,y,z)
+    const Vertex kVertices[3] = {
+        {{ 0.0f,  0.6f, 0.0f}}, // top
+        {{-0.6f, -0.6f, 0.0f}}, // left
+        {{ 0.6f, -0.6f, 0.0f}}, // right
+    };
+    const uint32_t kIndices[3] = {0,1,2};
+
+    // Create host-visible buffers with device address capability
+    auto vbuf = m_ctx->createBuffer(sizeof(kVertices),
+        RHIBufferUsage::VertexBuffer | RHIBufferUsage::StorageBuffer | RHIBufferUsage::ShaderDeviceAddress,
+        RHIMemoryProperty::HostVisible | RHIMemoryProperty::HostCoherent);
+    ASSERT_NE(vbuf, nullptr);
+    auto ibuf = m_ctx->createBuffer(sizeof(kIndices),
+        RHIBufferUsage::IndexBuffer | RHIBufferUsage::StorageBuffer | RHIBufferUsage::ShaderDeviceAddress,
+        RHIMemoryProperty::HostVisible | RHIMemoryProperty::HostCoherent);
+    ASSERT_NE(ibuf, nullptr);
+
+    // Upload data
+    {
+        void* vm = vbuf->map(); ASSERT_NE(vm, nullptr);
+        std::memcpy(vm, kVertices, sizeof(kVertices)); vbuf->unmap();
+        void* im = ibuf->map(); ASSERT_NE(im, nullptr);
+        std::memcpy(im, kIndices, sizeof(kIndices)); ibuf->unmap();
+    }
+
+    // Push constants: only color now
+    struct MeshDrawParamsPC {
+        glm::vec4 color; // 16B
+    } params{};
+    params.color = {1,0,0,1};
+    static_assert(sizeof(MeshDrawParamsPC) <= 32, "Push constant struct too large");
+
+    // 1. Descriptor set layout (set 0: binding0 vertex device address, binding1 index device address)
+    RHIDescriptorSetLayoutBuilder setLayoutBuilder(m_ctx.get());
+    setLayoutBuilder
+        .addBinding(0, RHIDescriptorType::StorageBuffer, RHIShaderStage::Mesh)
+        .addBinding(1, RHIDescriptorType::StorageBuffer, RHIShaderStage::Mesh);
+    auto meshSetLayout = setLayoutBuilder.build(RHIShaderStage::Mesh);
+    ASSERT_NE(meshSetLayout, nullptr);
+
+    // 2. Descriptor buffer + set (write only 64-bit addresses, not entire buffers)
+    auto descBuffer = m_ctx->createDescriptorBuffer({ .sizeBytes = 16 * 1024 });
+    ASSERT_NE(descBuffer, nullptr);
+    auto meshSet = descBuffer->allocateSet(meshSetLayout.get(), "MeshTriangleSet");
+    ASSERT_TRUE(meshSet.isValid());
+    meshSet.writeStorageBuffer(0, 0, vbuf->createSlice())
+           .writeStorageBuffer(1, 0, ibuf->createSlice())
+           .flush();
+
+    // // 3. Pipeline layout
+    // RHIPipelineLayoutBuilder plBuilder(m_ctx.get());
+    // plBuilder.addDescriptorSetLayout(meshSetLayout.get());
+    // plBuilder.addPushConstantRange(RHIShaderStage::Mesh | RHIShaderStage::Fragment, 0, sizeof(MeshDrawParamsPC));
+    // auto pipelineLayout = plBuilder.build();
+    // ASSERT_NE(pipelineLayout, nullptr);
+    //
+    // // 4. Shader modules (hypothetical): mesh shader consumes TrianglePushConstants to emit triangle
+    // Path meshShaderPath = "../shaders/mesh.vert.spv";       // Placeholder path (naming TBD)
+    // Path fragmentShaderPath = "../shaders/mesh.frag.spv";   // Could reuse existing fragment shader variant
+    // auto meshShader = m_ctx->createShaderModule(meshShaderPath);
+    // auto fragShader = m_ctx->createShaderModule(fragmentShaderPath);
+    // ASSERT_NE(meshShader, nullptr);
+    // ASSERT_NE(fragShader, nullptr);
+    //
+    // // 5. Graphics pipeline descriptor (mesh+fragment)
+    // RHIGraphicsPipelineDescriptor gpDesc {
+    //     .layout = pipelineLayout.get(),
+    //     .meshShader = meshShader.get(),
+    //     .fragmentShader = fragShader.get(),
+    // };
+    // // Hypothetical API call:
+    // UniquePtr<RHIPipeline> graphicsPipeline = m_ctx->createGraphicsPipeline(gpDesc);
+    // ASSERT_NE(graphicsPipeline, nullptr);
+    //
+    // // 6. Acquire frame from frame manager
+    // auto frame = m_frameManager->acquireFrame();
+    // ASSERT_NE(frame.cmd, nullptr);
+    // ASSERT_NE(frame.swapImgs.color, nullptr);
+    // ASSERT_NE(frame.swapImgs.colorView, nullptr);
+    //
+    // // 7. Record commands (implicit cmd->begin() done by FrameManager if that's the pattern)
+    // // Clear background to black
+    // frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::TransferDst);
+    // frame.cmd->clearColor(frame.swapImgs.color, glm::vec4(0,0,0,1));
+    // frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::ColorAttachment);
+    //
+    // // Bind pipeline, descriptor buffer & set, then push color
+    // frame.cmd->bindGraphicsPipeline(graphicsPipeline.get());
+    // frame.cmd->bindDescriptorBuffers({descBuffer.get()});
+    // frame.cmd->bindDescriptorSets({
+    //     { .setIndex = 0, .set = meshSet }
+    // }, pipelineLayout.get(), RHIPipelineBindPoint::Graphics);
+    // frame.cmd->pushConstants(pipelineLayout.get(), RHIShaderStage::Mesh | RHIShaderStage::Fragment,
+    //     0, sizeof(MeshDrawParamsPC), &params);
+    //
+    // // Dispatch one mesh workgroup: mesh shader uses device addresses to fetch vertices / indices
+    // frame.cmd->dispatchMesh(1, 1, 1);
+    //
+    // // Prepare for CPU readback
+    // frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::TransferSrc);
+    // // Then transition to Present after readback submission (we can transition later again if needed)
+    //
+    // // 8. Submit (choose appropriate pipeline stage masks). We waited on imageAvailable semaphore earlier.
+    // m_frameManager->submitAndPresent(frame, {
+    //     .queue = m_ctx->getGraphicsQueue(),
+    //     .waitAcquireStage = RHIPipelineStage::ColorAttachmentOutput,
+    //     .signalPresentStage = RHIPipelineStage::ColorAttachmentOutput
+    // });
+    //
+    // // 9. Read back the image
+    // std::vector<uint8> imageData;
+    // bool readBackOk = RHI::readImageToCpu(m_ctx.get(), frame.swapImgs.color,
+    //     kWidth, kHeight, imageData);
+    // ASSERT_TRUE(readBackOk);
+    // ASSERT_EQ(imageData.size(), kWidth * kHeight * 4);
+    //
+    // bool isBGRA = (m_swapchain->getFormat() == RHI::RHIFormat::RHI_FORMAT_B8G8R8A8_UNORM ||
+    //                m_swapchain->getFormat() == RHI::RHIFormat::RHI_FORMAT_B8G8R8A8_SRGB);
+    //
+    // auto getPixel = [&](uint32_t x, uint32_t y) -> std::array<uint8,4> {
+    //     size_t idx = (y * kWidth + x) * 4;
+    //     return { imageData[idx+0], imageData[idx+1], imageData[idx+2], imageData[idx+3] };
+    // };
+    //
+    // auto expectColor = [&](const std::array<uint8,4>& px, uint8 r, uint8 g, uint8 b, uint8 a, const char* ctx) {
+    //     if (isBGRA) {
+    //         EXPECT_EQ(px[0], b) << ctx << " (B)";
+    //         EXPECT_EQ(px[1], g) << ctx << " (G)";
+    //         EXPECT_EQ(px[2], r) << ctx << " (R)";
+    //         EXPECT_EQ(px[3], a) << ctx << " (A)";
+    //     } else {
+    //         EXPECT_EQ(px[0], r) << ctx << " (R)";
+    //         EXPECT_EQ(px[1], g) << ctx << " (G)";
+    //         EXPECT_EQ(px[2], b) << ctx << " (B)";
+    //         EXPECT_EQ(px[3], a) << ctx << " (A)";
+    //     }
+    // };
+    //
+    // // 10. Outside corners should remain black (background)
+    // expectColor(getPixel(0,0), 0,0,0,255, "corner TL");
+    // expectColor(getPixel(kWidth-1,0), 0,0,0,255, "corner TR");
+    // expectColor(getPixel(0,kHeight-1), 0,0,0,255, "corner BL");
+    // expectColor(getPixel(kWidth-1,kHeight-1), 0,0,0,255, "corner BR");
+    //
+    // // 11. Interior sampling: sample several points expected inside the triangle.
+    // struct Sample { uint32_t x,y; const char* tag; };
+    // Sample inside[] = {
+    //     {kWidth/2, kHeight/3,        "inside top"},
+    //     {kWidth/2 - 40, kHeight/2,   "inside left"},
+    //     {kWidth/2 + 40, kHeight/2,   "inside right"},
+    //     {kWidth/2, (2*kHeight)/3 - 25, "inside lower"},
+    // };
+    // int redCount = 0;
+    // for (auto s : inside) {
+    //     auto px = getPixel(s.x, s.y);
+    //     // Convert to interpreted RGBA for comparison
+    //     uint8 r = isBGRA ? px[2] : px[0];
+    //     uint8 g = isBGRA ? px[1] : px[1];
+    //     uint8 b = isBGRA ? px[0] : px[2];
+    //     if (r > 200 && g < 40 && b < 40) {
+    //         redCount++;
+    //     } else {
+    //         ADD_FAILURE() << "Interior sample not red: " << s.tag << " at (" << s.x << "," << s.y << ")";
+    //     }
+    // }
+    // EXPECT_GE(redCount, 2) << "Too few interior red samples (" << redCount << ")";
+    //
+    // // 12. Just-outside samples beneath/around edges should stay black
+    // Sample outside[] = {
+    //     {kWidth/2, (2*kHeight)/3 + 10, "below base"},
+    //     {kWidth/2 - 90, kHeight/2 + 15, "far left"},
+    //     {kWidth/2 + 90, kHeight/2 + 15, "far right"},
+    // };
+    // for (auto s : outside) {
+    //     auto px = getPixel(s.x, s.y);
+    //     uint8 r = isBGRA ? px[2] : px[0];
+    //     uint8 g = isBGRA ? px[1] : px[1];
+    //     uint8 b = isBGRA ? px[0] : px[2];
+    //     EXPECT_TRUE(r < 20 && g < 20 && b < 20)
+    //         << "Outside sample not black: " << s.tag << " at (" << s.x << "," << s.y << ")";
+    // }
 }
 
 namespace {

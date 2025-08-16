@@ -4,6 +4,8 @@
 
 namespace RHI {
 
+struct RHIBufferSlice;
+
 class RHIBuffer {
 public:
     RHIBuffer(uint64 size) : m_size(size) {} // legacy constructor (usage remains 0 until set by derived)
@@ -18,6 +20,7 @@ public:
     
     virtual void* map() = 0;
     virtual void unmap() = 0;
+    virtual uint64 getDeviceAddress() const = 0;
     
     bool isMapped() const { return m_mapped != nullptr; }
     void* getMapped() const { return m_mapped; }
@@ -34,6 +37,9 @@ public:
 
     RHIBufferUsageFlags getUsage() const { return m_usage; }
     bool hasUsage(RHIBufferUsageFlags usage) const { return (m_usage & usage) == usage; }
+
+    RHIBufferSlice createSlice();
+    RHIBufferSlice createSlice(uint64 offset, uint64 size);
 
 protected:
     // Only derived context or implementation should create RHIBuffer objects
@@ -69,6 +75,18 @@ struct RHIBufferSlice {
         return isValid() && ptr >= getMapped()
             && static_cast<const uint8*>(ptr) + inSize <= static_cast<uint8*>(getMapped()) + size;
     }
+
+    uint64 getDeviceAddress() const {
+        return buffer->getDeviceAddress() + offset;
+    };
 };
+
+inline RHIBufferSlice RHIBuffer::createSlice() {
+    return RHIBufferSlice{ this, 0, m_size };
+}
+inline RHIBufferSlice RHIBuffer::createSlice(uint64 offset, uint64 size) {
+    ASSERT(offset + size <= m_size);
+    return RHIBufferSlice{ this, offset, size };
+}
 
 } // namespace rhi

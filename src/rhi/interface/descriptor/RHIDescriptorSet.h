@@ -32,9 +32,9 @@ public:
     RHIDescriptorWriter& writeStorageImage(uint32 binding, uint32 arrayElement, RHIImageView* view) {
         return m_writer.writeStorageImage(binding, arrayElement, view);
     };
-    RHIDescriptorWriter& writeStorageBuffer(uint32 binding, uint32 arrayElement, RHIBuffer* buffer,
-        uint64 offset, uint64 range) {
-        return m_writer.writeStorageBuffer(binding, arrayElement, buffer, offset, range);
+    RHIDescriptorWriter& writeStorageBuffer(uint32 binding, uint32 arrayElement,
+        const RHIBufferSlice& bufferSlice) {
+        return m_writer.writeStorageBuffer(binding, arrayElement, bufferSlice);
     };
 
     bool isMapped() const { return m_data.isMapped(); }

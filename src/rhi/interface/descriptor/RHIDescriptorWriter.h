@@ -13,7 +13,7 @@ class RHIBuffer;
 struct RHIDescriptorWriterOps {
     RHIDescriptorWriter& (*writeSampledImage)(RHIDescriptorWriter&, uint32 binding, uint32 arrayElement, RHIImageView* view, RHISampler* sampler) = nullptr;
     RHIDescriptorWriter& (*writeStorageImage)(RHIDescriptorWriter&, uint32 binding, uint32 arrayElement, RHIImageView* view) = nullptr;
-    RHIDescriptorWriter& (*writeStorageBuffer)(RHIDescriptorWriter&, uint32 binding, uint32 arrayElement, RHIBuffer* buffer, size_t offset, size_t range) = nullptr;
+    RHIDescriptorWriter& (*writeStorageBuffer)(RHIDescriptorWriter&, uint32 binding, uint32 arrayElement, const RHIBufferSlice& buffer) = nullptr;
     void (*flush)(RHIDescriptorWriter&) = nullptr; // Flush non-coherent memory if required
 };
 
@@ -24,17 +24,21 @@ public:
         : m_ctx(ctx), m_data(data), m_ops(ctx->getDescriptorWriterOps()) {}
 
     // Shortcut API forwards to backend ops
-    RHIDescriptorWriter& writeSampledImage(uint32 binding, uint32 arrayElement, RHIImageView* view, RHISampler* sampler) {
+    RHIDescriptorWriter& writeSampledImage(uint32 binding, uint32 arrayElement, RHIImageView* view, RHISampler* sampler)
+    {
         ASSERT(m_ops && m_ops->writeSampledImage && "RHIDescriptorWriter ops not bound");
         return m_ops->writeSampledImage(*this, binding, arrayElement, view, sampler);
     }
-    RHIDescriptorWriter& writeStorageImage(uint32 binding, uint32 arrayElement, RHIImageView* view) {
+    RHIDescriptorWriter& writeStorageImage(uint32 binding, uint32 arrayElement, RHIImageView* view)
+    {
         ASSERT(m_ops && m_ops->writeStorageImage && "RHIDescriptorWriter ops not bound");
         return m_ops->writeStorageImage(*this, binding, arrayElement, view);
     }
-    RHIDescriptorWriter& writeStorageBuffer(uint32 binding, uint32 arrayElement, RHIBuffer* buffer, size_t offset, size_t range) {
+    RHIDescriptorWriter& writeStorageBuffer(uint32 binding, uint32 arrayElement,
+        const RHIBufferSlice& bufferSlice)
+    {
         ASSERT(m_ops && m_ops->writeStorageBuffer && "RHIDescriptorWriter ops not bound");
-        return m_ops->writeStorageBuffer(*this, binding, arrayElement, buffer, offset, range);
+        return m_ops->writeStorageBuffer(*this, binding, arrayElement, bufferSlice);
     }
     void flush() {
         ASSERT(m_ops && m_ops->flush && "RHIDescriptorWriter ops not bound");
