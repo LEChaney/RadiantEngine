@@ -3,6 +3,8 @@
 #include "rhi/interface/swapchain/RHISwapchain.h"
 #include "rhi/interface/core/RHIContext.h"
 #include "rhi/interface/queue/RHIQueue.h"
+#include "rhi/interface/image/RHIImage.h"
+#include "rhi/interface/image/RHIImageView.h"
 #include "core/CoreDefs.h"
 
 using namespace RHI;
@@ -31,6 +33,7 @@ FrameManager::FrameManager(RHIContext* ctx, RHISwapchain* swapchain, uint32 maxF
         m_imgAvailableSemaphores[i] = m_ctx->createSemaphore();
         m_renderFinishedSemaphores[i] = m_ctx->createSemaphore();
         m_renderFinishedFences[i] = m_ctx->createFence();
+        m_isDynRendering.push_back(false);
     }
 }
 FrameManager::~FrameManager() {
@@ -63,7 +66,7 @@ FrameContext FrameManager::acquireFrame() {
         .colorView = m_swapchain->getImageView(imageIndex)
     };
 
-    FrameContext fr{
+    FrameContext frame{
         .frameIndex = m_currentFrame,
         .cmd = m_commandBuffers[m_currentFrame].get(),
         .swapImgs = swapchainImage,
@@ -75,7 +78,7 @@ FrameContext FrameManager::acquireFrame() {
     m_commandBuffers[m_currentFrame]->reset();
     m_commandBuffers[m_currentFrame]->begin();
 
-    return fr;
+    return frame;
 }
 
 void FrameManager::submitAndPresent(const FrameContext& frame, const FrameSubmitInfo& frameSubmitInfo) {
@@ -94,6 +97,43 @@ void FrameManager::submitAndPresent(const FrameContext& frame, const FrameSubmit
 
     m_swapchain->present(frame.swapImgs.imageIndex, frame.renderFinishedSemaphore);
     m_currentFrame = (m_currentFrame + 1) % m_maxFramesInFlight;
+}
+
+void FrameManager::beginDynRendering(const FrameContext& frame) {
+    ASSERT(!m_isDynRendering[frame.frameIndex] && "beginDynRendering called again with matching call to endDynRendering");
+    frame.cmd->beginDynRendering({
+        .colorAttachments = {{
+            .view = frame.swapImgs.colorView,
+            .layout = RHIImageLayout::ColorAttachment
+        }},
+        .renderArea = {
+            .width = frame.swapImgs.color->getWidth(),
+            .height = frame.swapImgs.color->getHeight()
+        }
+    });
+    frame.cmd->setViewport({
+        .viewRect = {
+            .width = frame.swapImgs.color->getWidth(),
+            .height = frame.swapImgs.color->getHeight()
+        },
+    });
+    frame.cmd->setScissor({
+        .width = frame.swapImgs.color->getWidth(),
+        .height = frame.swapImgs.color->getHeight()
+    });
+
+#ifdef _DEBUG
+    m_isDynRendering[frame.frameIndex] = true;
+#endif
+}
+
+void FrameManager::endDynRendering(const FrameContext& frame) {
+    ASSERT(m_isDynRendering[frame.frameIndex] && "endDynRendering called without matching call to beginDynRendering");
+    frame.cmd->endDynRendering();
+
+#ifdef _DEBUG
+    m_isDynRendering[frame.frameIndex] = false;
+#endif
 }
 
 } // namespace renderer

@@ -61,6 +61,9 @@ public:
     void submitAndPresent(const FrameContext& frame) { submitAndPresent(frame, {}); };
     void submitAndPresent(const FrameContext& frame, const FrameSubmitInfo& frameSubmitInfo);
 
+    void beginDynRendering(const FrameContext& frame);
+    void endDynRendering(const FrameContext& frame);
+
     uint32 maxFramesInFlight() const { return m_maxFramesInFlight; }
 
 private:
@@ -76,6 +79,9 @@ private:
     SmallArray<UniquePtr<RHI::RHISemaphore>, k_expectedFrameCount> m_imgAvailableSemaphores;   // Per-frame-in-flight
     SmallArray<UniquePtr<RHI::RHISemaphore>, k_expectedFrameCount> m_renderFinishedSemaphores; // Per-frame-in-flight
     SmallArray<UniquePtr<RHI::RHIFence>, k_expectedFrameCount> m_renderFinishedFences;         // Per-frame-in-flight
+#ifdef _DEBUG
+    SmallArray<bool, k_expectedFrameCount> m_isDynRendering; // Track if dynamic rendering begun for each frame
+#endif
 };
 
 } // namespace renderer

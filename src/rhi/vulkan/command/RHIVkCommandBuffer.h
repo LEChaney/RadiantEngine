@@ -46,16 +46,21 @@ public:
         RHIPipelineLayout* pipelineLayout, RHIPipelineBindPoint bindPoint) override;
     void pushConstants(RHIPipelineLayout* layout, RHIShaderStageFlags shaderStageFlags,
         uint32 offset, uint32 size, const void* data) override;
-    void dispatch(uint32 groupCountX, uint32 groupCountY, uint32 groupCountZ) override;
+    void dispatchCompute(uint32 groupCountX, uint32 groupCountY, uint32 groupCountZ) override;
+    void dispatchMesh(uint32 groupCountX, uint32 groupCountY, uint32 groupCountZ) override;
+    void beginDynRendering(const RHIRenderingInfo& info) override;
+    void endDynRendering() override;
+    void setViewport(const RHIViewport& viewport) override;
+    void setScissor(const RHIRect2D& scissorRect) override;
 
-    VkCommandBuffer getVk() const { return m_cmdBuffer; }
+    VkCommandBuffer getVk() const { return m_vkCmd; }
 
 private:
     RHIVkCommandBuffer(RHIVkContext* context);
 
     void bindVkPipeline(VkPipelineBindPoint bindPoint, RHIPipeline* pipeline);
 
-    VkCommandBuffer m_cmdBuffer = VK_NULL_HANDLE;
+    VkCommandBuffer m_vkCmd = VK_NULL_HANDLE;
     RHIVkContext* m_context = nullptr;
     Map<RHIImage*, RHIImageLayout> m_trackedImageLayouts;
 };

@@ -21,7 +21,7 @@ layout(location = 0) out vec3 outColor[];
 
 // Vertex buffer: tightly packed vec3 positions.
 layout(set = 0, binding = 0) readonly buffer VertexBuffer {
-	vec3 positions[];
+	vec4 positions[];
 };
 
 // Index buffer: uint indices forming the triangle.
@@ -45,9 +45,9 @@ void main() {
 	SetMeshOutputsEXT(3, 1);
 
 	// Write positions.
-	gl_MeshVerticesEXT[0].gl_Position = vec4(positions[i0], 1.0);
-	gl_MeshVerticesEXT[1].gl_Position = vec4(positions[i1], 1.0);
-	gl_MeshVerticesEXT[2].gl_Position = vec4(positions[i2], 1.0);
+	gl_MeshVerticesEXT[0].gl_Position = vec4(positions[i0].xyz, 1.0);
+	gl_MeshVerticesEXT[1].gl_Position = vec4(positions[i1].xyz, 1.0);
+	gl_MeshVerticesEXT[2].gl_Position = vec4(positions[i2].xyz, 1.0);
 
 	// All vertices share the same color (push constant rgb).
 	outColor[0] = pc.color.rgb;

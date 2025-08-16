@@ -19,6 +19,8 @@
 #include "fmt/format.h"
 #include "core/CoreDefs.h"
 #include "glm/vec3.hpp"
+#include "glm/vec2.hpp"
+#include "rhi/interface/image/RHIImage.h"
 
 #include <SDL.h>
 
@@ -200,7 +202,8 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
 
         // --- Validate clear color using read_image_to_cpu ---
         // Get image size (assuming swapchain exposes width/height or use known values)
-        uint32_t width = 640, height = 480;
+        uint32 width = frameData.swapImgs.color->getWidth();
+        uint32 height = frameData.swapImgs.color->getHeight();
         std::vector<uint8> imageData;
         bool readBackOk = RHI::readImageToCpu(m_ctx.get(), frameData.swapImgs.color,
             width, height, imageData);
@@ -255,8 +258,6 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     //   rhi/interface/descriptor/RHIDescriptorWriter.h
     // And command buffer extensions:
     //   bindComputePipeline, bindDescriptorBuffers, dispatch
-
-    constexpr uint32_t kWidth = 640, kHeight = 480;
 
     // 1. Descriptor set layout (set 0, binding 0 = storage image)
     RHIDescriptorSetLayoutBuilder setLayoutBuilder(m_ctx.get());
@@ -317,10 +318,12 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     glm::vec4 clearColor(0.0f, 1.0f, 0.0f, 1.0f); // Green clear color
     frame.cmd->pushConstants(pipelineLayout.get(), RHIShaderStage::Compute,
         0, sizeof(clearColor), &clearColor);
-    
-    uint32_t groupCountX = (kWidth + 7) / 8;
-    uint32_t groupCountY = (kHeight + 7) / 8;
-    frame.cmd->dispatch(groupCountX, groupCountY, 1);
+
+    uint32 width = frame.swapImgs.color->getWidth();
+    uint32 height = frame.swapImgs.color->getHeight();
+    uint32_t groupCountX = (width + 7) / 8;
+    uint32_t groupCountY = (height + 7) / 8;
+    frame.cmd->dispatchCompute(groupCountX, groupCountY, 1);
 
     m_frameManager->submitAndPresent(frame, {
         .queue = m_ctx->getGraphicsQueue(),
@@ -330,12 +333,12 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     // 6. Readback & validation (green clear (0,255,0,255) expected once shader works)
     std::vector<uint8> imageData;
     bool readBackOk = RHI::readImageToCpu(m_ctx.get(), frame.swapImgs.color,
-        kWidth, kHeight, imageData);
+        width, height, imageData);
     ASSERT_TRUE(readBackOk) << "Failed to read back image data from GPU";
-    ASSERT_EQ(imageData.size(), kWidth * kHeight * 4);
+    ASSERT_EQ(imageData.size(), width * height * 4);
 
     auto verifyPixel = [&](uint32_t x, uint32_t y) {
-        size_t idx = (y * kWidth + x) * 4;
+        size_t idx = (y * width + x) * 4;
         bool isBGRA = (m_swapchain->getFormat() == RHI::RHIFormat::RHI_FORMAT_B8G8R8A8_UNORM ||
                         m_swapchain->getFormat() == RHI::RHIFormat::RHI_FORMAT_B8G8R8A8_SRGB);
         if (isBGRA) {
@@ -351,8 +354,8 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
         }
     };
     verifyPixel(0, 0);
-    verifyPixel(kWidth/2, kHeight/2);
-    verifyPixel(kWidth-1, kHeight-1);
+    verifyPixel(width/2, height/2);
+    verifyPixel(width-1, height-1);
 }
 
 TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
@@ -373,14 +376,12 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
     //   * Avoids large push constants & avoids binding full storage buffers when only addresses needed.
     //   * Scales to multi-mesh draws by re-writing address descriptors (tiny) or using array elements.
 
-    constexpr uint32_t kWidth = 640, kHeight = 480;
-    struct Vertex { glm::vec3 pos; }; // position (x,y,z)
-    const Vertex kVertices[3] = {
-        {{ 0.0f,  0.6f, 0.0f}}, // top
-        {{-0.6f, -0.6f, 0.0f}}, // left
-        {{ 0.6f, -0.6f, 0.0f}}, // right
-    };
-    const uint32_t kIndices[3] = {0,1,2};
+    struct Vertex { glm::vec4 pos; }; // position (x,y,z)
+    const std::array<Vertex,3> kVertices = { Vertex{{ 0.0f,  0.6f, 0.0f, 1.0f}},  // top
+                                             Vertex{{-0.6f, -0.6f, 0.0f, 1.0f}},  // left
+                                             Vertex{{ 0.6f, -0.6f, 0.0f, 1.0f}}}; // right
+    // Indices reordered for CCW winding in screen space (required if back-face culling enabled)
+    const std::array<uint32_t,3> kIndices = {0,2,1};
 
     // Create host-visible buffers with device address capability
     auto vbuf = m_ctx->createBuffer(sizeof(kVertices),
@@ -395,9 +396,11 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
     // Upload data
     {
         void* vm = vbuf->map(); ASSERT_NE(vm, nullptr);
-        std::memcpy(vm, kVertices, sizeof(kVertices)); vbuf->unmap();
+        std::memcpy(vm, kVertices.data(), kVertices.size()*sizeof(Vertex));
+        vbuf->unmap();
         void* im = ibuf->map(); ASSERT_NE(im, nullptr);
-        std::memcpy(im, kIndices, sizeof(kIndices)); ibuf->unmap();
+        std::memcpy(im, kIndices.data(), kIndices.size()*sizeof(uint32_t));
+        ibuf->unmap();
     }
 
     // Push constants: only color now
@@ -462,22 +465,28 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
     frame.cmd->clearColor(frame.swapImgs.color, glm::vec4(0,0,0,1));
     frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::ColorAttachment);
 
+    // Begin dynamic rendering once the swap image has been prepped
+    m_frameManager->beginDynRendering(frame);
+
     // Bind pipeline, descriptor buffer & set, then push color
     frame.cmd->bindGraphicsPipeline(graphicsPipeline.get());
-    // frame.cmd->bindDescriptorBuffers({descBuffer.get()});
-    // frame.cmd->bindDescriptorSets({
-    //     { .setIndex = 0, .set = meshSet }
-    // }, pipelineLayout.get(), RHIPipelineBindPoint::Graphics);
-    // frame.cmd->pushConstants(pipelineLayout.get(), RHIShaderStage::Mesh | RHIShaderStage::Fragment,
-    //     0, sizeof(MeshDrawParamsPC), &params);
-    //
-    // // Dispatch one mesh workgroup: mesh shader uses device addresses to fetch vertices / indices
-    // frame.cmd->dispatchMesh(1, 1, 1);
-    //
-    // // Prepare for CPU readback
-    // frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::TransferSrc);
-    // // Then transition to Present after readback submission (we can transition later again if needed)
-    //
+    frame.cmd->bindDescriptorBuffers({descBuffer.get()});
+    frame.cmd->bindDescriptorSets({
+        { .setIndex = 0, .set = meshSet }
+    }, pipelineLayout.get(), RHIPipelineBindPoint::Graphics);
+    frame.cmd->pushConstants(pipelineLayout.get(), RHIShaderStage::Mesh | RHIShaderStage::Fragment,
+        0, sizeof(MeshDrawParamsPC), &params);
+
+    // Dispatch one mesh workgroup: mesh shader uses device addresses to fetch vertices / indices
+    frame.cmd->dispatchMesh(1, 1, 1);
+
+    // End dynamic rendering
+    m_frameManager->endDynRendering(frame);
+
+    // Prepare for CPU readback
+    frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::TransferSrc);
+    // Then transition to Present after readback submission (we can transition later again if needed)
+
     // 8. Submit (choose appropriate pipeline stage masks). We waited on imageAvailable semaphore earlier.
     m_frameManager->submitAndPresent(frame, {
         .queue = m_ctx->getGraphicsQueue(),
@@ -485,83 +494,95 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
         .signalPresentStage = RHIPipelineStage::ColorAttachmentOutput
     });
 
-    // TEMP: Wait on all queue operations to complete so it's safe to destroy GPU objects
-    // Can remove this one CPU readback is implemented, since it will also force wait on GPU ops
-    m_ctx->deviceWaitIdle();
+    // 9. Read back the image
+    uint32 width = frame.swapImgs.color->getWidth();
+    uint32 height = frame.swapImgs.color->getHeight();
+    std::vector<uint8> imageData;
+    bool readBackOk = RHI::readImageToCpu(m_ctx.get(), frame.swapImgs.color,
+        width, height, imageData);
+    ASSERT_TRUE(readBackOk);
+    ASSERT_EQ(imageData.size(), width * height * 4);
 
-    //
-    // // 9. Read back the image
-    // std::vector<uint8> imageData;
-    // bool readBackOk = RHI::readImageToCpu(m_ctx.get(), frame.swapImgs.color,
-    //     kWidth, kHeight, imageData);
-    // ASSERT_TRUE(readBackOk);
-    // ASSERT_EQ(imageData.size(), kWidth * kHeight * 4);
-    //
-    // bool isBGRA = (m_swapchain->getFormat() == RHI::RHIFormat::RHI_FORMAT_B8G8R8A8_UNORM ||
-    //                m_swapchain->getFormat() == RHI::RHIFormat::RHI_FORMAT_B8G8R8A8_SRGB);
-    //
-    // auto getPixel = [&](uint32_t x, uint32_t y) -> std::array<uint8,4> {
-    //     size_t idx = (y * kWidth + x) * 4;
-    //     return { imageData[idx+0], imageData[idx+1], imageData[idx+2], imageData[idx+3] };
-    // };
-    //
-    // auto expectColor = [&](const std::array<uint8,4>& px, uint8 r, uint8 g, uint8 b, uint8 a, const char* ctx) {
-    //     if (isBGRA) {
-    //         EXPECT_EQ(px[0], b) << ctx << " (B)";
-    //         EXPECT_EQ(px[1], g) << ctx << " (G)";
-    //         EXPECT_EQ(px[2], r) << ctx << " (R)";
-    //         EXPECT_EQ(px[3], a) << ctx << " (A)";
-    //     } else {
-    //         EXPECT_EQ(px[0], r) << ctx << " (R)";
-    //         EXPECT_EQ(px[1], g) << ctx << " (G)";
-    //         EXPECT_EQ(px[2], b) << ctx << " (B)";
-    //         EXPECT_EQ(px[3], a) << ctx << " (A)";
-    //     }
-    // };
-    //
-    // // 10. Outside corners should remain black (background)
-    // expectColor(getPixel(0,0), 0,0,0,255, "corner TL");
-    // expectColor(getPixel(kWidth-1,0), 0,0,0,255, "corner TR");
-    // expectColor(getPixel(0,kHeight-1), 0,0,0,255, "corner BL");
-    // expectColor(getPixel(kWidth-1,kHeight-1), 0,0,0,255, "corner BR");
-    //
-    // // 11. Interior sampling: sample several points expected inside the triangle.
-    // struct Sample { uint32_t x,y; const char* tag; };
-    // Sample inside[] = {
-    //     {kWidth/2, kHeight/3,        "inside top"},
-    //     {kWidth/2 - 40, kHeight/2,   "inside left"},
-    //     {kWidth/2 + 40, kHeight/2,   "inside right"},
-    //     {kWidth/2, (2*kHeight)/3 - 25, "inside lower"},
-    // };
-    // int redCount = 0;
-    // for (auto s : inside) {
-    //     auto px = getPixel(s.x, s.y);
-    //     // Convert to interpreted RGBA for comparison
-    //     uint8 r = isBGRA ? px[2] : px[0];
-    //     uint8 g = isBGRA ? px[1] : px[1];
-    //     uint8 b = isBGRA ? px[0] : px[2];
-    //     if (r > 200 && g < 40 && b < 40) {
-    //         redCount++;
-    //     } else {
-    //         ADD_FAILURE() << "Interior sample not red: " << s.tag << " at (" << s.x << "," << s.y << ")";
-    //     }
-    // }
-    // EXPECT_GE(redCount, 2) << "Too few interior red samples (" << redCount << ")";
-    //
-    // // 12. Just-outside samples beneath/around edges should stay black
-    // Sample outside[] = {
-    //     {kWidth/2, (2*kHeight)/3 + 10, "below base"},
-    //     {kWidth/2 - 90, kHeight/2 + 15, "far left"},
-    //     {kWidth/2 + 90, kHeight/2 + 15, "far right"},
-    // };
-    // for (auto s : outside) {
-    //     auto px = getPixel(s.x, s.y);
-    //     uint8 r = isBGRA ? px[2] : px[0];
-    //     uint8 g = isBGRA ? px[1] : px[1];
-    //     uint8 b = isBGRA ? px[0] : px[2];
-    //     EXPECT_TRUE(r < 20 && g < 20 && b < 20)
-    //         << "Outside sample not black: " << s.tag << " at (" << s.x << "," << s.y << ")";
-    // }
+    bool isBGRA = (m_swapchain->getFormat() == RHI::RHIFormat::RHI_FORMAT_B8G8R8A8_UNORM ||
+                   m_swapchain->getFormat() == RHI::RHIFormat::RHI_FORMAT_B8G8R8A8_SRGB);
+
+    auto getPixel = [&](uint32_t x, uint32_t y) -> std::array<uint8,4> {
+        size_t idx = (y * width + x) * 4;
+        return { imageData[idx+0], imageData[idx+1], imageData[idx+2], imageData[idx+3] };
+    };
+
+    auto expectColor = [&](const std::array<uint8,4>& px, uint8 r, uint8 g, uint8 b, uint8 a, const char* ctx) {
+        if (isBGRA) {
+            EXPECT_EQ(px[0], b) << ctx << " (B)";
+            EXPECT_EQ(px[1], g) << ctx << " (G)";
+            EXPECT_EQ(px[2], r) << ctx << " (R)";
+            EXPECT_EQ(px[3], a) << ctx << " (A)";
+        } else {
+            EXPECT_EQ(px[0], r) << ctx << " (R)";
+            EXPECT_EQ(px[1], g) << ctx << " (G)";
+            EXPECT_EQ(px[2], b) << ctx << " (B)";
+            EXPECT_EQ(px[3], a) << ctx << " (A)";
+        }
+    };
+
+    // Compute screen-space vertex positions derived from the CPU vertex data (mirrors shader path)
+    struct Int2 { int x; int y; };
+    auto toScreen = [&](const glm::vec3& p) -> Int2 {
+        float sx = (p.x * 0.5f + 0.5f) * static_cast<float>(width);
+        float sy = (p.y * 0.5f + 0.5f) * static_cast<float>(height); // Vulkan: origin at top-left
+        return Int2{ (int)std::lround(sx), (int)std::lround(sy) };
+    };
+    Int2 sv0 = toScreen(kVertices[0].pos);
+    Int2 sv1 = toScreen(kVertices[1].pos);
+    Int2 sv2 = toScreen(kVertices[2].pos);
+
+    // Interior sample points via barycentric combos (weights all positive and sum to 1)
+    struct W { float a,b,c; const char* tag; };
+    const std::array<W,4> baryInside = { W{1.f/3.f, 1.f/3.f, 1.f/3.f, "centroid"},
+                                         W{0.55f, 0.25f, 0.20f, "near top"},
+                                         W{0.20f, 0.55f, 0.25f, "lower left"},
+                                         W{0.25f, 0.20f, 0.55f, "lower right"} };
+    int redCount = 0;
+    for (auto w : baryInside) {
+        float fx = w.a*sv0.x + w.b*sv1.x + w.c*sv2.x;
+        float fy = w.a*sv0.y + w.b*sv1.y + w.c*sv2.y;
+        uint32_t x = (uint32_t)std::clamp<int>((int)std::lround(fx), 0, width-1);
+        uint32_t y = (uint32_t)std::clamp<int>((int)std::lround(fy), 0, height-1);
+        auto px = getPixel(x,y);
+        uint8 r = isBGRA ? px[2] : px[0];
+        uint8 g = px[1];
+        uint8 b = isBGRA ? px[0] : px[2];
+        if (r > 200 && g < 40 && b < 40) {
+            redCount++;
+        } else {
+            ADD_FAILURE() << "Interior sample not red: " << w.tag << " at (" << x << "," << y << ")";
+        }
+    }
+    EXPECT_GE(redCount, 2) << "Too few interior red samples (" << redCount << ")";
+
+    // Outside samples: points just beyond each edge normal direction + corners for sanity
+    int minX = std::min(std::min(sv0.x, sv1.x), sv2.x);
+    int maxX = std::max(std::max(sv0.x, sv1.x), sv2.x);
+    int minY = std::min(std::min(sv0.y, sv1.y), sv2.y);
+    int maxY = std::max(std::max(sv0.y, sv1.y), sv2.y);
+    struct Outside { int x,y; const char* tag; };
+    const std::array<Outside,7> outsidePts = { Outside{ (minX+maxX)/2, maxY + 12, "below base"},
+                                               Outside{ minX - 12, (minY+maxY)/2, "far left"},
+                                               Outside{ maxX + 12, (minY+maxY)/2, "far right"},
+                                               Outside{ 0,0, "corner TL"},
+                                               Outside{ (int)width-1,0, "corner TR"},
+                                               Outside{ 0,(int)height-1, "corner BL"},
+                                               Outside{ (int)width-1,(int)height-1, "corner BR"} };
+    for (auto o : outsidePts) {
+        int clampedX = std::clamp(o.x, 0, (int)width-1);
+        int clampedY = std::clamp(o.y, 0, (int)height-1);
+        auto px = getPixel(clampedX, clampedY);
+        uint8 r = isBGRA ? px[2] : px[0];
+        uint8 g = px[1];
+        uint8 b = isBGRA ? px[0] : px[2];
+        EXPECT_TRUE(r < 40 && g < 40 && b < 40)
+            << "Outside sample not black: " << o.tag << " at (" << clampedX << "," << clampedY << ")";
+    }
 }
 
 namespace {
