@@ -252,13 +252,6 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
 }
 
 TEST_P(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
-    // Finalized hypothetical API usage: RHIDescriptorBuffer + allocateSet + RHIDescriptorWriter.
-    // Assumes forthcoming headers:
-    //   rhi/interface/descriptor/RHIDescriptorBuffer.h
-    //   rhi/interface/descriptor/RHIDescriptorWriter.h
-    // And command buffer extensions:
-    //   bindComputePipeline, bindDescriptorBuffers, dispatch
-
     // 1. Descriptor set layout (set 0, binding 0 = storage image)
     RHIDescriptorSetLayoutBuilder setLayoutBuilder(m_ctx.get());
     setLayoutBuilder.addBinding(0, RHIDescriptorType::StorageImage);
@@ -345,23 +338,6 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
 }
 
 TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
-    // Aspirational test: renders a simple red triangle using a Mesh + Fragment pipeline.
-    // Vertex & index buffers are regular GPU buffers with Buffer Device Address (BDA) enabled.
-    // Descriptor set (set=0) holds ONLY the 64-bit device addresses (not full storage buffer bindings):
-    //   layout(set=0,binding=0) uniform VertexAddress { uint64_t vertexAddr; };
-    //   layout(set=0,binding=1) uniform IndexAddress  { uint64_t indexAddr;  };
-    // Mesh shader uses those addresses with pointer-style fetches (e.g. via buffer references or
-    // manual address arithmetic) to load vertices & indices. Push constants only carry the color.
-    // Missing / assumed RHI APIs:
-    //   - Descriptor type / write function for raw buffer device address (e.g. writeBufferDeviceAddress)
-    //   - RHIBufferUsage::ShaderDeviceAddress + RHIBuffer::getDeviceAddress()
-    //   - Mesh shader pipeline creation & dispatchMesh
-    //   - Image layout transitions for ColorAttachment / TransferSrc
-    //   - Graphics bind point for descriptor sets with device address descriptors
-    // Notes:
-    //   * Avoids large push constants & avoids binding full storage buffers when only addresses needed.
-    //   * Scales to multi-mesh draws by re-writing address descriptors (tiny) or using array elements.
-
     struct Vertex { glm::vec4 pos; }; // position (x,y,z)
     const StaticArray<Vertex,3> kVertices = { Vertex{{ 0.0f,  0.6f, 0.0f, 1.0f}},  // top
                                              Vertex{{-0.6f, -0.6f, 0.0f, 1.0f}},  // left
