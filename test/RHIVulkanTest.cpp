@@ -435,8 +435,8 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
     ASSERT_NE(pipelineLayout, nullptr);
 
     // 4. Shader modules (hypothetical): mesh shader consumes TrianglePushConstants to emit triangle
-    Path meshShaderPath = "../shaders/colored_triangle.mesh.spv";       // Placeholder path (naming TBD)
-    Path fragmentShaderPath = "../shaders/colored_triangle.frag.spv";   // Could reuse existing fragment shader variant
+    Path meshShaderPath = "../shaders/colored_triangle.ms.slang.spv";       // Placeholder path (naming TBD)
+    Path fragmentShaderPath = "../shaders/colored_triangle.ps.slang.spv";   // Could reuse existing fragment shader variant
     auto meshShader = m_ctx->createShaderModule(meshShaderPath);
     auto fragShader = m_ctx->createShaderModule(fragmentShaderPath);
     ASSERT_NE(meshShader, nullptr);

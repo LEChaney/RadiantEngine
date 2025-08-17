@@ -120,5 +120,6 @@ if (WIN32)
     COMMAND_EXPAND_LISTS
   )
 endif()
+add_dependencies(RHIVulkanTest Shaders)
 add_dependencies(BuildTests RHIVulkanTest)
 add_test(NAME RHIVulkanTest COMMAND RHIVulkanTest)

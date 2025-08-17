@@ -64,9 +64,56 @@ foreach(GLSL ${GLSL_SOURCE_FILES})
     OUTPUT ${SPIRV}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADERS_OUTPUT_DIRECTORY}
   COMMAND ${GLSL_VALIDATOR} ${EXTRA_GLSL_ARGS} -V ${GLSL} -o ${SPIRV}
+  COMMAND ${CMAKE_COMMAND} -E echo "[GLSL] Built ${SPIRV}"
     DEPENDS ${GLSL})
   list(APPEND SPIRV_BINARY_FILES ${SPIRV})
 endforeach(GLSL)
+
+# --- Slang shader compilation (optional, if slangc is available) ---
+find_program(SLANGC_EXECUTABLE NAMES slangc slangc.exe
+  HINTS $ENV{VULKAN_SDK}/Bin $ENV{VULKAN_SDK}/Bin32 ${Vulkan_GLSLC_EXECUTABLE_PATH})
+
+if(SLANGC_EXECUTABLE)
+  file(GLOB_RECURSE SLANG_SOURCE_FILES "${PROJECT_SOURCE_DIR}/shaders/*.slang")
+  foreach(SLANG_FILE ${SLANG_SOURCE_FILES})
+    get_filename_component(SLANG_FILENAME ${SLANG_FILE} NAME)
+    # Grab any @entry lines: // @entry <name> [profile] [target]
+    file(STRINGS "${SLANG_FILE}" SLANG_ENTRY_LINES REGEX "^//[ \t]*@entry")
+    if(SLANG_ENTRY_LINES)
+      foreach(ENTRY_LINE ${SLANG_ENTRY_LINES})
+        string(REGEX REPLACE "^//[ \t]*@entry[ \t]+" "" ENTRY_TAIL "${ENTRY_LINE}")
+        separate_arguments(ENTRY_TOKENS NATIVE_COMMAND "${ENTRY_TAIL}")
+        list(LENGTH ENTRY_TOKENS TOK_COUNT)
+        if(TOK_COUNT GREATER 0)
+          list(GET ENTRY_TOKENS 0 ENTRY_NAME)
+          if(TOK_COUNT GREATER 1)
+            list(GET ENTRY_TOKENS 1 ENTRY_PROFILE)
+          else()
+            set(ENTRY_PROFILE lib_6_5)
+          endif()
+          if(TOK_COUNT GREATER 2)
+            list(GET ENTRY_TOKENS 2 ENTRY_TARGET)
+          else()
+            set(ENTRY_TARGET spirv)
+          endif()
+          set(OUT_FILE "${SHADERS_OUTPUT_DIRECTORY}/${SLANG_FILENAME}.spv")
+          add_custom_command(
+            OUTPUT ${OUT_FILE}
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADERS_OUTPUT_DIRECTORY}
+            COMMAND ${SLANGC_EXECUTABLE} -target ${ENTRY_TARGET} -profile ${ENTRY_PROFILE} -entry ${ENTRY_NAME} "${SLANG_FILE}" -o "${OUT_FILE}"
+            COMMAND ${CMAKE_COMMAND} -E echo "[Slang] Built ${OUT_FILE}"
+            DEPENDS ${SLANG_FILE}
+            COMMENT "[Slang] @entry ${SLANG_FILENAME}:${ENTRY_NAME} (${ENTRY_PROFILE} -> ${ENTRY_TARGET})" VERBATIM)
+          list(APPEND SPIRV_BINARY_FILES ${OUT_FILE})
+        endif()
+      endforeach()
+    else()
+      message(STATUS "failed to find @entry in ${SLANG_FILE}, skipping shader compilation")
+    endif()
+  endforeach()
+else()
+  message(STATUS "slangc not found; skipping Slang shader compilation")
+endif()
 
 add_custom_target(
     Shaders 
