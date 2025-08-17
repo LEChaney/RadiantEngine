@@ -26,6 +26,7 @@
 
 #include <algorithm>
 #include <string>
+#include <array>
 
 using namespace RHI;
 using Vulkan::RHIVkContext;
@@ -48,6 +49,45 @@ void validationMsgCollector(const char* msg, RHIVkContext::ValidationLevel level
     } else {
         fmt::println(stderr, "{}", formattedMsg);
     }
+}
+
+// --- Shared helpers for readback-based image validation ---
+inline bool isBGRAFormat(RHIFormat format) {
+    return format == RHIFormat::RHI_FORMAT_B8G8R8A8_UNORM ||
+           format == RHIFormat::RHI_FORMAT_B8G8R8A8_SRGB;
+}
+
+inline StaticArray<uint8,4> colorToRGBA8(const glm::vec4& c) {
+    auto toByte = [](float v) -> uint8 {
+        return static_cast<uint8>(std::clamp(v, 0.0f, 1.0f) * 255.0f);
+    };
+    return { toByte(c.r), toByte(c.g), toByte(c.b), toByte(c.a) };
+}
+
+// Validates a single pixel (x,y) against expected RGBA bytes (expected interpreted as RGBA order).
+inline void expectPixel(const Array<uint8>& img, uint32 width, uint32 height,
+                        uint32 x, uint32 y, const StaticArray<uint8,4>& expected,
+                        bool bgra, const char* ctx) {
+    ASSERT_LT(x, width);
+    ASSERT_LT(y, height);
+    size_t idx = (size_t(y) * width + x) * 4;
+    if (bgra) {
+        EXPECT_EQ(img[idx + 0], expected[2]) << ctx << " (B)"; // B
+        EXPECT_EQ(img[idx + 1], expected[1]) << ctx << " (G)"; // G
+        EXPECT_EQ(img[idx + 2], expected[0]) << ctx << " (R)"; // R
+        EXPECT_EQ(img[idx + 3], expected[3]) << ctx << " (A)"; // A
+    } else {
+        EXPECT_EQ(img[idx + 0], expected[0]) << ctx << " (R)";
+        EXPECT_EQ(img[idx + 1], expected[1]) << ctx << " (G)";
+        EXPECT_EQ(img[idx + 2], expected[2]) << ctx << " (B)";
+        EXPECT_EQ(img[idx + 3], expected[3]) << ctx << " (A)";
+    }
+}
+
+inline void expectPixel(const Array<uint8>& img, uint32 width, uint32 height,
+                        uint32 x, uint32 y, const glm::vec4& expected,
+                        bool bgra, const char* ctx) {
+    expectPixel(img, width, height, x, y, colorToRGBA8(expected), bgra, ctx);
 }
 }
 
@@ -187,67 +227,27 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
     }
 
     bool checkedAtLeastOneFrame = false;
-    // Determine channel order based on swapchain format
-    auto format = m_swapchain->getFormat();
-    bool isBGRA = (format == RHI::RHIFormat::RHI_FORMAT_B8G8R8A8_UNORM ||
-                   format == RHI::RHIFormat::RHI_FORMAT_B8G8R8A8_SRGB);
-
-    for (uint32_t frameIdx = 0; frameIdx < savedFrames.size(); ++frameIdx) {
-        auto& frameData = savedFrames[frameIdx].frame;
-        auto& clearColor = savedFrames[frameIdx].clearColor;
-
+    bool isBGRA = isBGRAFormat(m_swapchain->getFormat());
+    for (auto& [frame, clearColor] : savedFrames) {
+        auto& frameData = frame;
         if (!frameData.swapImgs.color) {
-            continue; // Skip if no image was acquired
+            continue;
         }
 
-        // --- Validate clear color using read_image_to_cpu ---
-        // Get image size (assuming swapchain exposes width/height or use known values)
         uint32 width = frameData.swapImgs.color->getWidth();
         uint32 height = frameData.swapImgs.color->getHeight();
-        std::vector<uint8> imageData;
-        bool readBackOk = RHI::readImageToCpu(m_ctx.get(), frameData.swapImgs.color,
-            width, height, imageData);
-        ASSERT_TRUE(readBackOk) << "Failed to read back image data from GPU";
+        Array<uint8> imageData;
+        ASSERT_TRUE(RHI::readImageToCpu(m_ctx.get(), frameData.swapImgs.color, width, height, imageData));
         ASSERT_EQ(imageData.size(), width * height * 4);
 
-        // Convert clearColor to uint8 RGBA
-        uint8 expectedR = static_cast<uint8>(clearColor.r * 255.0f);
-        uint8 expectedG = static_cast<uint8>(clearColor.g * 255.0f);
-        uint8 expectedB = static_cast<uint8>(clearColor.b * 255.0f);
-        uint8 expectedA = static_cast<uint8>(clearColor.a * 255.0f);
-
-        // Check a few sample pixels (corners and center)
-        auto checkPixel = [&](uint32_t x, uint32_t y) {
-            size_t idx = (y * width + x) * 4;
-            if (isBGRA) {
-                EXPECT_EQ(imageData[idx + 0], expectedB) 
-                    << fmt::format("Pixel ({},{}): B mismatch (BGRA)", x, y);
-                EXPECT_EQ(imageData[idx + 1], expectedG) 
-                    << fmt::format("Pixel ({},{}): G mismatch (BGRA)", x, y);
-                EXPECT_EQ(imageData[idx + 2], expectedR) 
-                    << fmt::format("Pixel ({},{}): R mismatch (BGRA)", x, y);
-                EXPECT_EQ(imageData[idx + 3], expectedA) 
-                    << fmt::format("Pixel ({},{}): A mismatch (BGRA)", x, y);
-            } else {
-                EXPECT_EQ(imageData[idx + 0], expectedR) 
-                    << fmt::format("Pixel ({},{}): R mismatch (RGBA)", x, y);
-                EXPECT_EQ(imageData[idx + 1], expectedG) 
-                    << fmt::format("Pixel ({},{}): G mismatch (RGBA)", x, y);
-                EXPECT_EQ(imageData[idx + 2], expectedB) 
-                    << fmt::format("Pixel ({},{}): B mismatch (RGBA)", x, y);
-                EXPECT_EQ(imageData[idx + 3], expectedA) 
-                    << fmt::format("Pixel ({},{}): A mismatch (RGBA)", x, y);
-            }
-        };
-        checkPixel(0, 0);
-        checkPixel(width - 1, 0);
-        checkPixel(0, height - 1);
-        checkPixel(width - 1, height - 1);
-        checkPixel(width / 2, height / 2);
-
+        auto expected = colorToRGBA8(clearColor);
+        expectPixel(imageData, width, height, 0, 0, expected, isBGRA, "clear corner TL");
+        expectPixel(imageData, width, height, width-1, 0, expected, isBGRA, "clear corner TR");
+        expectPixel(imageData, width, height, 0, height-1, expected, isBGRA, "clear corner BL");
+        expectPixel(imageData, width, height, width-1, height-1, expected, isBGRA, "clear corner BR");
+        expectPixel(imageData, width, height, width/2, height/2, expected, isBGRA, "clear center");
         checkedAtLeastOneFrame = true;
     }
-
     ASSERT_TRUE(checkedAtLeastOneFrame) << "No valid frames were tested";
 }
 
@@ -331,31 +331,17 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
         .signalPresentStage = RHIPipelineStage::ComputeShader});
 
     // 6. Readback & validation (green clear (0,255,0,255) expected once shader works)
-    std::vector<uint8> imageData;
+    Array<uint8> imageData;
     bool readBackOk = RHI::readImageToCpu(m_ctx.get(), frame.swapImgs.color,
         width, height, imageData);
     ASSERT_TRUE(readBackOk) << "Failed to read back image data from GPU";
     ASSERT_EQ(imageData.size(), width * height * 4);
 
-    auto verifyPixel = [&](uint32_t x, uint32_t y) {
-        size_t idx = (y * width + x) * 4;
-        bool isBGRA = (m_swapchain->getFormat() == RHI::RHIFormat::RHI_FORMAT_B8G8R8A8_UNORM ||
-                        m_swapchain->getFormat() == RHI::RHIFormat::RHI_FORMAT_B8G8R8A8_SRGB);
-        if (isBGRA) {
-            EXPECT_EQ(imageData[idx + 0], 0u);     // B
-            EXPECT_EQ(imageData[idx + 1], 255u);   // G
-            EXPECT_EQ(imageData[idx + 2], 0u);     // R
-            EXPECT_EQ(imageData[idx + 3], 255u);   // A
-        } else {
-            EXPECT_EQ(imageData[idx + 0], 0u);     // R
-            EXPECT_EQ(imageData[idx + 1], 255u);   // G
-            EXPECT_EQ(imageData[idx + 2], 0u);     // B
-            EXPECT_EQ(imageData[idx + 3], 255u);   // A
-        }
-    };
-    verifyPixel(0, 0);
-    verifyPixel(width/2, height/2);
-    verifyPixel(width-1, height-1);
+    bool bgra = isBGRAFormat(m_swapchain->getFormat());
+    StaticArray<uint8,4> expectedGreen = {0,255,0,255};
+    expectPixel(imageData, width, height, 0, 0, expectedGreen, bgra, "compute corner TL");
+    expectPixel(imageData, width, height, width/2, height/2, expectedGreen, bgra, "compute center");
+    expectPixel(imageData, width, height, width-1, height-1, expectedGreen, bgra, "compute corner BR");
 }
 
 TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
@@ -377,11 +363,11 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
     //   * Scales to multi-mesh draws by re-writing address descriptors (tiny) or using array elements.
 
     struct Vertex { glm::vec4 pos; }; // position (x,y,z)
-    const std::array<Vertex,3> kVertices = { Vertex{{ 0.0f,  0.6f, 0.0f, 1.0f}},  // top
+    const StaticArray<Vertex,3> kVertices = { Vertex{{ 0.0f,  0.6f, 0.0f, 1.0f}},  // top
                                              Vertex{{-0.6f, -0.6f, 0.0f, 1.0f}},  // left
                                              Vertex{{ 0.6f, -0.6f, 0.0f, 1.0f}}}; // right
     // Indices reordered for CCW winding in screen space (required if back-face culling enabled)
-    const std::array<uint32_t,3> kIndices = {0,2,1};
+    const StaticArray<uint32_t,3> kIndices = {0,2,1};
 
     // Create host-visible buffers with device address capability
     auto vbuf = m_ctx->createBuffer(sizeof(kVertices),
@@ -497,33 +483,15 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
     // 9. Read back the image
     uint32 width = frame.swapImgs.color->getWidth();
     uint32 height = frame.swapImgs.color->getHeight();
-    std::vector<uint8> imageData;
+    Array<uint8> imageData;
     bool readBackOk = RHI::readImageToCpu(m_ctx.get(), frame.swapImgs.color,
         width, height, imageData);
     ASSERT_TRUE(readBackOk);
     ASSERT_EQ(imageData.size(), width * height * 4);
 
-    bool isBGRA = (m_swapchain->getFormat() == RHI::RHIFormat::RHI_FORMAT_B8G8R8A8_UNORM ||
-                   m_swapchain->getFormat() == RHI::RHIFormat::RHI_FORMAT_B8G8R8A8_SRGB);
-
-    auto getPixel = [&](uint32_t x, uint32_t y) -> std::array<uint8,4> {
-        size_t idx = (y * width + x) * 4;
-        return { imageData[idx+0], imageData[idx+1], imageData[idx+2], imageData[idx+3] };
-    };
-
-    auto expectColor = [&](const std::array<uint8,4>& px, uint8 r, uint8 g, uint8 b, uint8 a, const char* ctx) {
-        if (isBGRA) {
-            EXPECT_EQ(px[0], b) << ctx << " (B)";
-            EXPECT_EQ(px[1], g) << ctx << " (G)";
-            EXPECT_EQ(px[2], r) << ctx << " (R)";
-            EXPECT_EQ(px[3], a) << ctx << " (A)";
-        } else {
-            EXPECT_EQ(px[0], r) << ctx << " (R)";
-            EXPECT_EQ(px[1], g) << ctx << " (G)";
-            EXPECT_EQ(px[2], b) << ctx << " (B)";
-            EXPECT_EQ(px[3], a) << ctx << " (A)";
-        }
-    };
+    bool bgra = isBGRAFormat(m_swapchain->getFormat());
+    const StaticArray<uint8,4> red   = {255,0,0,255};
+    const StaticArray<uint8,4> black = {0,0,0,255};
 
     // Compute screen-space vertex positions derived from the CPU vertex data (mirrors shader path)
     struct Int2 { int x; int y; };
@@ -538,27 +506,17 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
 
     // Interior sample points via barycentric combos (weights all positive and sum to 1)
     struct W { float a,b,c; const char* tag; };
-    const std::array<W,4> baryInside = { W{1.f/3.f, 1.f/3.f, 1.f/3.f, "centroid"},
+    const StaticArray<W,4> baryInside = { W{1.f/3.f, 1.f/3.f, 1.f/3.f, "centroid"},
                                          W{0.55f, 0.25f, 0.20f, "near top"},
                                          W{0.20f, 0.55f, 0.25f, "lower left"},
                                          W{0.25f, 0.20f, 0.55f, "lower right"} };
-    int redCount = 0;
     for (auto w : baryInside) {
         float fx = w.a*sv0.x + w.b*sv1.x + w.c*sv2.x;
         float fy = w.a*sv0.y + w.b*sv1.y + w.c*sv2.y;
         uint32_t x = (uint32_t)std::clamp<int>((int)std::lround(fx), 0, width-1);
         uint32_t y = (uint32_t)std::clamp<int>((int)std::lround(fy), 0, height-1);
-        auto px = getPixel(x,y);
-        uint8 r = isBGRA ? px[2] : px[0];
-        uint8 g = px[1];
-        uint8 b = isBGRA ? px[0] : px[2];
-        if (r > 200 && g < 40 && b < 40) {
-            redCount++;
-        } else {
-            ADD_FAILURE() << "Interior sample not red: " << w.tag << " at (" << x << "," << y << ")";
-        }
+        expectPixel(imageData, width, height, x, y, red, bgra, w.tag);
     }
-    EXPECT_GE(redCount, 2) << "Too few interior red samples (" << redCount << ")";
 
     // Outside samples: points just beyond each edge normal direction + corners for sanity
     int minX = std::min(std::min(sv0.x, sv1.x), sv2.x);
@@ -566,7 +524,7 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
     int minY = std::min(std::min(sv0.y, sv1.y), sv2.y);
     int maxY = std::max(std::max(sv0.y, sv1.y), sv2.y);
     struct Outside { int x,y; const char* tag; };
-    const std::array<Outside,7> outsidePts = { Outside{ (minX+maxX)/2, maxY + 12, "below base"},
+    const StaticArray<Outside,7> outsidePts = { Outside{ (minX+maxX)/2, maxY + 12, "below base"},
                                                Outside{ minX - 12, (minY+maxY)/2, "far left"},
                                                Outside{ maxX + 12, (minY+maxY)/2, "far right"},
                                                Outside{ 0,0, "corner TL"},
@@ -576,12 +534,7 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
     for (auto o : outsidePts) {
         int clampedX = std::clamp(o.x, 0, (int)width-1);
         int clampedY = std::clamp(o.y, 0, (int)height-1);
-        auto px = getPixel(clampedX, clampedY);
-        uint8 r = isBGRA ? px[2] : px[0];
-        uint8 g = px[1];
-        uint8 b = isBGRA ? px[0] : px[2];
-        EXPECT_TRUE(r < 40 && g < 40 && b < 40)
-            << "Outside sample not black: " << o.tag << " at (" << clampedX << "," << clampedY << ")";
+    expectPixel(imageData, width, height, (uint32)clampedX, (uint32)clampedY, black, bgra, o.tag);
     }
 }
 

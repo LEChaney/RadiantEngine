@@ -112,6 +112,12 @@ private:
     void setupDebugMessenger();
     void queryDescriptorBufferProperties();
     void createVmaAllocator();
+
+    // Refactored logical device helpers
+    uint32 findGraphicsQueueFamily() const;
+    // Populates required extensions (ray tracing treated as required). Returns true if ray query is available (optional).
+    bool gatherDeviceExtensions(Array<const char*>& deviceExtensions) const;
+    // (Feature enabling now handled inline in createLogicalDevice to keep interfaces simple.)
     
     ValidationMode m_validationMode = ValidationMode::None;
     VkInstance m_instance{};
