@@ -89,6 +89,114 @@ inline void expectPixel(const Array<uint8>& img, uint32 width, uint32 height,
                         bool bgra, const char* ctx) {
     expectPixel(img, width, height, x, y, colorToRGBA8(expected), bgra, ctx);
 }
+
+// --- Mesh shader test helpers (factored out for reuse) ---
+// These helpers assume presence of the RHI APIs used in the existing MeshShaderTriangleRenderTest.
+// If some calls are not yet implemented, they can be stubbed in the RHI to satisfy the tests later.
+
+struct MeshPipelineResources {
+    UniquePtr<RHIDescriptorSetLayout> setLayout;        // set 0 layout
+    UniquePtr<RHIPipelineLayout> pipelineLayout;        // pipeline layout
+    UniquePtr<RHIDescriptorBuffer> descriptorBuffer;    // backing descriptor buffer
+    UniquePtr<RHIShaderModule> meshShader;              // mesh stage shader
+    UniquePtr<RHIShaderModule> fragShader;              // fragment stage shader
+    UniquePtr<RHIPipeline> graphicsPipeline;            // final graphics pipeline
+};
+
+struct MeshTriangleResources {
+    UniquePtr<RHIBuffer> vertexBuffer;
+    UniquePtr<RHIBuffer> indexBuffer;
+    RHIDescriptorSet descriptorSet; // allocated from descriptor buffer
+    uint32 indexCount = 0;
+    MeshTriangleResources(UniquePtr<RHIBuffer>&& vb,
+                          UniquePtr<RHIBuffer>&& ib,
+                          RHIDescriptorSet&& set,
+                          uint32 count)
+        : vertexBuffer(std::move(vb)), indexBuffer(std::move(ib)), descriptorSet(std::move(set)), indexCount(count) {}
+};
+
+struct MeshPushConstants {
+    glm::vec4 color; // Only color for now
+};
+
+MeshPipelineResources createMeshPipelineForColorTriangles(RHIContext* ctx, RHIFormat colorFormat,
+                                                          const Path& meshShaderPath,
+                                                          const Path& fragShaderPath) {
+    MeshPipelineResources out{};
+
+    // Descriptor set layout (set0: binding0 vertex buffer addr, binding1 index buffer addr)
+    RHIDescriptorSetLayoutBuilder setLayoutBuilder(ctx);
+    setLayoutBuilder
+        .addBinding(0, RHIDescriptorType::StorageBuffer, RHIShaderStage::Mesh)
+        .addBinding(1, RHIDescriptorType::StorageBuffer, RHIShaderStage::Mesh);
+    out.setLayout = setLayoutBuilder.build(RHIShaderStage::Mesh);
+
+    // Descriptor buffer
+    out.descriptorBuffer = ctx->createDescriptorBuffer({ .sizeBytes = 32 * 1024 });
+
+    // Pipeline layout
+    RHIPipelineLayoutBuilder plBuilder(ctx);
+    plBuilder.addDescriptorSetLayout(out.setLayout.get());
+    plBuilder.addPushConstantRange(RHIShaderStage::Mesh | RHIShaderStage::Fragment, 0, sizeof(MeshPushConstants));
+    out.pipelineLayout = plBuilder.build();
+
+    // Shaders
+    out.meshShader = ctx->createShaderModule(meshShaderPath);
+    out.fragShader = ctx->createShaderModule(fragShaderPath);
+
+    // Graphics pipeline (mesh + fragment)
+    RHIGraphicsPipelineDescriptor gpDesc {
+        .layout = out.pipelineLayout.get(),
+        .meshShader = out.meshShader.get(),
+        .fragmentShader = out.fragShader.get(),
+        .colorFormat = colorFormat
+        // Depth state configured later per test via hypothetical dynamic state or default enable.
+    };
+    out.graphicsPipeline = ctx->createGraphicsPipeline(gpDesc);
+    return out;
+}
+
+MeshTriangleResources createMeshTriangleResources(RHIContext* ctx, MeshPipelineResources& pipe,
+                                                  const Array<glm::vec4>& positions, // vec4 pos
+                                                  const Array<uint32_t>& indices) {
+    const size_t vSize = positions.size() * sizeof(glm::vec4);
+    auto vbuf = ctx->createBuffer(vSize,
+        RHIBufferUsage::VertexBuffer | RHIBufferUsage::StorageBuffer | RHIBufferUsage::ShaderDeviceAddress,
+        RHIMemoryProperty::HostVisible | RHIMemoryProperty::HostCoherent);
+    void* vm = vbuf->map();
+    std::memcpy(vm, positions.data(), vSize);
+    vbuf->unmap();
+
+    const size_t iSize = indices.size() * sizeof(uint32_t);
+    auto ibuf = ctx->createBuffer(iSize,
+        RHIBufferUsage::IndexBuffer | RHIBufferUsage::StorageBuffer | RHIBufferUsage::ShaderDeviceAddress,
+        RHIMemoryProperty::HostVisible | RHIMemoryProperty::HostCoherent);
+    void* im = ibuf->map();
+    std::memcpy(im, indices.data(), iSize);
+    ibuf->unmap();
+    uint32 count = (uint32)indices.size();
+
+    auto set = pipe.descriptorBuffer->allocateSet(pipe.setLayout.get(), "MeshTriangleSet");
+    set
+        .writeStorageBuffer(0, 0, vbuf->createSlice())
+        .writeStorageBuffer(1, 0, ibuf->createSlice())
+        .flush();
+
+    return MeshTriangleResources(std::move(vbuf), std::move(ibuf), std::move(set), count);
+}
+
+void recordDrawMeshTriangle(RHICommandBuffer* cmd, const MeshPipelineResources& pipe,
+                            const MeshTriangleResources& tri, const glm::vec4& color) {
+    MeshPushConstants pc{ color };
+    cmd->bindGraphicsPipeline(pipe.graphicsPipeline.get());
+    cmd->bindDescriptorBuffers({ pipe.descriptorBuffer.get() });
+    cmd->bindDescriptorSets({ { .setIndex = 0, .set = tri.descriptorSet } },
+        pipe.pipelineLayout.get(), RHIPipelineBindPoint::Graphics);
+    cmd->pushConstants(pipe.pipelineLayout.get(), RHIShaderStage::Mesh | RHIShaderStage::Fragment,
+        0, sizeof(MeshPushConstants), &pc);
+    // Mesh shader path uses dispatchMesh(1,1,1) to emit primitives based on buffers.
+    cmd->dispatchMesh(1,1,1);
+}
 }
 
 // Parameterized fixture for validation modes
@@ -338,179 +446,132 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
 }
 
 TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
-    struct Vertex { glm::vec4 pos; }; // position (x,y,z)
-    const StaticArray<Vertex,3> kVertices = { Vertex{{ 0.0f,  0.6f, 0.0f, 1.0f}},  // top
-                                             Vertex{{-0.6f, -0.6f, 0.0f, 1.0f}},  // left
-                                             Vertex{{ 0.6f, -0.6f, 0.0f, 1.0f}}}; // right
-    // Indices reordered for CCW winding in screen space (required if back-face culling enabled)
-    const StaticArray<uint32_t,3> kIndices = {0,2,1};
-
-    // Create host-visible buffers with device address capability
-    auto vbuf = m_ctx->createBuffer(sizeof(kVertices),
-        RHIBufferUsage::VertexBuffer | RHIBufferUsage::StorageBuffer | RHIBufferUsage::ShaderDeviceAddress,
-        RHIMemoryProperty::HostVisible | RHIMemoryProperty::HostCoherent);
-    ASSERT_NE(vbuf, nullptr);
-    auto ibuf = m_ctx->createBuffer(sizeof(kIndices),
-        RHIBufferUsage::IndexBuffer | RHIBufferUsage::StorageBuffer | RHIBufferUsage::ShaderDeviceAddress,
-        RHIMemoryProperty::HostVisible | RHIMemoryProperty::HostCoherent);
-    ASSERT_NE(ibuf, nullptr);
-
-    // Upload data
-    {
-        void* vm = vbuf->map(); ASSERT_NE(vm, nullptr);
-        std::memcpy(vm, kVertices.data(), kVertices.size()*sizeof(Vertex));
-        vbuf->unmap();
-        void* im = ibuf->map(); ASSERT_NE(im, nullptr);
-        std::memcpy(im, kIndices.data(), kIndices.size()*sizeof(uint32_t));
-        ibuf->unmap();
-    }
-
-    // Push constants: only color now
-    struct MeshDrawParamsPC {
-        glm::vec4 color; // 16B
-    } params{};
-    params.color = {1,0,0,1};
-    static_assert(sizeof(MeshDrawParamsPC) <= 32, "Push constant struct too large");
-
-    // 1. Descriptor set layout (set 0: binding0 vertex device address, binding1 index device address)
-    RHIDescriptorSetLayoutBuilder setLayoutBuilder(m_ctx.get());
-    setLayoutBuilder
-        .addBinding(0, RHIDescriptorType::StorageBuffer, RHIShaderStage::Mesh)
-        .addBinding(1, RHIDescriptorType::StorageBuffer, RHIShaderStage::Mesh);
-    auto meshSetLayout = setLayoutBuilder.build(RHIShaderStage::Mesh);
-    ASSERT_NE(meshSetLayout, nullptr);
-
-    // 2. Descriptor buffer + set (write only 64-bit addresses, not entire buffers)
-    auto descBuffer = m_ctx->createDescriptorBuffer({ .sizeBytes = 16 * 1024 });
-    ASSERT_NE(descBuffer, nullptr);
-    auto meshSet = descBuffer->allocateSet(meshSetLayout.get(), "MeshTriangleSet");
-    ASSERT_TRUE(meshSet.isValid());
-    meshSet.writeStorageBuffer(0, 0, vbuf->createSlice())
-           .writeStorageBuffer(1, 0, ibuf->createSlice())
-           .flush();
-
-    // 3. Pipeline layout
-    RHIPipelineLayoutBuilder plBuilder(m_ctx.get());
-    plBuilder.addDescriptorSetLayout(meshSetLayout.get());
-    plBuilder.addPushConstantRange(RHIShaderStage::Mesh | RHIShaderStage::Fragment, 0, sizeof(MeshDrawParamsPC));
-    auto pipelineLayout = plBuilder.build();
-    ASSERT_NE(pipelineLayout, nullptr);
-
-    // 4. Shader modules (hypothetical): mesh shader consumes TrianglePushConstants to emit triangle
-    Path meshShaderPath = "../shaders/colored_triangle.ms.slang.spv";       // Placeholder path (naming TBD)
-    Path fragmentShaderPath = "../shaders/colored_triangle.ps.slang.spv";   // Could reuse existing fragment shader variant
-    auto meshShader = m_ctx->createShaderModule(meshShaderPath);
-    auto fragShader = m_ctx->createShaderModule(fragmentShaderPath);
-    ASSERT_NE(meshShader, nullptr);
-    ASSERT_NE(fragShader, nullptr);
-
-    // 5. Graphics pipeline descriptor (mesh+fragment)
-    RHIGraphicsPipelineDescriptor gpDesc {
-        .layout = pipelineLayout.get(),
-        .meshShader = meshShader.get(),
-        .fragmentShader = fragShader.get(),
-        .colorFormat = m_swapchain->getFormat()
+    // Triangle geometry (vec4 positions)
+    Array<glm::vec4> positions = {
+        { 0.0f,  0.6f, 0.0f, 1.0f},  // top
+        {-0.6f, -0.6f, 0.0f, 1.0f},  // left
+        { 0.6f, -0.6f, 0.0f, 1.0f}   // right
     };
-    // Hypothetical API call:
-    UniquePtr<RHIPipeline> graphicsPipeline = m_ctx->createGraphicsPipeline(gpDesc);
-    ASSERT_NE(graphicsPipeline, nullptr);
+    Array<uint32_t> indices = {0,2,1}; // CCW
 
-    // 6. Acquire frame from frame manager
+    Path meshShaderPath = "../shaders/colored_triangle.ms.slang.spv";
+    Path fragmentShaderPath = "../shaders/colored_triangle.ps.slang.spv";
+    auto pipelineRes = createMeshPipelineForColorTriangles(m_ctx.get(), m_swapchain->getFormat(),
+        meshShaderPath, fragmentShaderPath);
+    ASSERT_NE(pipelineRes.graphicsPipeline, nullptr);
+
+    auto triRes = createMeshTriangleResources(m_ctx.get(), pipelineRes, positions, indices);
+    ASSERT_TRUE(triRes.descriptorSet.isValid());
+
+    // Acquire frame
     auto frame = m_frameManager->acquireFrame();
     ASSERT_NE(frame.cmd, nullptr);
-    ASSERT_NE(frame.swapImgs.color, nullptr);
-    ASSERT_NE(frame.swapImgs.colorView, nullptr);
-
-    // 7. Record commands (implicit cmd->begin() done by FrameManager if that's the pattern)
-    // Clear background to black
     frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::TransferDst);
     frame.cmd->clearColor(frame.swapImgs.color, glm::vec4(0,0,0,1));
     frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::ColorAttachment);
-
-    // Begin dynamic rendering once the swap image has been prepped
     m_frameManager->beginDynRendering(frame);
-
-    // Bind pipeline, descriptor buffer & set, then push color
-    frame.cmd->bindGraphicsPipeline(graphicsPipeline.get());
-    frame.cmd->bindDescriptorBuffers({descBuffer.get()});
-    frame.cmd->bindDescriptorSets({
-        { .setIndex = 0, .set = meshSet }
-    }, pipelineLayout.get(), RHIPipelineBindPoint::Graphics);
-    frame.cmd->pushConstants(pipelineLayout.get(), RHIShaderStage::Mesh | RHIShaderStage::Fragment,
-        0, sizeof(MeshDrawParamsPC), &params);
-
-    // Dispatch one mesh workgroup: mesh shader uses device addresses to fetch vertices / indices
-    frame.cmd->dispatchMesh(1, 1, 1);
-
-    // End dynamic rendering
+    recordDrawMeshTriangle(frame.cmd, pipelineRes, triRes, {1,0,0,1});
     m_frameManager->endDynRendering(frame);
-
-    // Prepare for CPU readback
     frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::TransferSrc);
-    // Then transition to Present after readback submission (we can transition later again if needed)
-
-    // 8. Submit (choose appropriate pipeline stage masks). We waited on imageAvailable semaphore earlier.
     m_frameManager->submitAndPresent(frame, {
         .queue = m_ctx->getGraphicsQueue(),
         .waitAcquireStage = RHIPipelineStage::ColorAttachmentOutput,
-        .signalPresentStage = RHIPipelineStage::ColorAttachmentOutput
-    });
+        .signalPresentStage = RHIPipelineStage::ColorAttachmentOutput });
 
-    // 9. Read back the image
+    // Readback & validate a few pixels roughly inside triangle & outside
     uint32 width = frame.swapImgs.color->getWidth();
     uint32 height = frame.swapImgs.color->getHeight();
-    Array<uint8> imageData;
-    bool readBackOk = RHI::readImageToCpu(m_ctx.get(), frame.swapImgs.color,
-        width, height, imageData);
-    ASSERT_TRUE(readBackOk);
-    ASSERT_EQ(imageData.size(), width * height * 4);
-
+    Array<uint8> imageData; ASSERT_TRUE(RHI::readImageToCpu(m_ctx.get(), frame.swapImgs.color, width, height, imageData));
+    ASSERT_EQ(imageData.size(), width*height*4);
     bool bgra = isBGRAFormat(m_swapchain->getFormat());
     const StaticArray<uint8,4> red   = {255,0,0,255};
     const StaticArray<uint8,4> black = {0,0,0,255};
+    auto toScreen = [&](const glm::vec2& p) {
+        uint32 x = (uint32)std::clamp<int>((int)std::lround((p.x*0.5f+0.5f)*width),0,(int)width-1);
+        uint32 y = (uint32)std::clamp<int>((int)std::lround((p.y*0.5f+0.5f)*height),0,(int)height-1);
+        return std::pair<uint32,uint32>{x,y}; };
+    for (glm::vec2 sample : { glm::vec2{0.f,0.f}, glm::vec2{-0.2f,-0.2f}, glm::vec2{0.2f,-0.2f} }) {
+        auto [sx,sy] = toScreen(sample); expectPixel(imageData,width,height,sx,sy,red,bgra,"triangle inside"); }
+    for (glm::vec2 sample : { glm::vec2{-0.9f,-0.9f}, glm::vec2{0.9f,0.9f} }) {
+        auto [sx,sy] = toScreen(sample); expectPixel(imageData,width,height,sx,sy,black,bgra,"triangle outside"); }
+}
 
-    // Compute screen-space vertex positions derived from the CPU vertex data (mirrors shader path)
-    struct Int2 { int x; int y; };
-    auto toScreen = [&](const glm::vec3& p) -> Int2 {
-        float sx = (p.x * 0.5f + 0.5f) * static_cast<float>(width);
-        float sy = (p.y * 0.5f + 0.5f) * static_cast<float>(height); // Vulkan: origin at top-left
-        return Int2{ (int)std::lround(sx), (int)std::lround(sy) };
+TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderDepthTwoTrianglesTest) {
+    // Render two triangles overlapping in screen space with different depths and verify depth test keeps nearer triangle.
+    // Geometry: near (red) drawn FIRST, far (green) drawn SECOND. Correct depth test => overlap shows red.
+    Array<glm::vec4> nearPositions = {
+        {-0.6f, -0.4f, 0.2f, 1.0f},
+        { 0.0f,  0.6f, 0.2f, 1.0f},
+        { 0.6f, -0.4f, 0.2f, 1.0f}
     };
-    Int2 sv0 = toScreen(kVertices[0].pos);
-    Int2 sv1 = toScreen(kVertices[1].pos);
-    Int2 sv2 = toScreen(kVertices[2].pos);
+    Array<glm::vec4> farPositions = {
+        {-0.2f, -0.4f, 0.8f, 1.0f},
+        { 0.4f,  0.6f, 0.8f, 1.0f},
+        { 1.0f, -0.4f, 0.8f, 1.0f}
+    };
+    Array<uint32_t> indices = {0,2,1}; // CCW
 
-    // Interior sample points via barycentric combos (weights all positive and sum to 1)
-    struct W { float a,b,c; const char* tag; };
-    const StaticArray<W,4> baryInside = { W{1.f/3.f, 1.f/3.f, 1.f/3.f, "centroid"},
-                                         W{0.55f, 0.25f, 0.20f, "near top"},
-                                         W{0.20f, 0.55f, 0.25f, "lower left"},
-                                         W{0.25f, 0.20f, 0.55f, "lower right"} };
-    for (auto w : baryInside) {
-        float fx = w.a*sv0.x + w.b*sv1.x + w.c*sv2.x;
-        float fy = w.a*sv0.y + w.b*sv1.y + w.c*sv2.y;
-        uint32_t x = (uint32_t)std::clamp<int>((int)std::lround(fx), 0, width-1);
-        uint32_t y = (uint32_t)std::clamp<int>((int)std::lround(fy), 0, height-1);
-        expectPixel(imageData, width, height, x, y, red, bgra, w.tag);
+    Path meshShaderPath = "../shaders/colored_triangle.ms.slang.spv";
+    Path fragmentShaderPath = "../shaders/colored_triangle.ps.slang.spv";
+    auto pipelineRes = createMeshPipelineForColorTriangles(m_ctx.get(), m_swapchain->getFormat(),
+        meshShaderPath, fragmentShaderPath);
+    ASSERT_NE(pipelineRes.graphicsPipeline, nullptr);
+
+    auto nearTri = createMeshTriangleResources(m_ctx.get(), pipelineRes, nearPositions, indices);
+    auto farTri  = createMeshTriangleResources(m_ctx.get(), pipelineRes, farPositions, indices);
+    ASSERT_TRUE(nearTri.descriptorSet.isValid());
+    ASSERT_TRUE(farTri.descriptorSet.isValid());
+
+    auto frame = m_frameManager->acquireFrame();
+    ASSERT_NE(frame.cmd, nullptr);
+    frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::TransferDst);
+    frame.cmd->clearColor(frame.swapImgs.color, glm::vec4(0,0,0,1));
+    frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::ColorAttachment);
+    m_frameManager->beginDynRendering(frame); // Assumes default depth attachment with depth test/write enabled.
+    // Draw near first (red)
+    recordDrawMeshTriangle(frame.cmd, pipelineRes, nearTri, {1,0,0,1});
+    // Draw far second (green) - should be occluded where overlapping
+    recordDrawMeshTriangle(frame.cmd, pipelineRes, farTri, {0,1,0,1});
+    m_frameManager->endDynRendering(frame);
+    frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::TransferSrc);
+    m_frameManager->submitAndPresent(frame, {
+        .queue = m_ctx->getGraphicsQueue(),
+        .waitAcquireStage = RHIPipelineStage::ColorAttachmentOutput,
+        .signalPresentStage = RHIPipelineStage::ColorAttachmentOutput });
+
+    uint32 width = frame.swapImgs.color->getWidth();
+    uint32 height = frame.swapImgs.color->getHeight();
+    Array<uint8> imageData; ASSERT_TRUE(RHI::readImageToCpu(m_ctx.get(), frame.swapImgs.color, width, height, imageData));
+    ASSERT_EQ(imageData.size(), width*height*4);
+    bool bgra = isBGRAFormat(m_swapchain->getFormat());
+    const StaticArray<uint8,4> red   = {255,0,0,255};
+    const StaticArray<uint8,4> green = {0,255,0,255};
+    const StaticArray<uint8,4> black = {0,0,0,255};
+
+    auto ndcToPixel = [&](float nx, float ny){
+        uint32 x = (uint32)std::clamp<int>((int)std::lround((nx*0.5f+0.5f)*width),0,(int)width-1);
+        uint32 y = (uint32)std::clamp<int>((int)std::lround((ny*0.5f+0.5f)*height),0,(int)height-1);
+        return std::pair<uint32,uint32>{x,y}; };
+
+    // Sample inside near-only region (-0.5,0)
+    {
+        auto [x,y] = ndcToPixel(-0.5f, 0.0f);
+        expectPixel(imageData,width,height,x,y,red,bgra,"near-only region");
     }
-
-    // Outside samples: points just beyond each edge normal direction + corners for sanity
-    int minX = std::min(std::min(sv0.x, sv1.x), sv2.x);
-    int maxX = std::max(std::max(sv0.x, sv1.x), sv2.x);
-    int minY = std::min(std::min(sv0.y, sv1.y), sv2.y);
-    int maxY = std::max(std::max(sv0.y, sv1.y), sv2.y);
-    struct Outside { int x,y; const char* tag; };
-    const StaticArray<Outside,7> outsidePts = { Outside{ (minX+maxX)/2, maxY + 12, "below base"},
-                                               Outside{ minX - 12, (minY+maxY)/2, "far left"},
-                                               Outside{ maxX + 12, (minY+maxY)/2, "far right"},
-                                               Outside{ 0,0, "corner TL"},
-                                               Outside{ (int)width-1,0, "corner TR"},
-                                               Outside{ 0,(int)height-1, "corner BL"},
-                                               Outside{ (int)width-1,(int)height-1, "corner BR"} };
-    for (auto o : outsidePts) {
-        int clampedX = std::clamp(o.x, 0, (int)width-1);
-        int clampedY = std::clamp(o.y, 0, (int)height-1);
-    expectPixel(imageData, width, height, (uint32)clampedX, (uint32)clampedY, black, bgra, o.tag);
+    // Sample inside far-only region (0.85,0) expected green
+    {
+        auto [x,y] = ndcToPixel(0.85f, 0.0f);
+        expectPixel(imageData,width,height,x,y,green,bgra,"far-only region");
+    }
+    // Sample overlapping region (0.2,0) should be red (near triangle not overwritten by far draw)
+    {
+        auto [x,y] = ndcToPixel(0.2f, 0.0f);
+        expectPixel(imageData,width,height,x,y,red,bgra,"overlap region depth");
+    }
+    // Outside both (-0.9,-0.9) should be background black
+    {
+        auto [x,y] = ndcToPixel(-0.9f, -0.9f);
+        expectPixel(imageData,width,height,x,y,black,bgra,"outside region");
     }
 }
 
