@@ -2,6 +2,12 @@
 
 namespace RHI {
 
+struct RHIDescriptorSetBindingDesc {
+    uint32 binding = 0;
+    RHIDescriptorType type = RHIDescriptorType::Sampler;
+    RHIShaderStageFlags stages = 0;
+};
+
 class RHIDescriptorSetLayout {
 public:
     virtual ~RHIDescriptorSetLayout() = default;

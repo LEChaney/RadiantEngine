@@ -5,15 +5,12 @@
 #include "rhi/interface/swapchain/RHISwapchain.h"
 #include "renderer/FrameManager.h"
 #include "rhi/interface/descriptor/RHIDescriptorWriter.h"
-#include "rhi/interface/descriptor/RHIDescriptorSetLayoutBuilder.h"
 #include "rhi/interface/descriptor/RHIDescriptorSetLayout.h"
 #include "rhi/interface/descriptor/RHIDescriptorBuffer.h"
 #include "rhi/interface/descriptor/RHIDescriptorSet.h"
-#include "rhi/interface/pipeline/RHIPipelineLayoutBuilder.h"
 #include "rhi/interface/pipeline/RHIPipelineLayout.h"
 #include "rhi/interface/pipeline/RHIShaderModule.h"
 #include "rhi/interface/pipeline/RHIPipeline.h"
-#include "rhi/interface/sync/RHIFence.h"
 #include "rhi/interface/image/RHIImageUtils.h"
 #include "rhi/interface/buffer/RHIBuffer.h" // for vertex/index buffers (device address path)
 #include "fmt/format.h"
@@ -125,20 +122,23 @@ MeshPipelineResources createMeshPipelineForColorTriangles(RHIContext* ctx, RHIFo
     MeshPipelineResources out{};
 
     // Descriptor set layout (set0: binding0 vertex buffer addr, binding1 index buffer addr)
-    RHIDescriptorSetLayoutBuilder setLayoutBuilder(ctx);
-    setLayoutBuilder
-        .addBinding(0, RHIDescriptorType::StorageBuffer, RHIShaderStage::Mesh)
-        .addBinding(1, RHIDescriptorType::StorageBuffer, RHIShaderStage::Mesh);
-    out.setLayout = setLayoutBuilder.build(RHIShaderStage::Mesh);
+    out.setLayout = ctx->createDescriptorSetLayout({
+        { 0, RHIDescriptorType::StorageBuffer, RHIShaderStage::Mesh },
+        { 1, RHIDescriptorType::StorageBuffer, RHIShaderStage::Mesh }
+    });
 
     // Descriptor buffer
     out.descriptorBuffer = ctx->createDescriptorBuffer({ .sizeBytes = 32 * 1024 });
 
     // Pipeline layout
-    RHIPipelineLayoutBuilder plBuilder(ctx);
-    plBuilder.addDescriptorSetLayout(out.setLayout.get());
-    plBuilder.addPushConstantRange(RHIShaderStage::Mesh | RHIShaderStage::Fragment, 0, sizeof(MeshPushConstants));
-    out.pipelineLayout = plBuilder.build();
+    out.pipelineLayout = ctx->createPipelineLayout({
+        .setLayouts = { out.setLayout.get() },
+        .pushConstantRanges = {{
+            .stages = RHIShaderStage::Mesh | RHIShaderStage::Fragment,
+            .offset = 0,
+            .size = sizeof(MeshPushConstants)
+        }}
+    });
 
     // Shaders
     out.meshShader = ctx->createShaderModule(meshShaderPath);
@@ -361,16 +361,20 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
 
 TEST_P(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     // 1. Descriptor set layout (set 0, binding 0 = storage image)
-    RHIDescriptorSetLayoutBuilder setLayoutBuilder(m_ctx.get());
-    setLayoutBuilder.addBinding(0, RHIDescriptorType::StorageImage);
-    auto storageSetLayout = setLayoutBuilder.build(RHIShaderStage::Compute);
+    auto storageSetLayout = m_ctx->createDescriptorSetLayout({
+        { 0, RHIDescriptorType::StorageImage, RHIShaderStage::Compute }
+    });
     ASSERT_NE(storageSetLayout, nullptr);
 
     // 2. Pipeline layout
-    RHIPipelineLayoutBuilder plBuilder(m_ctx.get());
-    plBuilder.addDescriptorSetLayout(storageSetLayout.get());
-    plBuilder.addPushConstantRange(RHIShaderStage::Compute, 0, sizeof(glm::vec4)); // Push constant for clear color
-    auto pipelineLayout = plBuilder.build();
+    auto pipelineLayout = m_ctx->createPipelineLayout({
+        .setLayouts = { storageSetLayout.get() },
+        .pushConstantRanges = { {
+            .stages = RHIShaderStage::Compute,
+            .offset = 0,
+            .size = sizeof(glm::vec4)
+        } }
+    });
     ASSERT_NE(pipelineLayout, nullptr);
 
     // 3. Compute shader + pipeline

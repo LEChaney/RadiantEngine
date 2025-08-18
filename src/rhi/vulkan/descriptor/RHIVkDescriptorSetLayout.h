@@ -10,7 +10,7 @@ class RHIVkContext;
 
 class RHIVkDescriptorSetLayout : public RHIDescriptorSetLayout {
 public:
-    static UniquePtr<RHIVkDescriptorSetLayout> createUnique(RHIVkContext* context, VkDescriptorSetLayout layout);
+    static UniquePtr<RHIVkDescriptorSetLayout> createUnique(RHIVkContext* context, InitializerList<RHIDescriptorSetBindingDesc> bindings);
 
     ~RHIVkDescriptorSetLayout() override;
 
@@ -22,9 +22,9 @@ public:
     VkDescriptorSetLayout getVk() const { return m_layout; }
 
 private:
-    RHIVkDescriptorSetLayout(RHIVkContext* context, VkDescriptorSetLayout layout);
+    RHIVkDescriptorSetLayout(RHIVkContext* ctx, VkDescriptorSetLayout layout);
     
-    RHIVkContext* m_context = nullptr;
+    RHIVkContext* m_ctx = nullptr;
     VkDescriptorSetLayout m_layout = VK_NULL_HANDLE;
 };
 

@@ -8,7 +8,7 @@ class RHIVkContext;
 
 class RHIVkPipelineLayout : public RHIPipelineLayout {
 public:
-    static UniquePtr<RHIVkPipelineLayout> createUnique(RHIVkContext* context, VkPipelineLayout layout);
+    static UniquePtr<RHIVkPipelineLayout> createUnique(RHIVkContext* ctx, const RHIPipelineLayoutCreateInfo& info);
 
     ~RHIVkPipelineLayout() override;
 
@@ -20,9 +20,9 @@ public:
     VkPipelineLayout getVk() const { return m_layout; }
 
 private:
-    RHIVkPipelineLayout(RHIVkContext* context, VkPipelineLayout layout);
+    RHIVkPipelineLayout(RHIVkContext* ctx, VkPipelineLayout layout);
 
-    RHIVkContext* m_context = nullptr;
+    RHIVkContext* m_ctx = nullptr;
     VkPipelineLayout m_layout = VK_NULL_HANDLE;
 };
 

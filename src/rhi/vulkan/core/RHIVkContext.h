@@ -1,17 +1,13 @@
 #pragma once
 #include "rhi/interface/core/RHIContext.h"
 #include "core/CoreDefs.h"
-#include "rhi/interface/pipeline/RHIPipelineLayoutBuilder.h"
 #include "rhi/vulkan/core/RHIVulkanInclude.h"
 #include <functional>
 #include <vk_mem_alloc.h>
 
 namespace RHI {
 class RHIDescriptorBufferCreateInfo;
-// Forward declare builder ops
 struct RHIDescriptorWriterOps;
-struct RHIDescriptorSetLayoutBuilderOps;
-struct RHIPipelineLayoutBuilderOps;
 }
 
 namespace RHI::Vulkan {
@@ -26,7 +22,6 @@ class RHIVkImage;
 class RHIVkShaderModule;
 class RHIVkPipeline;
 class RHIVkDescriptorBuffer;
-class RHIVkPipelineLayoutBuilder;
 
 class RHIVkContext : public RHIContext {
 public:
@@ -65,6 +60,8 @@ public:
     UniquePtr<RHIImage> createImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsageFlags usage, RHIMemoryPropertyFlags memProps) override;
     UniquePtr<RHIShaderModule> createShaderModule(const Path& spvFilePath) override;
     UniquePtr<RHIShaderModule> createShaderModule(const Array<uint32>& shaderCode) override;
+    UniquePtr<RHIDescriptorSetLayout> createDescriptorSetLayout(InitializerList<RHIDescriptorSetBindingDesc> bindings) override;
+    UniquePtr<RHIPipelineLayout> createPipelineLayout(const RHIPipelineLayoutCreateInfo& info) override;
     UniquePtr<RHIPipeline> createComputePipeline(const RHIComputePipelineDescriptor& desc) override;
     UniquePtr<RHIPipeline> createGraphicsPipeline(const RHIGraphicsPipelineDescriptor& desc) override;
     UniquePtr<RHIDescriptorBuffer> createDescriptorBuffer(const RHIDescriptorBufferCreateInfo& createInfo) override;
@@ -72,8 +69,6 @@ public:
 
     // Backend ops table providers for value types
     const RHIDescriptorWriterOps* getDescriptorWriterOps() const override;
-    const RHIDescriptorSetLayoutBuilderOps* getDescriptorSetLayoutBuilderOps() const override;
-    const RHIPipelineLayoutBuilderOps* getPipelineLayoutBuilderOps() const override;
 
     // Vulkan RHI factory methods
     UniquePtr<RHIVkCommandBuffer> createRhiVkCommandBuffer();

@@ -3,8 +3,8 @@
 #include "rhi/vulkan/command/RHIVkCommandBuffer.h"
 #include "rhi/vulkan/swapchain/RHIVkSwapchain.h"
 #include "rhi/vulkan/buffer/RHIVkBuffer.h"
-#include "rhi/vulkan/descriptor/RHIVkDescriptorSetLayoutBuilder.h"
-#include "rhi/vulkan/pipeline/RHIVkPipelineLayoutBuilder.h"
+#include "rhi/vulkan/descriptor/RHIVkDescriptorSetLayout.h"
+#include "rhi/vulkan/pipeline/RHIVkPipelineLayout.h"
 #include "rhi/vulkan/pipeline/RHIVkShaderModule.h"
 #include "rhi/vulkan/pipeline/RHIVkPipeline.h"
 #include "rhi/vulkan/sync/RHIVkFence.h"
@@ -573,11 +573,12 @@ const RHIDescriptorWriterOps* RHIVkContext::getDescriptorWriterOps() const {
     return getVkDescriptorWriterOps();
 }
 
-const RHIDescriptorSetLayoutBuilderOps* RHIVkContext::getDescriptorSetLayoutBuilderOps() const {
-    return getVkDescriptorSetLayoutBuilderOps();
+UniquePtr<RHIDescriptorSetLayout> RHIVkContext::createDescriptorSetLayout(InitializerList<RHIDescriptorSetBindingDesc> bindings) {
+    return RHIVkDescriptorSetLayout::createUnique(this, bindings);
 }
-const RHIPipelineLayoutBuilderOps* RHIVkContext::getPipelineLayoutBuilderOps() const {
-    return getVkPipelineLayoutBuilderOps();
+
+UniquePtr<RHIPipelineLayout> RHIVkContext::createPipelineLayout(const RHIPipelineLayoutCreateInfo& info) {
+    return RHIVkPipelineLayout::createUnique(this, info);
 }
 
 UniquePtr<RHISwapchain> RHIVkContext::createSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount, RHIImageUsageFlags extraImageUsage) {

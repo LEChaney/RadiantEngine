@@ -1,7 +1,6 @@
 #pragma once
 #include "rhi/interface/core/RHICoreDefs.h"
 #include "core/CoreDefs.h"
-#include "rhi/interface/pipeline/RHIPipeline.h"
 
 class SDL_Window;
 
@@ -17,17 +16,17 @@ class RHIImage;
 class RHIShaderModule;
 class RHIPipeline;
 class RHIDescriptorSet;
-class RHIDescriptorSetLayoutBuilder;
 class RHIDescriptorBuffer;
 class RHIDescriptorBufferCreateInfo;
-class RHIPipelineLayoutBuilder;
-class RHIComputePipelineDescriptor;
 class RHIDescriptorWriter;
+class RHIDescriptorSetLayout;
+class RHIPipelineLayout;
 
-// ops for value-type builders
+struct RHIPipelineLayoutCreateInfo;
+struct RHIDescriptorSetBindingDesc;
+struct RHIGraphicsPipelineDescriptor;
+struct RHIComputePipelineDescriptor;
 struct RHIDescriptorWriterOps;
-struct RHIDescriptorSetLayoutBuilderOps;
-struct RHIPipelineLayoutBuilderOps;
 
 class RHIContext {
 public:
@@ -49,6 +48,8 @@ public:
     virtual UniquePtr<RHIImage> createImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsageFlags usage, RHIMemoryPropertyFlags memProps) = 0;
     virtual UniquePtr<RHIShaderModule> createShaderModule(const Path& spvFilePath) = 0;
     virtual UniquePtr<RHIShaderModule> createShaderModule(const Array<uint32>& shaderCode) = 0;
+    virtual UniquePtr<RHIDescriptorSetLayout> createDescriptorSetLayout(InitializerList<RHIDescriptorSetBindingDesc> bindings) = 0;
+    virtual UniquePtr<RHIPipelineLayout> createPipelineLayout(const RHIPipelineLayoutCreateInfo& info) = 0;
     virtual UniquePtr<RHIPipeline> createComputePipeline(const RHIComputePipelineDescriptor& desc) = 0;
     virtual UniquePtr<RHIPipeline> createGraphicsPipeline(const RHIGraphicsPipelineDescriptor& desc) = 0;
     virtual UniquePtr<RHIDescriptorBuffer> createDescriptorBuffer(const RHIDescriptorBufferCreateInfo& createInfo) = 0;
@@ -57,8 +58,6 @@ public:
 
     // Backend ops table providers for value-types
     virtual const RHIDescriptorWriterOps* getDescriptorWriterOps() const = 0;
-    virtual const RHIDescriptorSetLayoutBuilderOps* getDescriptorSetLayoutBuilderOps() const = 0;
-    virtual const RHIPipelineLayoutBuilderOps* getPipelineLayoutBuilderOps() const = 0;
 
 protected:
     // Only derived context or implementation should create RHIContext objects

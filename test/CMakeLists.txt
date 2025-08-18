@@ -101,11 +101,9 @@ add_executable(RHIVulkanTest
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/sync/RHIVkFence.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/core/RHIVkTypeConversion.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/interface/image/RHIImageUtils.cpp
-    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/descriptor/RHIVkDescriptorSetLayoutBuilder.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/descriptor/RHIVkDescriptorSetLayout.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/descriptor/RHIVkDescriptorBuffer.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/descriptor/RHIVkDescriptorWriter.cpp
-    ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/pipeline/RHIVkPipelineLayoutBuilder.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/pipeline/RHIVkPipelineLayout.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/pipeline/RHIVkShaderModule.cpp
     ${CMAKE_SOURCE_DIR}/src/rhi/vulkan/pipeline/RHIVkPipeline.cpp

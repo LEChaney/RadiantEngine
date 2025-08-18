@@ -6,6 +6,7 @@
 #include <cassert>
 #include <cstdint>
 #include <filesystem>
+#include <initializer_list>
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -62,6 +63,9 @@ using Map = ankerl::unordered_dense::map<Key, T>;
 
 template<typename T>
 using Set = ankerl::unordered_dense::set<T>;
+
+template<typename T>
+using InitializerList = std::initializer_list<T>;
 
 // Generic flags wrapper
 template<typename Enum>
