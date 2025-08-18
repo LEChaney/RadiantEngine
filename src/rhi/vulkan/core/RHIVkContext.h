@@ -55,7 +55,7 @@ public:
     UniquePtr<RHICommandBuffer> createCommandBuffer() override;
     UniquePtr<RHIFence> createFence() override;
     UniquePtr<RHISemaphore> createSemaphore() override;
-    UniquePtr<RHISwapchain> createSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount, RHIImageUsageFlags extraImageUsage = 0) override;
+    UniquePtr<RHISwapchain> createSwapchain(const RHISwapchainCreateInfo& info) override;
     UniquePtr<RHIBuffer> createBuffer(uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps) override;
     UniquePtr<RHIImage> createImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsageFlags usage, RHIMemoryPropertyFlags memProps) override;
     UniquePtr<RHIShaderModule> createShaderModule(const Path& spvFilePath) override;
@@ -74,7 +74,7 @@ public:
     UniquePtr<RHIVkCommandBuffer> createRhiVkCommandBuffer();
     UniquePtr<RHIVkFence> createRhiVkFence();
     UniquePtr<RHIVkSemaphore> createRhiVkSemaphore();
-    UniquePtr<RHIVkSwapchain> createRhiVkSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount, RHIImageUsageFlags extraImageUsage = 0);
+    UniquePtr<RHIVkSwapchain> createRhiVkSwapchain(const RHISwapchainCreateInfo &info);
     UniquePtr<RHIVkBuffer> createRhiVkBuffer(uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps);
     // TODO: Finish implementation of createRhiVkImage
     UniquePtr<RHIVkImage> createRhiVkImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsageFlags usage, RHIMemoryPropertyFlags memProps);

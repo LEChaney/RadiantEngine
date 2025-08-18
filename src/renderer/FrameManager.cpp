@@ -62,8 +62,10 @@ FrameContext FrameManager::acquireFrame() {
     uint32 imageIndex = m_swapchain->acquireNextImage(imgAvailableSemaphore);
     SwapchainImageResources swapchainImage{
         .imageIndex = imageIndex,
-        .color = m_swapchain->getImage(imageIndex),
-        .colorView = m_swapchain->getImageView(imageIndex)
+        .color = m_swapchain->getColorImage(imageIndex),
+        .colorView = m_swapchain->getColorImageView(imageIndex),
+        .depth = m_swapchain->getDepthImage(imageIndex),
+        .depthView = m_swapchain->getDepthImageView(imageIndex)
     };
 
     FrameContext frame{
@@ -101,11 +103,29 @@ void FrameManager::submitAndPresent(const FrameContext& frame, const FrameSubmit
 
 void FrameManager::beginDynRendering(const FrameContext& frame) {
     ASSERT(!m_isDynRendering[frame.frameIndex] && "beginDynRendering called again with matching call to endDynRendering");
+    auto colorLayout = RHIImageLayout::ColorAttachment;
+    auto depthLayout = RHIImageLayout::Undefined;
+    switch (frame.swapImgs.depth->getFormat()) {
+        case RHIFormat::RHI_FORMAT_D32_SFLOAT:
+            depthLayout = RHIImageLayout::DepthAttachment;
+            break;
+        case RHIFormat::RHI_FORMAT_D32_SFLOAT_S8_UINT:
+            depthLayout = RHIImageLayout::DepthStencilAttachment;
+            break;
+        default:
+            ASSERT(false && "Unsupported depth format");
+    }
+    frame.cmd->transitionImageLayout(frame.swapImgs.color, colorLayout);
+    frame.cmd->transitionImageLayout(frame.swapImgs.depth, depthLayout);
     frame.cmd->beginDynRendering({
         .colorAttachments = {{
             .view = frame.swapImgs.colorView,
-            .layout = RHIImageLayout::ColorAttachment
+            .layout = colorLayout
         }},
+        .depthAttachment = {
+            .view = frame.swapImgs.depthView,
+            .layout = depthLayout
+        },
         .renderArea = {
             .width = frame.swapImgs.color->getWidth(),
             .height = frame.swapImgs.color->getHeight()

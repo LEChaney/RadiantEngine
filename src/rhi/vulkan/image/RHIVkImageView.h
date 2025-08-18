@@ -10,7 +10,7 @@ class RHIVkContext;
 
 class RHIVkImageView : public RHI::RHIImageView {
 public:
-    static UniquePtr<RHIVkImageView> createUnique(RHIVkContext* context, RHIVkImage* image);
+    static UniquePtr<RHIVkImageView> createUnique(RHIVkContext* context, RHIVkImage* image, VkImageAspectFlags aspect);
     ~RHIVkImageView() override;
 
     RHIVkImageView(const RHIVkImageView&) = delete;
@@ -27,9 +27,9 @@ public:
     
     
 private:
-    RHIVkImageView(RHIVkContext* context, RHIVkImage* image);
+    RHIVkImageView(RHIVkContext* ctx, RHIVkImage* image, VkImageAspectFlags aspect);
     
-    RHIVkContext* m_context;
+    RHIVkContext* m_ctx;
     VkImageView m_imageView;
     RHIVkImage* m_rhiImage;
 };

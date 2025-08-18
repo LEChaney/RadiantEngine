@@ -2,7 +2,7 @@
 #include "rhi/interface/core/RHICoreDefs.h"
 #include "core/CoreDefs.h"
 
-class SDL_Window;
+struct SDL_Window;
 
 namespace RHI {
 
@@ -22,6 +22,7 @@ class RHIDescriptorWriter;
 class RHIDescriptorSetLayout;
 class RHIPipelineLayout;
 
+struct RHISwapchainCreateInfo;
 struct RHIPipelineLayoutCreateInfo;
 struct RHIDescriptorSetBindingDesc;
 struct RHIGraphicsPipelineDescriptor;
@@ -43,7 +44,7 @@ public:
     virtual UniquePtr<RHICommandBuffer> createCommandBuffer() = 0;
     virtual UniquePtr<RHIFence> createFence() = 0;
     virtual UniquePtr<RHISemaphore> createSemaphore() = 0;
-    virtual UniquePtr<RHISwapchain> createSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 bufferCount, RHIImageUsageFlags extraImageUsage = 0) = 0;
+    virtual UniquePtr<RHISwapchain> createSwapchain(const RHISwapchainCreateInfo& info) = 0;
     virtual UniquePtr<RHIBuffer> createBuffer(uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps) = 0;
     virtual UniquePtr<RHIImage> createImage(uint32 width, uint32 height, RHIFormat format, RHIImageUsageFlags usage, RHIMemoryPropertyFlags memProps) = 0;
     virtual UniquePtr<RHIShaderModule> createShaderModule(const Path& spvFilePath) = 0;

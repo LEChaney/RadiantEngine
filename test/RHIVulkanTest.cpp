@@ -117,6 +117,7 @@ struct MeshPushConstants {
 };
 
 MeshPipelineResources createMeshPipelineForColorTriangles(RHIContext* ctx, RHIFormat colorFormat,
+                                                          RHIFormat depthFormat,
                                                           const Path& meshShaderPath,
                                                           const Path& fragShaderPath) {
     MeshPipelineResources out{};
@@ -149,8 +150,8 @@ MeshPipelineResources createMeshPipelineForColorTriangles(RHIContext* ctx, RHIFo
         .layout = out.pipelineLayout.get(),
         .meshShader = out.meshShader.get(),
         .fragmentShader = out.fragShader.get(),
-        .colorFormat = colorFormat
-        // Depth state configured later per test via hypothetical dynamic state or default enable.
+        .colorFormat = colorFormat,
+        .depthFormat = depthFormat
     };
     out.graphicsPipeline = ctx->createGraphicsPipeline(gpDesc);
     return out;
@@ -238,9 +239,16 @@ protected:
         ASSERT_NE(m_window, nullptr);
 
         // Create swapchain (API assumed: createSwapchain(SDL_Window*, width, height, buffer_count))
-        m_swapchain = m_ctx->createSwapchain(m_window, width, height, k_bufferCount,
-                                                 RHIImageUsage::TransferSrc |  // So we can read back images
-                                                 RHIImageUsage::Storage); // So we can use in compute shaders
+        m_swapchain = m_ctx->createSwapchain({
+            .window = m_window,
+            .width = width,
+            .height = height,
+            .imageCount = k_bufferCount,
+            .depthFormat = RHIFormat::RHI_FORMAT_D32_SFLOAT,
+            .extraColorUsage = RHIImageUsage::TransferSrc // For readback command
+                | RHIImageUsage::TransferDst // For clear command
+                | RHIImageUsage::Storage     // For compute shader usage
+        });
         ASSERT_NE(m_swapchain, nullptr);
         EXPECT_EQ(m_swapchain->imageCount(), k_bufferCount);
         m_frameManager = Renderer::FrameManager::createUnique(m_ctx.get(),
@@ -335,7 +343,7 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
     }
 
     bool checkedAtLeastOneFrame = false;
-    bool isBGRA = isBGRAFormat(m_swapchain->getFormat());
+    bool isBGRA = isBGRAFormat(m_swapchain->getColorFormat());
     for (auto& [frame, clearColor] : savedFrames) {
         auto& frameData = frame;
         if (!frameData.swapImgs.color) {
@@ -442,7 +450,7 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     ASSERT_TRUE(readBackOk) << "Failed to read back image data from GPU";
     ASSERT_EQ(imageData.size(), width * height * 4);
 
-    bool bgra = isBGRAFormat(m_swapchain->getFormat());
+    bool bgra = isBGRAFormat(m_swapchain->getColorFormat());
     StaticArray<uint8,4> expectedGreen = {0,255,0,255};
     expectPixel(imageData, width, height, 0, 0, expectedGreen, bgra, "compute corner TL");
     expectPixel(imageData, width, height, width/2, height/2, expectedGreen, bgra, "compute center");
@@ -460,7 +468,8 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
 
     Path meshShaderPath = "../shaders/colored_triangle.ms.slang.spv";
     Path fragmentShaderPath = "../shaders/colored_triangle.ps.slang.spv";
-    auto pipelineRes = createMeshPipelineForColorTriangles(m_ctx.get(), m_swapchain->getFormat(),
+    auto pipelineRes = createMeshPipelineForColorTriangles(m_ctx.get(),
+        m_swapchain->getColorFormat(), m_swapchain->getDepthFormat(),
         meshShaderPath, fragmentShaderPath);
     ASSERT_NE(pipelineRes.graphicsPipeline, nullptr);
 
@@ -470,13 +479,9 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
     // Acquire frame
     auto frame = m_frameManager->acquireFrame();
     ASSERT_NE(frame.cmd, nullptr);
-    frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::TransferDst);
-    frame.cmd->clearColor(frame.swapImgs.color, glm::vec4(0,0,0,1));
-    frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::ColorAttachment);
     m_frameManager->beginDynRendering(frame);
     recordDrawMeshTriangle(frame.cmd, pipelineRes, triRes, {1,0,0,1});
     m_frameManager->endDynRendering(frame);
-    frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::TransferSrc);
     m_frameManager->submitAndPresent(frame, {
         .queue = m_ctx->getGraphicsQueue(),
         .waitAcquireStage = RHIPipelineStage::ColorAttachmentOutput,
@@ -487,7 +492,7 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
     uint32 height = frame.swapImgs.color->getHeight();
     Array<uint8> imageData; ASSERT_TRUE(RHI::readImageToCpu(m_ctx.get(), frame.swapImgs.color, width, height, imageData));
     ASSERT_EQ(imageData.size(), width*height*4);
-    bool bgra = isBGRAFormat(m_swapchain->getFormat());
+    bool bgra = isBGRAFormat(m_swapchain->getColorFormat());
     const StaticArray<uint8,4> red   = {255,0,0,255};
     const StaticArray<uint8,4> black = {0,0,0,255};
     auto toScreen = [&](const glm::vec2& p) {
@@ -495,29 +500,33 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
         uint32 y = (uint32)std::clamp<int>((int)std::lround((p.y*0.5f+0.5f)*height),0,(int)height-1);
         return std::pair<uint32,uint32>{x,y}; };
     for (glm::vec2 sample : { glm::vec2{0.f,0.f}, glm::vec2{-0.2f,-0.2f}, glm::vec2{0.2f,-0.2f} }) {
-        auto [sx,sy] = toScreen(sample); expectPixel(imageData,width,height,sx,sy,red,bgra,"triangle inside"); }
+        auto [sx,sy] = toScreen(sample);
+        expectPixel(imageData,width,height,sx,sy,red,bgra,"triangle inside"); }
     for (glm::vec2 sample : { glm::vec2{-0.9f,-0.9f}, glm::vec2{0.9f,0.9f} }) {
-        auto [sx,sy] = toScreen(sample); expectPixel(imageData,width,height,sx,sy,black,bgra,"triangle outside"); }
+        auto [sx,sy] = toScreen(sample);
+        expectPixel(imageData,width,height,sx,sy,black,bgra,"triangle outside"); }
 }
 
 TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderDepthTwoTrianglesTest) {
     // Render two triangles overlapping in screen space with different depths and verify depth test keeps nearer triangle.
     // Geometry: near (red) drawn FIRST, far (green) drawn SECOND. Correct depth test => overlap shows red.
     Array<glm::vec4> nearPositions = {
-        {-0.6f, -0.4f, 0.2f, 1.0f},
-        { 0.0f,  0.6f, 0.2f, 1.0f},
-        { 0.6f, -0.4f, 0.2f, 1.0f}
+        {-0.6f, -0.4f, 0.8f, 1.0f},
+        { 0.0f,  0.6f, 0.8f, 1.0f},
+        { 0.6f, -0.4f, 0.8f, 1.0f}
     };
     Array<glm::vec4> farPositions = {
-        {-0.2f, -0.4f, 0.8f, 1.0f},
-        { 0.4f,  0.6f, 0.8f, 1.0f},
-        { 1.0f, -0.4f, 0.8f, 1.0f}
+        {-0.2f, -0.4f, 0.2f, 1.0f},
+        { 0.4f,  0.6f, 0.2f, 1.0f},
+        { 1.0f, -0.4f, 0.2f, 1.0f}
     };
     Array<uint32_t> indices = {0,2,1}; // CCW
 
     Path meshShaderPath = "../shaders/colored_triangle.ms.slang.spv";
     Path fragmentShaderPath = "../shaders/colored_triangle.ps.slang.spv";
-    auto pipelineRes = createMeshPipelineForColorTriangles(m_ctx.get(), m_swapchain->getFormat(),
+    auto pipelineRes = createMeshPipelineForColorTriangles(m_ctx.get(),
+        m_swapchain->getColorFormat(),
+        m_swapchain->getDepthFormat(),
         meshShaderPath, fragmentShaderPath);
     ASSERT_NE(pipelineRes.graphicsPipeline, nullptr);
 
@@ -528,9 +537,6 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderDepthTwoTrianglesTest) {
 
     auto frame = m_frameManager->acquireFrame();
     ASSERT_NE(frame.cmd, nullptr);
-    frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::TransferDst);
-    frame.cmd->clearColor(frame.swapImgs.color, glm::vec4(0,0,0,1));
-    frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::ColorAttachment);
     m_frameManager->beginDynRendering(frame); // Assumes default depth attachment with depth test/write enabled.
     // Draw near first (red)
     recordDrawMeshTriangle(frame.cmd, pipelineRes, nearTri, {1,0,0,1});
@@ -547,7 +553,7 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderDepthTwoTrianglesTest) {
     uint32 height = frame.swapImgs.color->getHeight();
     Array<uint8> imageData; ASSERT_TRUE(RHI::readImageToCpu(m_ctx.get(), frame.swapImgs.color, width, height, imageData));
     ASSERT_EQ(imageData.size(), width*height*4);
-    bool bgra = isBGRAFormat(m_swapchain->getFormat());
+    bool bgra = isBGRAFormat(m_swapchain->getColorFormat());
     const StaticArray<uint8,4> red   = {255,0,0,255};
     const StaticArray<uint8,4> green = {0,255,0,255};
     const StaticArray<uint8,4> black = {0,0,0,255};
@@ -559,17 +565,17 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderDepthTwoTrianglesTest) {
 
     // Sample inside near-only region (-0.5,0)
     {
-        auto [x,y] = ndcToPixel(-0.5f, 0.0f);
+        auto [x,y] = ndcToPixel(-0.1f, 0.0f);
         expectPixel(imageData,width,height,x,y,red,bgra,"near-only region");
     }
     // Sample inside far-only region (0.85,0) expected green
     {
-        auto [x,y] = ndcToPixel(0.85f, 0.0f);
+        auto [x,y] = ndcToPixel(0.75f, 0.0f);
         expectPixel(imageData,width,height,x,y,green,bgra,"far-only region");
     }
     // Sample overlapping region (0.2,0) should be red (near triangle not overwritten by far draw)
     {
-        auto [x,y] = ndcToPixel(0.2f, 0.0f);
+        auto [x,y] = ndcToPixel(0.3f, 0.0f);
         expectPixel(imageData,width,height,x,y,red,bgra,"overlap region depth");
     }
     // Outside both (-0.9,-0.9) should be background black

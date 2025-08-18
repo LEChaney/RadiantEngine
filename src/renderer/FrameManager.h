@@ -21,6 +21,8 @@ struct SwapchainImageResources {
     uint32              imageIndex;
     RHI::RHIImage*      color;
     RHI::RHIImageView*  colorView;
+    RHI::RHIImage*      depth;
+    RHI::RHIImageView*  depthView;
 };
 
 // --- Per-Frame-In-Flight (indexed by currentFrame) ---

@@ -62,6 +62,17 @@ UniquePtr<RHIVkPipeline> RHIVkPipeline::createUniqueGraphics(
         | VK_COLOR_COMPONENT_A_BIT;
     blendAttachment.blendEnable = VK_FALSE;
 
+    VkPipelineDepthStencilStateCreateInfo ds{};
+    ds.depthTestEnable = desc.depthWriteEnable;
+    ds.depthWriteEnable = desc.depthWriteEnable;
+    ds.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
+    ds.depthBoundsTestEnable = VK_FALSE;
+    ds.stencilTestEnable = VK_FALSE;
+    ds.front = {};
+    ds.back = {};
+    ds.minDepthBounds = 0.0f;
+    ds.maxDepthBounds = 1.0f;
+
     VkPipelineColorBlendStateCreateInfo blend{};
     blend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     blend.attachmentCount = 1;
@@ -95,6 +106,7 @@ UniquePtr<RHIVkPipeline> RHIVkPipeline::createUniqueGraphics(
     pipelineInfo.pViewportState = &viewportState;
     pipelineInfo.pRasterizationState = &raster;
     pipelineInfo.pMultisampleState = &ms;
+    pipelineInfo.pDepthStencilState = &ds;
     pipelineInfo.pColorBlendState = &blend;
     pipelineInfo.pDynamicState = &dyn;
     pipelineInfo.layout = static_cast<RHIVkPipelineLayout*>(desc.layout)->getVk();

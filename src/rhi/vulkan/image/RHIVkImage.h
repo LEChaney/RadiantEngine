@@ -2,6 +2,8 @@
 #include "rhi/interface/image/RHIImage.h"
 #include "rhi/vulkan/core/RHIVulkanInclude.h"
 
+#include "vk_mem_alloc.h"
+
 namespace RHI::Vulkan {
 
 class RHIVkContext;
@@ -54,9 +56,10 @@ private:
         bool ownsImage
     );
 
-    RHIVkContext* m_context = nullptr;
+    RHIVkContext* m_ctx = nullptr;
     VkImage m_image = VK_NULL_HANDLE;
     bool m_ownsImage = false; // If true, this class will manage the Vulkan image's lifetime
+    VmaAllocation m_allocation = VK_NULL_HANDLE; // VMA allocation for owned images
 };
 
 } // namespace rhi::vulkan

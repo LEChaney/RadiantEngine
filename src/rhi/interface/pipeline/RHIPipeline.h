@@ -14,6 +14,8 @@ struct RHIGraphicsPipelineDescriptor {
     RHIFormat colorFormat = RHIFormat::RHI_FORMAT_UNDEFINED;
     RHIFormat depthFormat = RHIFormat::RHI_FORMAT_UNDEFINED;
     RHIFormat stencilFormat = RHIFormat::RHI_FORMAT_UNDEFINED;
+    bool depthWriteEnable = true;
+    bool depthTestEnable = true;
     // Add pipeline descriptor fields as needed
 };
 

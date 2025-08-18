@@ -581,8 +581,8 @@ UniquePtr<RHIPipelineLayout> RHIVkContext::createPipelineLayout(const RHIPipelin
     return RHIVkPipelineLayout::createUnique(this, info);
 }
 
-UniquePtr<RHISwapchain> RHIVkContext::createSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount, RHIImageUsageFlags extraImageUsage) {
-    return createRhiVkSwapchain(window, width, height, imageCount, extraImageUsage);
+UniquePtr<RHISwapchain> RHIVkContext::createSwapchain(const RHISwapchainCreateInfo& info) {
+    return createRhiVkSwapchain(info);
 }
 
 UniquePtr<RHIBuffer> RHIVkContext::createBuffer(uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps) {
@@ -605,8 +605,8 @@ UniquePtr<RHIVkSemaphore> RHIVkContext::createRhiVkSemaphore() {
     return RHIVkSemaphore::createUnique(this);
 }
 
-UniquePtr<RHIVkSwapchain> RHIVkContext::createRhiVkSwapchain(SDL_Window* window, uint32 width, uint32 height, uint32 imageCount, RHIImageUsageFlags extraImageUsage) {
-    return RHIVkSwapchain::createUnique(this, window, width, height, imageCount, extraImageUsage);
+UniquePtr<RHIVkSwapchain> RHIVkContext::createRhiVkSwapchain(const RHISwapchainCreateInfo &info) {
+    return RHIVkSwapchain::createUnique(this, info);
 }
 
 UniquePtr<RHIVkBuffer> RHIVkContext::createRhiVkBuffer(uint64 size, RHIBufferUsageFlags usage, RHIMemoryPropertyFlags memProps) {

@@ -15,7 +15,7 @@ public:
 
     // Track last submitted layout for image, useful for tracking
     // the current layout at the start of command buffer recording.
-    RHIImageLayout m_lastKnownLayout = RHIImageLayout::Undefined;
+    RHIImageLayout lastLayout = RHIImageLayout::Undefined;
 
 protected:
     // Only derived context or implementation should create RHIImage objects

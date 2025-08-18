@@ -36,11 +36,35 @@ RHIVkImage::RHIVkImage(
     RHIImageUsageFlags usage,
     RHIMemoryPropertyFlags memProps)
     : RHIImage(width, height, format, usage)
-    , m_context(context), m_ownsImage(true)
+    , m_ctx(context), m_ownsImage(true)
 {
-    // Vulkan image creation logic goes here
-    // For example, create VkImage and allocate memory
-    // TODO: Implement the actual Vulkan image creation logic
+    ASSERT(m_ctx && "RHIVkImage requires valid context");
+    VkFormat vkFormat = toVkFormat(format);
+    VkImageUsageFlags vkUsage = toVkImageUsageFlags(usage);
+
+    VkImageCreateInfo imgInfo{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+    imgInfo.imageType = VK_IMAGE_TYPE_2D;
+    imgInfo.format = vkFormat;
+    imgInfo.extent = { width, height, 1u };
+    imgInfo.mipLevels = 1;
+    imgInfo.arrayLayers = 1;
+    imgInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imgInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imgInfo.usage = vkUsage;
+    imgInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    imgInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    VmaAllocationCreateInfo allocInfo{};
+    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    allocInfo.requiredFlags = toVkMemoryPropertyFlags(memProps);
+    if (memProps.hasFlag(RHIMemoryProperty::HostVisible)) {
+        allocInfo.flags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT; // allow mapping if needed
+    }
+
+    VmaAllocator allocator = m_ctx->getVmaAllocator();
+    VmaAllocationInfo vmaAllocInfo{};
+    VkResult res = vmaCreateImage(allocator, &imgInfo, &allocInfo, &m_image, &m_allocation, &vmaAllocInfo);
+    VK_CHECK(res);
 }
 
 RHIVkImage::RHIVkImage(
@@ -52,12 +76,12 @@ RHIVkImage::RHIVkImage(
     RHIImageUsageFlags usage,
     bool ownsImage)
     : RHIImage(width, height, format, usage)
-    , m_image(image), m_context(context), m_ownsImage(ownsImage)
+    , m_image(image), m_ctx(context), m_ownsImage(ownsImage)
 {}
 
 RHIVkImage::~RHIVkImage() {
-    if (m_ownsImage && m_image && m_context) {
-        vkDestroyImage(m_context->getVkDevice(), m_image, nullptr);
+    if (m_ownsImage && m_image && m_ctx && m_allocation) {
+        vmaDestroyImage(m_ctx->getVmaAllocator(), m_image, m_allocation);
     }
 }
 

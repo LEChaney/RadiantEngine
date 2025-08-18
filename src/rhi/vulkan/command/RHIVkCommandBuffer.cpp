@@ -56,7 +56,7 @@ void RHIVkCommandBuffer::end() {
     for (const auto& [image, layout] : m_trackedImageLayouts) {
         // TODO: Thread safety: How should this be handled? The image storage is really just convenience for tracking.
         // In a multi-threaded context, we might just not want to do this.
-        image->m_lastKnownLayout = layout;
+        image->lastLayout = layout;
     }
     m_trackedImageLayouts.clear();
 }
@@ -94,7 +94,7 @@ void RHIVkCommandBuffer::transitionImageLayout(RHIImage *image, RHIImageLayout n
         oldLayout = m_trackedImageLayouts[image];
     } else {
         // TODO: Assert if not main thread, this is not thread-safe
-        oldLayout = image->m_lastKnownLayout;
+        oldLayout = image->lastLayout;
     }
 
     transitionImageLayout(image, oldLayout, newLayout);
@@ -142,7 +142,9 @@ void RHIVkCommandBuffer::transitionImageLayout(RHIImage* image, RHIImageLayout o
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.image = vkImage;
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    bool isDepth = image->getFormat() == RHIFormat::RHI_FORMAT_D32_SFLOAT
+                || image->getFormat() == RHIFormat::RHI_FORMAT_D32_SFLOAT_S8_UINT;
+    barrier.subresourceRange.aspectMask = isDepth ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = 1;
     barrier.subresourceRange.baseArrayLayer = 0;
@@ -275,8 +277,9 @@ void RHIVkCommandBuffer::beginDynRendering(const RHIRenderingInfo& info) {
         colorAtt.imageView = static_cast<RHIVkImageView*>(att.view)->getVk();
         colorAtt.imageLayout = toVkImageLayout(att.layout);
         // TODO: Expose load/store ops
-        colorAtt.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD; // Assume image already cleared / prepared
+        colorAtt.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         colorAtt.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAtt.clearValue.color = {0.0f, 0.0f, 0.0f, 1.0f};
         colorAtts.push_back(colorAtt);
     }
 
@@ -287,8 +290,9 @@ void RHIVkCommandBuffer::beginDynRendering(const RHIRenderingInfo& info) {
         depthAtt.imageView = static_cast<RHIVkImageView*>(info.depthAttachment.view)->getVk();
         depthAtt.imageLayout = toVkImageLayout(info.depthAttachment.layout);
         // TODO: Expose load/store ops
-        depthAtt.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD; // Assume image already cleared / prepared
+        depthAtt.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         depthAtt.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        depthAtt.clearValue.depthStencil = { 0.0f, 0};
     }
 
     // Separate Stencil
@@ -298,8 +302,9 @@ void RHIVkCommandBuffer::beginDynRendering(const RHIRenderingInfo& info) {
         stencilAtt.imageView = static_cast<RHIVkImageView*>(info.stencilAttachment.view)->getVk();
         stencilAtt.imageLayout = toVkImageLayout(info.stencilAttachment.layout);
         // TODO: Expose load/store ops
-        stencilAtt.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD; // Assume image already cleared / prepared
+        stencilAtt.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         stencilAtt.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        stencilAtt.clearValue.depthStencil.stencil = 0;
     }
 
     VkRenderingInfo renderingInfo{};

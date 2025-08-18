@@ -31,7 +31,7 @@ bool readImageToCpu(
     cmd->begin();
 
     // 2.5 Save old image layout in case we need to restore it
-    RHIImageLayout oldLayout = image->m_lastKnownLayout;
+    RHIImageLayout oldLayout = image->lastLayout;
 
     // 3. Transition image layout for copy
     cmd->transitionImageLayout(image, RHIImageLayout::TransferSrc);
