@@ -460,7 +460,7 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
 TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
     // Triangle geometry (vec4 positions)
     Array<glm::vec4> positions = {
-        { 0.0f,  0.6f, 0.0f, 1.0f},  // top
+        { 0.0f,  0.6f, 0.0f, 1.0f},  // bottom
         {-0.6f, -0.6f, 0.0f, 1.0f},  // left
         { 0.6f, -0.6f, 0.0f, 1.0f}   // right
     };
@@ -520,7 +520,7 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderDepthTwoTrianglesTest) {
         { 0.4f,  0.6f, 0.2f, 1.0f},
         { 1.0f, -0.4f, 0.2f, 1.0f}
     };
-    Array<uint32_t> indices = {0,2,1}; // CCW
+    Array<uint32_t> indices = {0,1,2}; // CCW
 
     Path meshShaderPath = "../shaders/colored_triangle.ms.slang.spv";
     Path fragmentShaderPath = "../shaders/colored_triangle.ps.slang.spv";
