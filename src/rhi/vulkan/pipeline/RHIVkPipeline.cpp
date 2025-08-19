@@ -113,9 +113,6 @@ UniquePtr<RHIVkPipeline> RHIVkPipeline::createUniqueGraphics(
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     pipelineInfo.flags = VK_PIPELINE_CREATE_DESCRIPTOR_BUFFER_BIT_EXT; // allow descriptor buffer usage
 
-    // Mesh shader pipelines require either a render pass or dynamic rendering pNext struct.
-    // For now we assume a dummy render pass-less pipeline (user must extend once dynamic rendering is wired).
-
     VkPipeline pipeline = VK_NULL_HANDLE;
     VkResult res = vkCreateGraphicsPipelines(context->getVkDevice(), VK_NULL_HANDLE,
         1, &pipelineInfo, nullptr, &pipeline);
