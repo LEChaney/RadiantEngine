@@ -426,11 +426,18 @@ void RHIVkContext::createLogicalDevice() {
         enableFeatures2.features.shaderInt64 = VK_TRUE;
     }
     // Vulkan 1.2
+    if (queryVk12.shaderInt8) {
+        enableVk12.shaderInt8 = VK_TRUE;
+    } else {
+        ASSERT(false && "Required shaderInt8 feature not supported by selected GPU");
+    }
     if (queryVk12.descriptorIndexing) {
         enableVk12.descriptorIndexing = VK_TRUE;
     }
     if (queryVk12.bufferDeviceAddress) {
         enableVk12.bufferDeviceAddress = VK_TRUE;
+    } else {
+        ASSERT(false && "Required buffer device address feature not supported by selected GPU");
     }
     if (queryVk12.bufferDeviceAddressCaptureReplay) {
         enableVk12.bufferDeviceAddressCaptureReplay = VK_TRUE;
@@ -453,12 +460,19 @@ void RHIVkContext::createLogicalDevice() {
     if (queryVk12.vulkanMemoryModelDeviceScope) {
         enableVk12.vulkanMemoryModelDeviceScope = VK_TRUE;
     }
+    if (queryVk12.scalarBlockLayout) {
+        enableVk12.scalarBlockLayout = VK_TRUE;
+    } else {
+        ASSERT(false && "Required scalar block layout feature not supported by selected GPU");
+    }
     // Vulkan 1.3
     if (queryVk13.synchronization2) {
         enableVk13.synchronization2 = VK_TRUE;
     }
     if (queryVk13.dynamicRendering) {
         enableVk13.dynamicRendering = VK_TRUE;
+    } else {
+        ASSERT(false && "Required dynamic rendering feature not supported by selected GPU");
     }
     if (queryVk13.maintenance4) {
         enableVk13.maintenance4 = VK_TRUE;

@@ -100,7 +100,7 @@ if(SLANGC_EXECUTABLE)
           add_custom_command(
             OUTPUT ${OUT_FILE}
             COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADERS_OUTPUT_DIRECTORY}
-            COMMAND ${SLANGC_EXECUTABLE} -target ${ENTRY_TARGET} -profile ${ENTRY_PROFILE} -entry ${ENTRY_NAME} "${SLANG_FILE}" -o "${OUT_FILE}"
+            COMMAND ${SLANGC_EXECUTABLE} -target ${ENTRY_TARGET} -profile ${ENTRY_PROFILE} -fvk-use-scalar-layout -entry ${ENTRY_NAME} "${SLANG_FILE}" -o "${OUT_FILE}"
             COMMAND ${CMAKE_COMMAND} -E echo "[Slang] Built ${OUT_FILE}"
             DEPENDS ${SLANG_FILE}
             COMMENT "[Slang] @entry ${SLANG_FILENAME}:${ENTRY_NAME} (${ENTRY_PROFILE} -> ${ENTRY_TARGET})" VERBATIM)

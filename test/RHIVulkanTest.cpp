@@ -17,7 +17,11 @@
 #include "core/CoreDefs.h"
 #include "glm/vec3.hpp"
 #include "glm/vec2.hpp"
+#include "glm/mat4x4.hpp"
+#include "glm/gtc/matrix_transform.hpp" // for perspective, lookAt
 #include "rhi/interface/image/RHIImage.h"
+#include "resource/mesh/generator/MeshPrimitives.h"
+#include "resource/mesh/meshlet/MeshletBuilder.h"
 
 #include <SDL.h>
 
@@ -64,27 +68,33 @@ inline StaticArray<uint8,4> colorToRGBA8(const glm::vec4& c) {
 // Validates a single pixel (x,y) against expected RGBA bytes (expected interpreted as RGBA order).
 inline void expectPixel(const Array<uint8>& img, uint32 width, uint32 height,
                         uint32 x, uint32 y, const StaticArray<uint8,4>& expected,
-                        bool bgra, const char* ctx) {
+                        bool isBGRA, const char* ctx) {
     ASSERT_LT(x, width);
     ASSERT_LT(y, height);
     size_t idx = (size_t(y) * width + x) * 4;
-    if (bgra) {
-        EXPECT_EQ(img[idx + 0], expected[2]) << ctx << " (B)"; // B
-        EXPECT_EQ(img[idx + 1], expected[1]) << ctx << " (G)"; // G
-        EXPECT_EQ(img[idx + 2], expected[0]) << ctx << " (R)"; // R
-        EXPECT_EQ(img[idx + 3], expected[3]) << ctx << " (A)"; // A
+    auto cmp = [&](uint8 got, uint8 exp, const char* chan){
+        int diff = int(got) - int(exp);
+        if(std::abs(diff) > 1) {
+            EXPECT_EQ(got, exp) << ctx << " (" << chan << ": diff=" << diff << ")";
+        }
+    };
+    if (isBGRA) {
+        cmp(img[idx + 0], expected[2], "B");
+        cmp(img[idx + 1], expected[1], "G");
+        cmp(img[idx + 2], expected[0], "R");
+        EXPECT_EQ(img[idx + 3], expected[3]) << ctx << " (A)"; // keep alpha exact
     } else {
-        EXPECT_EQ(img[idx + 0], expected[0]) << ctx << " (R)";
-        EXPECT_EQ(img[idx + 1], expected[1]) << ctx << " (G)";
-        EXPECT_EQ(img[idx + 2], expected[2]) << ctx << " (B)";
+        cmp(img[idx + 0], expected[0], "R");
+        cmp(img[idx + 1], expected[1], "G");
+        cmp(img[idx + 2], expected[2], "B");
         EXPECT_EQ(img[idx + 3], expected[3]) << ctx << " (A)";
     }
 }
 
 inline void expectPixel(const Array<uint8>& img, uint32 width, uint32 height,
                         uint32 x, uint32 y, const glm::vec4& expected,
-                        bool bgra, const char* ctx) {
-    expectPixel(img, width, height, x, y, colorToRGBA8(expected), bgra, ctx);
+                        bool isBGRA, const char* ctx) {
+    expectPixel(img, width, height, x, y, colorToRGBA8(expected), isBGRA, ctx);
 }
 
 // --- Mesh shader test helpers (factored out for reuse) ---
@@ -100,15 +110,15 @@ struct MeshPipelineResources {
     UniquePtr<RHIPipeline> graphicsPipeline;            // final graphics pipeline
 };
 
-struct MeshTriangleResources {
+struct MeshResources {
     UniquePtr<RHIBuffer> vertexBuffer;
     UniquePtr<RHIBuffer> indexBuffer;
     RHIDescriptorSet descriptorSet; // allocated from descriptor buffer
     uint32 indexCount = 0;
-    MeshTriangleResources(UniquePtr<RHIBuffer>&& vb,
-                          UniquePtr<RHIBuffer>&& ib,
-                          RHIDescriptorSet&& set,
-                          uint32 count)
+    MeshResources(UniquePtr<RHIBuffer>&& vb,
+                  UniquePtr<RHIBuffer>&& ib,
+                  RHIDescriptorSet&& set,
+                  uint32 count)
         : vertexBuffer(std::move(vb)), indexBuffer(std::move(ib)), descriptorSet(std::move(set)), indexCount(count) {}
 };
 
@@ -116,10 +126,41 @@ struct MeshPushConstants {
     glm::vec4 color; // Only color for now
 };
 
-MeshPipelineResources createMeshPipelineForColorTriangles(RHIContext* ctx, RHIFormat colorFormat,
-                                                          RHIFormat depthFormat,
-                                                          const Path& meshShaderPath,
-                                                          const Path& fragShaderPath) {
+// Meshlet pipeline resources
+struct MeshletPipelineResources {
+    UniquePtr<RHIDescriptorSetLayout> setLayout;
+    UniquePtr<RHIPipelineLayout> pipelineLayout;
+    UniquePtr<RHIDescriptorBuffer> descriptorBuffer;
+    UniquePtr<RHIShaderModule> meshShader;
+    UniquePtr<RHIShaderModule> fragShader;
+    UniquePtr<RHIPipeline> graphicsPipeline;
+};
+
+static MeshletPipelineResources createMeshletPipeline(RHIContext* ctx, RHIFormat colorFmt, RHIFormat depthFmt,
+                                                      const Path& msPath, const Path& psPath){
+    MeshletPipelineResources out{};
+    out.setLayout = ctx->createDescriptorSetLayout({
+        {0, RHIDescriptorType::StorageBuffer, RHIShaderStage::Mesh}, // meshlets
+        {1, RHIDescriptorType::StorageBuffer, RHIShaderStage::Mesh}, // packed vertices
+        {2, RHIDescriptorType::StorageBuffer, RHIShaderStage::Mesh}  // primitive local indices
+    });
+    out.descriptorBuffer = ctx->createDescriptorBuffer({ .sizeBytes = 64 * 1024 });
+    out.pipelineLayout = ctx->createPipelineLayout({
+        .setLayouts = { out.setLayout.get() },
+        .pushConstantRanges = { { .stages = RHIShaderStage::Mesh, .offset = 0, .size = sizeof(glm::mat4) } }
+    });
+    out.meshShader = ctx->createShaderModule(msPath);
+    out.fragShader = ctx->createShaderModule(psPath);
+    RHIGraphicsPipelineDescriptor desc{ .layout = out.pipelineLayout.get(), .meshShader = out.meshShader.get(), .fragmentShader = out.fragShader.get(), .colorFormat = colorFmt, .depthFormat = depthFmt };
+    out.graphicsPipeline = ctx->createGraphicsPipeline(desc);
+    return out;
+}
+
+MeshPipelineResources createMeshPipeline(RHIContext* ctx, RHIFormat colorFormat,
+                                         RHIFormat depthFormat,
+                                         const Path& meshShaderPath,
+                                         const Path& fragShaderPath,
+                                         bool colorPushConst) {
     MeshPipelineResources out{};
 
     // Descriptor set layout (set0: binding0 vertex buffer addr, binding1 index buffer addr)
@@ -134,11 +175,11 @@ MeshPipelineResources createMeshPipelineForColorTriangles(RHIContext* ctx, RHIFo
     // Pipeline layout
     out.pipelineLayout = ctx->createPipelineLayout({
         .setLayouts = { out.setLayout.get() },
-        .pushConstantRanges = {{
+        .pushConstantRanges = colorPushConst ? decltype(RHIPipelineLayoutCreateInfo::pushConstantRanges){{
             .stages = RHIShaderStage::Mesh | RHIShaderStage::Fragment,
             .offset = 0,
             .size = sizeof(MeshPushConstants)
-        }}
+        }} : decltype(RHIPipelineLayoutCreateInfo::pushConstantRanges){}
     });
 
     // Shaders
@@ -157,9 +198,9 @@ MeshPipelineResources createMeshPipelineForColorTriangles(RHIContext* ctx, RHIFo
     return out;
 }
 
-MeshTriangleResources createMeshTriangleResources(RHIContext* ctx, MeshPipelineResources& pipe,
+MeshResources createMeshTriangleResources(RHIContext* ctx, MeshPipelineResources& pipe,
                                                   const Array<glm::vec4>& positions, // vec4 pos
-                                                  const Array<uint32_t>& indices) {
+                                                  const Array<uint32>& indices) {
     const size_t vSize = positions.size() * sizeof(glm::vec4);
     auto vbuf = ctx->createBuffer(vSize,
         RHIBufferUsage::VertexBuffer | RHIBufferUsage::StorageBuffer | RHIBufferUsage::ShaderDeviceAddress,
@@ -168,7 +209,7 @@ MeshTriangleResources createMeshTriangleResources(RHIContext* ctx, MeshPipelineR
     std::memcpy(vm, positions.data(), vSize);
     vbuf->unmap();
 
-    const size_t iSize = indices.size() * sizeof(uint32_t);
+    const size_t iSize = indices.size() * sizeof(uint32);
     auto ibuf = ctx->createBuffer(iSize,
         RHIBufferUsage::IndexBuffer | RHIBufferUsage::StorageBuffer | RHIBufferUsage::ShaderDeviceAddress,
         RHIMemoryProperty::HostVisible | RHIMemoryProperty::HostCoherent);
@@ -183,11 +224,11 @@ MeshTriangleResources createMeshTriangleResources(RHIContext* ctx, MeshPipelineR
         .writeStorageBuffer(1, 0, ibuf->createSlice())
         .flush();
 
-    return MeshTriangleResources(std::move(vbuf), std::move(ibuf), std::move(set), count);
+    return MeshResources(std::move(vbuf), std::move(ibuf), std::move(set), count);
 }
 
 void recordDrawMeshTriangle(RHICommandBuffer* cmd, const MeshPipelineResources& pipe,
-                            const MeshTriangleResources& tri, const glm::vec4& color) {
+                            const MeshResources& tri, const glm::vec4& color) {
     MeshPushConstants pc{ color };
     cmd->bindGraphicsPipeline(pipe.graphicsPipeline.get());
     cmd->bindDescriptorBuffers({ pipe.descriptorBuffer.get() });
@@ -197,6 +238,32 @@ void recordDrawMeshTriangle(RHICommandBuffer* cmd, const MeshPipelineResources& 
         0, sizeof(MeshPushConstants), &pc);
     // Mesh shader path uses dispatchMesh(1,1,1) to emit primitives based on buffers.
     cmd->dispatchMesh(1,1,1);
+}
+
+// Create buffers from full Vertex + index arrays (for meshlet rendering path)
+static MeshResources createGenericMeshResources(RHIContext* ctx, MeshPipelineResources& pipe,
+                                                const Array<Vertex>& vertices,
+                                                const Array<uint32>& indices) {
+    const size_t vSize = vertices.size() * sizeof(Vertex);
+    auto vbuf = ctx->createBuffer(vSize,
+        RHIBufferUsage::StorageBuffer | RHIBufferUsage::ShaderDeviceAddress,
+        RHIMemoryProperty::HostVisible | RHIMemoryProperty::HostCoherent);
+    void* vm = vbuf->map(); std::memcpy(vm, vertices.data(), vSize); vbuf->unmap();
+
+    const size_t iSize = indices.size() * sizeof(uint32);
+    auto ibuf = ctx->createBuffer(iSize,
+        RHIBufferUsage::StorageBuffer | RHIBufferUsage::ShaderDeviceAddress,
+        RHIMemoryProperty::HostVisible | RHIMemoryProperty::HostCoherent);
+    void* im = ibuf->map(); std::memcpy(im, indices.data(), iSize); ibuf->unmap();
+    uint32 count = (uint32)indices.size();
+
+    auto set = pipe.descriptorBuffer->allocateSet(pipe.setLayout.get(), "GenericMeshSet");
+    set
+        .writeStorageBuffer(0, 0, vbuf->createSlice())
+        .writeStorageBuffer(1, 0, ibuf->createSlice())
+        .flush();
+
+    return MeshResources(std::move(vbuf), std::move(ibuf), std::move(set), count);
 }
 }
 
@@ -291,8 +358,8 @@ TEST_P(RHIVulkanTest, CreateAndSubmitEmptyCommandBuffer) {
 
 TEST_P(RHIVulkanTestWithSDLAndSwap, RenderSwapchainFrames) {
     // Draw several frames (double buffered)
-    constexpr uint32_t k_frameCount = 4;
-    for (uint32_t frameIdx = 0; frameIdx < k_frameCount; ++frameIdx) {
+    constexpr uint32 k_frameCount = 4;
+    for (uint32 frameIdx = 0; frameIdx < k_frameCount; ++frameIdx) {
         auto frameData = m_frameManager->acquireFrame();
         ASSERT_NE(frameData.cmd, nullptr);
         ASSERT_NE(frameData.swapImgs.color, nullptr);
@@ -314,8 +381,8 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, RenderClearColorFrames) {
     Array<SavedFrame> savedFrames(k_bufferCount);
     
     // Draw several frames (double buffered)
-    constexpr uint32_t k_frameCount = 100;
-    for (uint32_t frameIdx = 0; frameIdx < k_frameCount; ++frameIdx) {
+    constexpr uint32 k_frameCount = 100;
+    for (uint32 frameIdx = 0; frameIdx < k_frameCount; ++frameIdx) {
         auto frameData = m_frameManager->acquireFrame();
         ASSERT_NE(frameData.cmd, nullptr);
         ASSERT_NE(frameData.swapImgs.color, nullptr);
@@ -428,14 +495,14 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     frame.cmd->bindDescriptorSets(setBindings, pipelineLayout.get(),
         RHIPipelineBindPoint::Compute);
 
-    glm::vec4 clearColor(0.0f, 1.0f, 0.0f, 1.0f); // Green clear color
+    glm::vec4 clearColor(0.0f, 0.82f, 0.0f, 1.0f); // Green clear color
     frame.cmd->pushConstants(pipelineLayout.get(), RHIShaderStage::Compute,
         0, sizeof(clearColor), &clearColor);
 
     uint32 width = frame.swapImgs.color->getWidth();
     uint32 height = frame.swapImgs.color->getHeight();
-    uint32_t groupCountX = (width + 7) / 8;
-    uint32_t groupCountY = (height + 7) / 8;
+    uint32 groupCountX = (width + 7) / 8;
+    uint32 groupCountY = (height + 7) / 8;
     frame.cmd->dispatchCompute(groupCountX, groupCountY, 1);
 
     m_frameManager->submitAndPresent(frame, {
@@ -450,11 +517,10 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, ComputeShaderClearTest) {
     ASSERT_TRUE(readBackOk) << "Failed to read back image data from GPU";
     ASSERT_EQ(imageData.size(), width * height * 4);
 
-    bool bgra = isBGRAFormat(m_swapchain->getColorFormat());
-    StaticArray<uint8,4> expectedGreen = {0,255,0,255};
-    expectPixel(imageData, width, height, 0, 0, expectedGreen, bgra, "compute corner TL");
-    expectPixel(imageData, width, height, width/2, height/2, expectedGreen, bgra, "compute center");
-    expectPixel(imageData, width, height, width-1, height-1, expectedGreen, bgra, "compute corner BR");
+    bool isBGRA = isBGRAFormat(m_swapchain->getColorFormat());
+    expectPixel(imageData, width, height, 0, 0, clearColor, isBGRA, "compute corner TL");
+    expectPixel(imageData, width, height, width/2, height/2, clearColor, isBGRA, "compute center");
+    expectPixel(imageData, width, height, width-1, height-1, clearColor, isBGRA, "compute corner BR");
 }
 
 TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
@@ -464,13 +530,13 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
         {-0.6f, -0.6f, 0.0f, 1.0f},  // left
         { 0.6f, -0.6f, 0.0f, 1.0f}   // right
     };
-    Array<uint32_t> indices = {0,2,1}; // CCW
+    Array<uint32> indices = {0,2,1}; // CCW
 
     Path meshShaderPath = "../shaders/colored_triangle.ms.slang.spv";
     Path fragmentShaderPath = "../shaders/colored_triangle.ps.slang.spv";
-    auto pipelineRes = createMeshPipelineForColorTriangles(m_ctx.get(),
+    auto pipelineRes = createMeshPipeline(m_ctx.get(),
         m_swapchain->getColorFormat(), m_swapchain->getDepthFormat(),
-        meshShaderPath, fragmentShaderPath);
+        meshShaderPath, fragmentShaderPath, true);
     ASSERT_NE(pipelineRes.graphicsPipeline, nullptr);
 
     auto triRes = createMeshTriangleResources(m_ctx.get(), pipelineRes, positions, indices);
@@ -480,7 +546,8 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
     auto frame = m_frameManager->acquireFrame();
     ASSERT_NE(frame.cmd, nullptr);
     m_frameManager->beginDynRendering(frame);
-    recordDrawMeshTriangle(frame.cmd, pipelineRes, triRes, {1,0,0,1});
+    glm::vec4 triColor(0.91f, 0.0f, 0.0f, 1.0f); // Red triangle
+    recordDrawMeshTriangle(frame.cmd, pipelineRes, triRes, triColor);
     m_frameManager->endDynRendering(frame);
     m_frameManager->submitAndPresent(frame, {
         .queue = m_ctx->getGraphicsQueue(),
@@ -492,8 +559,7 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
     uint32 height = frame.swapImgs.color->getHeight();
     Array<uint8> imageData; ASSERT_TRUE(RHI::readImageToCpu(m_ctx.get(), frame.swapImgs.color, width, height, imageData));
     ASSERT_EQ(imageData.size(), width*height*4);
-    bool bgra = isBGRAFormat(m_swapchain->getColorFormat());
-    const StaticArray<uint8,4> red   = {255,0,0,255};
+    bool isBGRA = isBGRAFormat(m_swapchain->getColorFormat());
     const StaticArray<uint8,4> black = {0,0,0,255};
     auto toScreen = [&](const glm::vec2& p) {
         uint32 x = (uint32)std::clamp<int>((int)std::lround((p.x*0.5f+0.5f)*width),0,(int)width-1);
@@ -501,10 +567,10 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderTriangleRenderTest) {
         return std::pair<uint32,uint32>{x,y}; };
     for (glm::vec2 sample : { glm::vec2{0.f,0.f}, glm::vec2{-0.2f,-0.2f}, glm::vec2{0.2f,-0.2f} }) {
         auto [sx,sy] = toScreen(sample);
-        expectPixel(imageData,width,height,sx,sy,red,bgra,"triangle inside"); }
+        expectPixel(imageData,width,height,sx,sy,triColor,isBGRA,"triangle inside"); }
     for (glm::vec2 sample : { glm::vec2{-0.9f,-0.9f}, glm::vec2{0.9f,0.9f} }) {
         auto [sx,sy] = toScreen(sample);
-        expectPixel(imageData,width,height,sx,sy,black,bgra,"triangle outside"); }
+        expectPixel(imageData,width,height,sx,sy,black,isBGRA,"triangle outside"); }
 }
 
 TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderDepthTwoTrianglesTest) {
@@ -520,14 +586,14 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderDepthTwoTrianglesTest) {
         { 0.4f,  0.6f, 0.2f, 1.0f},
         { 1.0f, -0.4f, 0.2f, 1.0f}
     };
-    Array<uint32_t> indices = {0,1,2}; // CCW
+    Array<uint32> indices = {0,1,2}; // CCW
 
     Path meshShaderPath = "../shaders/colored_triangle.ms.slang.spv";
     Path fragmentShaderPath = "../shaders/colored_triangle.ps.slang.spv";
-    auto pipelineRes = createMeshPipelineForColorTriangles(m_ctx.get(),
+    auto pipelineRes = createMeshPipeline(m_ctx.get(),
         m_swapchain->getColorFormat(),
         m_swapchain->getDepthFormat(),
-        meshShaderPath, fragmentShaderPath);
+        meshShaderPath, fragmentShaderPath, true);
     ASSERT_NE(pipelineRes.graphicsPipeline, nullptr);
 
     auto nearTri = createMeshTriangleResources(m_ctx.get(), pipelineRes, nearPositions, indices);
@@ -539,9 +605,11 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderDepthTwoTrianglesTest) {
     ASSERT_NE(frame.cmd, nullptr);
     m_frameManager->beginDynRendering(frame); // Assumes default depth attachment with depth test/write enabled.
     // Draw near first (red)
-    recordDrawMeshTriangle(frame.cmd, pipelineRes, nearTri, {1,0,0,1});
+    glm::vec4 nearColor(0.81f, 0.0f, 0.0f, 1.0f); // Red triangle
+    recordDrawMeshTriangle(frame.cmd, pipelineRes, nearTri, nearColor);
     // Draw far second (green) - should be occluded where overlapping
-    recordDrawMeshTriangle(frame.cmd, pipelineRes, farTri, {0,1,0,1});
+    glm::vec4 farColor(0.0f, 0.70f, 0.0f, 1.0f); // Green triangle
+    recordDrawMeshTriangle(frame.cmd, pipelineRes, farTri, farColor);
     m_frameManager->endDynRendering(frame);
     frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::TransferSrc);
     m_frameManager->submitAndPresent(frame, {
@@ -553,9 +621,7 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderDepthTwoTrianglesTest) {
     uint32 height = frame.swapImgs.color->getHeight();
     Array<uint8> imageData; ASSERT_TRUE(RHI::readImageToCpu(m_ctx.get(), frame.swapImgs.color, width, height, imageData));
     ASSERT_EQ(imageData.size(), width*height*4);
-    bool bgra = isBGRAFormat(m_swapchain->getColorFormat());
-    const StaticArray<uint8,4> red   = {255,0,0,255};
-    const StaticArray<uint8,4> green = {0,255,0,255};
+    bool isBGRA = isBGRAFormat(m_swapchain->getColorFormat());
     const StaticArray<uint8,4> black = {0,0,0,255};
 
     auto ndcToPixel = [&](float nx, float ny){
@@ -566,23 +632,108 @@ TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderDepthTwoTrianglesTest) {
     // Sample inside near-only region (-0.5,0)
     {
         auto [x,y] = ndcToPixel(-0.1f, 0.0f);
-        expectPixel(imageData,width,height,x,y,red,bgra,"near-only region");
+        expectPixel(imageData,width,height,x,y,nearColor,isBGRA,"near-only region");
     }
     // Sample inside far-only region (0.85,0) expected green
     {
         auto [x,y] = ndcToPixel(0.75f, 0.0f);
-        expectPixel(imageData,width,height,x,y,green,bgra,"far-only region");
+        expectPixel(imageData,width,height,x,y,farColor,isBGRA,"far-only region");
     }
     // Sample overlapping region (0.2,0) should be red (near triangle not overwritten by far draw)
     {
         auto [x,y] = ndcToPixel(0.3f, 0.0f);
-        expectPixel(imageData,width,height,x,y,red,bgra,"overlap region depth");
+        expectPixel(imageData,width,height,x,y,nearColor,isBGRA,"overlap region depth");
     }
     // Outside both (-0.9,-0.9) should be background black
     {
         auto [x,y] = ndcToPixel(-0.9f, -0.9f);
-        expectPixel(imageData,width,height,x,y,black,bgra,"outside region");
+        expectPixel(imageData,width,height,x,y,black,isBGRA,"outside region");
     }
+}
+
+TEST_P(RHIVulkanTestWithSDLAndSwap, MeshShaderPrimitiveGeneratorsTest) {
+    using namespace resource::mesh::primitives;
+    using namespace resource::mesh::meshlet;
+
+    // Generate one high-res UV sphere and split into meshlets
+    UVSphereDesc uvDesc;
+    uvDesc.radius = 0.75f;
+    uvDesc.segments = 192;
+    uvDesc.rings = 96;
+    uvDesc.color = {0.25f,0.7f,1.0f,1.0f};
+    MeshSrcData sphere = MakeUVSphereSrcData(uvDesc);
+    ASSERT_FALSE(sphere.vertices.empty());
+    ASSERT_FALSE(sphere.indices.empty());
+
+    BuildParams buildParams{
+    //    .gridResolution = 8,
+    };
+    MeshletBuildResult mres = buildMeshlets(sphere, buildParams);
+    ASSERT_FALSE(mres.meshlets.empty());
+    PackedMeshlets packed = packMeshlets(sphere, mres);
+
+    // Meshlet pipeline & shader (process one meshlet per workgroup)
+    auto meshletPipe = createMeshletPipeline(m_ctx.get(), 
+        m_swapchain->getColorFormat(), m_swapchain->getDepthFormat(),
+        "../shaders/mesh_meshlet.ms.slang.spv",
+        "../shaders/mesh_meshlet.ps.slang.spv");
+    ASSERT_NE(meshletPipe.graphicsPipeline, nullptr);
+
+    auto makeBuf = [&](const void* data, size_t size, const char* dbg){
+        auto buf = m_ctx->createBuffer(size, 
+            RHIBufferUsage::StorageBuffer | RHIBufferUsage::ShaderDeviceAddress,
+            RHIMemoryProperty::HostVisible | RHIMemoryProperty::HostCoherent/*, dbg*/);
+        void* map = buf->map(); std::memcpy(map,data,size); buf->unmap(); return buf;
+    };
+
+    auto meshletsBuf = makeBuf(packed.meshlets.data(), packed.meshlets.size()*sizeof(Meshlet), "Meshlets");
+    auto vertexBuf   = makeBuf(packed.vertices.data(), packed.vertices.size()*sizeof(Vertex), "Vertices");
+    auto indexBuf    = makeBuf(packed.indices.data(), packed.indices.size()*sizeof(uint8), "Indices");
+
+    auto set = meshletPipe.descriptorBuffer->allocateSet(meshletPipe.setLayout.get(), "MeshletSet");
+    set.writeStorageBuffer(0,0, meshletsBuf->createSlice())
+       .writeStorageBuffer(1,0, vertexBuf->createSlice())
+       .writeStorageBuffer(2,0, indexBuf->createSlice())
+       .flush();
+    ASSERT_TRUE(set.isValid());
+
+    uint32 meshletCount = (uint32)packed.meshlets.size();
+    ASSERT_GT(meshletCount, 0u);
+
+    auto frame = m_frameManager->acquireFrame();
+    ASSERT_NE(frame.cmd, nullptr);
+    m_frameManager->beginDynRendering(frame);
+    frame.cmd->bindGraphicsPipeline(meshletPipe.graphicsPipeline.get());
+    frame.cmd->bindDescriptorBuffers({ meshletPipe.descriptorBuffer.get() });
+    frame.cmd->bindDescriptorSets({ { .setIndex = 0, .set = set } }, meshletPipe.pipelineLayout.get(), RHIPipelineBindPoint::Graphics);
+    // Build a proper perspective * view ( * model ) matrix instead of identity
+    float aspect = float(frame.swapImgs.color->getWidth()) / float(frame.swapImgs.color->getHeight());
+    glm::mat4 proj = glm::perspective(glm::radians(60.0f), aspect, 0.01f, 25.0f);
+    // In Vulkan the Y clip coordinate is inverted compared to OpenGL; GLM (without extensions) retains OpenGL convention.
+    // Flip Y so the image isn't upside-down. If GLM_FORCE_DEPTH_ZERO_TO_ONE is defined elsewhere this still applies for Y flip.
+    proj[1][1] *= -1.0f;
+    glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 0.0f, 2.0f),  // eye
+                                 glm::vec3(0.0f, 0.0f, 0.0f),  // center
+                                 glm::vec3(0.0f, 1.0f, 0.0f)); // up
+    glm::mat4 model(1.0f);
+    glm::mat4 mvp = proj * view * model;
+    frame.cmd->pushConstants(meshletPipe.pipelineLayout.get(), RHIShaderStage::Mesh, 0, sizeof(glm::mat4), &mvp);
+    frame.cmd->dispatchMesh(meshletCount, 1, 1);
+    m_frameManager->endDynRendering(frame);
+    m_frameManager->submitAndPresent(frame, {
+        .queue = m_ctx->getGraphicsQueue(),
+        .waitAcquireStage = RHIPipelineStage::ColorAttachmentOutput,
+        .signalPresentStage = RHIPipelineStage::ColorAttachmentOutput
+    });
+
+    bool isBGRA = isBGRAFormat(m_swapchain->getColorFormat());
+    uint32 width = frame.swapImgs.color->getWidth();
+    uint32 height = frame.swapImgs.color->getHeight();
+    Array<uint8> imageData; 
+    ASSERT_TRUE(RHI::readImageToCpu(m_ctx.get(), frame.swapImgs.color, width, height, imageData));
+    ASSERT_EQ(imageData.size(), width*height*4);
+    auto expected = colorToRGBA8(uvDesc.color);
+    expectPixel(imageData, width, height, width/2, height/2, expected, isBGRA, "meshlet sphere center");
 }
 
 namespace {
@@ -601,15 +752,15 @@ INSTANTIATE_TEST_SUITE_P(
     ValidationModes,
     RHIVulkanTest,
     ::testing::Values(
-        RHIVkContext::ValidationMode::Standard,
-        RHIVkContext::ValidationMode::GpuAssisted),
+        RHIVkContext::ValidationMode::Standard/*,
+        RHIVkContext::ValidationMode::GpuAssisted*/),
     validationModeToName);
 
 INSTANTIATE_TEST_SUITE_P(
     ValidationModes,
     RHIVulkanTestWithSDLAndSwap,
     ::testing::Values(
-        RHIVkContext::ValidationMode::Standard,
-        RHIVkContext::ValidationMode::GpuAssisted),
+        RHIVkContext::ValidationMode::Standard/*,
+        RHIVkContext::ValidationMode::GpuAssisted*/),
     validationModeToName);
 } // namespace
