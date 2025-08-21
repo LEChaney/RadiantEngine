@@ -23,7 +23,7 @@
 // @entry MeshletMain ms_6_5 spirv
 
 #ifndef DEBUG_MESHLET_COLOR
-#define DEBUG_MESHLET_COLOR 0
+#define DEBUG_MESHLET_COLOR 1
 #endif
 
 // Workgroup sizing: keep a single definition to avoid magic numbers.

@@ -40,6 +40,40 @@ enable_testing()
 add_custom_target(BuildTests)
 add_subdirectory(test)
 
+# Examples (optional executables demonstrating engine & RHI usage)
+if (EXISTS ${CMAKE_SOURCE_DIR}/examples/TeapotMeshlet.cpp)
+  add_executable(TeapotMeshlet examples/TeapotMeshlet.cpp
+    src/renderer/FrameManager.cpp
+    src/resource/mesh/generator/MeshPrimitives.cpp
+    src/resource/mesh/meshlet/MeshletBuilder.cpp
+    src/rhi/vulkan/core/RHIVkContext.cpp
+    src/rhi/vulkan/queue/RHIVkQueue.cpp
+    src/rhi/vulkan/command/RHIVkCommandBuffer.cpp
+    src/rhi/vulkan/swapchain/RHIVkSwapchain.cpp
+    src/rhi/vulkan/buffer/RHIVkBuffer.cpp
+    src/rhi/vulkan/image/RHIVkImage.cpp
+    src/rhi/vulkan/image/RHIVkImageView.cpp
+    src/rhi/vulkan/sync/RHIVkSemaphore.cpp
+    src/rhi/vulkan/sync/RHIVkFence.cpp
+    src/rhi/vulkan/core/RHIVkTypeConversion.cpp
+    src/rhi/interface/image/RHIImageUtils.cpp
+    src/rhi/vulkan/descriptor/RHIVkDescriptorSetLayout.cpp
+    src/rhi/vulkan/descriptor/RHIVkDescriptorBuffer.cpp
+    src/rhi/vulkan/descriptor/RHIVkDescriptorWriter.cpp
+    src/rhi/vulkan/pipeline/RHIVkPipelineLayout.cpp
+    src/rhi/vulkan/pipeline/RHIVkShaderModule.cpp
+    src/rhi/vulkan/pipeline/RHIVkPipeline.cpp)
+  set_property(TARGET TeapotMeshlet PROPERTY CXX_STANDARD 20)
+  target_include_directories(TeapotMeshlet PRIVATE ${CMAKE_SOURCE_DIR}/src)
+  target_link_libraries(TeapotMeshlet PRIVATE volk::volk Vulkan::Vulkan fmt::fmt SDL2::SDL2 SDL2::SDL2main glm unordered_dense svector VulkanMemoryAllocator)
+  add_dependencies(TeapotMeshlet Shaders)
+  if (WIN32)
+    add_custom_command(TARGET TeapotMeshlet POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:TeapotMeshlet> $<TARGET_FILE_DIR:TeapotMeshlet>
+      COMMAND_EXPAND_LISTS)
+  endif()
+endif()
+
 find_program(GLSL_VALIDATOR glslangValidator HINTS /usr/bin /usr/local/bin $ENV{VULKAN_SDK}/Bin/ $ENV{VULKAN_SDK}/Bin32/)
 
 file(GLOB_RECURSE GLSL_SOURCE_FILES
