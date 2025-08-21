@@ -49,7 +49,13 @@ MeshletPipelineResources createMeshletPipeline(RHIContext* ctx, RHIFormat colorF
     });
     out.meshShader = ctx->createShaderModule(msPath);
     out.fragShader = ctx->createShaderModule(psPath);
-    RHIGraphicsPipelineDescriptor desc{ .layout = out.pipelineLayout.get(), .meshShader = out.meshShader.get(), .fragmentShader = out.fragShader.get(), .colorFormat = colorFmt, .depthFormat = depthFmt };
+    RHIGraphicsPipelineDescriptor desc{
+        .layout = out.pipelineLayout.get(),
+        .meshShader = out.meshShader.get(),
+        .fragmentShader = out.fragShader.get(),
+        .colorFormat = colorFmt,
+        .depthFormat = depthFmt
+    };
     out.graphicsPipeline = ctx->createGraphicsPipeline(desc);
     return out;
 }
@@ -73,10 +79,22 @@ glm::mat4 makePerspectiveReverseZ(float fovyRadians, float aspect, float zNear, 
 int main(int argc, char** argv){
     (void)argc; (void)argv;
     // Init SDL & window
-    if(SDL_Init(SDL_INIT_VIDEO) != 0){ std::fprintf(stderr,"SDL init failed: %s\n", SDL_GetError()); return 1; }
+    if(SDL_Init(SDL_INIT_VIDEO) != 0){
+        std::fprintf(stderr,"SDL init failed: %s\n", SDL_GetError());
+        return 1;
+    }
     const int width = 2560/2, height = 1600/2;
-    SDL_Window* window = SDL_CreateWindow("RadiantEngine Teapot", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_VULKAN | SDL_WINDOW_SHOWN);
-    if(!window){ std::fprintf(stderr,"SDL window failed: %s\n", SDL_GetError()); return 1; }
+    SDL_Window* window = SDL_CreateWindow(
+        "RadiantEngine Teapot",
+        SDL_WINDOWPOS_CENTERED,
+        SDL_WINDOWPOS_CENTERED,
+        width, height,
+        SDL_WINDOW_VULKAN | SDL_WINDOW_SHOWN
+    );
+    if(!window){
+        std::fprintf(stderr,"SDL window failed: %s\n", SDL_GetError());
+        return 1;
+    }
 
     // Create Vulkan RHI context (standard validation)
     auto ctx = Vulkan::RHIVkContext::createUnique(Vulkan::RHIVkContext::ValidationMode::Standard);
@@ -102,14 +120,20 @@ int main(int argc, char** argv){
     PackedMeshlets packed = packMeshlets(teapot, build);
 
     // Create GPU buffers for meshlet data
-    auto makeBuf = [&](const void* data, size_t sz, RHIBufferUsageFlags usage){
-        auto buf = ctx->createBuffer(sz, usage | RHIBufferUsage::StorageBuffer | RHIBufferUsage::ShaderDeviceAddress, RHIMemoryProperty::HostVisible | RHIMemoryProperty::HostCoherent);
-        if(data && sz){ void* m = buf->map(); std::memcpy(m,data,sz); buf->unmap(); }
+    auto makeBuf = [&](const void* data, size_t sz, RHIBufferUsageFlags usage = 0) {
+        auto buf = ctx->createBuffer(
+            sz, 
+            usage | RHIBufferUsage::StorageBuffer | RHIBufferUsage::ShaderDeviceAddress, 
+            RHIMemoryProperty::HostVisible | RHIMemoryProperty::HostCoherent
+        );
+        void* m = buf->map();
+        std::memcpy(m,data,sz);
+        buf->unmap();
         return buf;
     };
-    auto meshletsBuf = makeBuf(packed.meshlets.data(), packed.meshlets.size()*sizeof(Meshlet), RHIBufferUsage::StorageBuffer);
-    auto verticesBuf = makeBuf(packed.vertices.data(), packed.vertices.size()*sizeof(Vertex), RHIBufferUsage::StorageBuffer);
-    auto primIdxBuf  = makeBuf(packed.indices.data(), packed.indices.size()*sizeof(uint8), RHIBufferUsage::StorageBuffer);
+    auto meshletsBuf = makeBuf(packed.meshlets.data(), packed.meshlets.size()*sizeof(Meshlet));
+    auto verticesBuf = makeBuf(packed.vertices.data(), packed.vertices.size()*sizeof(Vertex));
+    auto primIdxBuf  = makeBuf(packed.indices.data(), packed.indices.size()*sizeof(uint8));
 
     // Pipeline
     // Executable placed in bin/(Config)/ ; shaders copied to bin/(Config)/shaders
@@ -117,8 +141,7 @@ int main(int argc, char** argv){
         "shaders/mesh_meshlet.ms.slang.spv", "shaders/mesh_meshlet.ps.slang.spv");
 
     auto set = pipeline.descriptorBuffer->allocateSet(pipeline.setLayout.get(), "MeshletSet");
-    set
-        .writeStorageBuffer(0,0, meshletsBuf->createSlice())
+    set .writeStorageBuffer(0,0, meshletsBuf->createSlice())
         .writeStorageBuffer(1,0, verticesBuf->createSlice())
         .writeStorageBuffer(2,0, primIdxBuf->createSlice())
         .flush();
@@ -144,8 +167,10 @@ int main(int argc, char** argv){
 
         frame.cmd->bindGraphicsPipeline(pipeline.graphicsPipeline.get());
         frame.cmd->bindDescriptorBuffers({ pipeline.descriptorBuffer.get() });
-        frame.cmd->bindDescriptorSets({ { .setIndex = 0, .set = set } }, pipeline.pipelineLayout.get(), RHIPipelineBindPoint::Graphics);
-        frame.cmd->pushConstants(pipeline.pipelineLayout.get(), RHIShaderStage::Mesh, 0, sizeof(glm::mat4), &mvp);
+        frame.cmd->bindDescriptorSets({ { .setIndex = 0, .set = set } },
+            pipeline.pipelineLayout.get(), RHIPipelineBindPoint::Graphics);
+        frame.cmd->pushConstants(pipeline.pipelineLayout.get(),
+            RHIShaderStage::Mesh, 0, sizeof(glm::mat4), &mvp);
         uint32 meshletCount = (uint32)packed.meshlets.size();
         frame.cmd->dispatchMesh(meshletCount, 1, 1);
 
