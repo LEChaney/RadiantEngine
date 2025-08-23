@@ -1,5 +1,6 @@
 #include "resource/mesh/generator/MeshPrimitives.h"
 #include "glm/gtc/constants.hpp"
+#include "glm/gtx/norm.hpp"
 #include <algorithm>
 
 namespace resource::mesh::primitives {
@@ -340,8 +341,12 @@ MeshSrcData MakeTeapotSrcData(const TeapotDesc& d) {
             const glm::vec3 &C = out.vertices[c].position;
             glm::vec3 faceN = glm::cross(B-A,C-A);
             glm::vec3 avgN = out.vertices[a].normal + out.vertices[b].normal + out.vertices[c].normal;
-            if(glm::dot(faceN, avgN) < 0.f) std::swap(b,c);
-            out.indices.push_back(a); out.indices.push_back(b); out.indices.push_back(c);
+            if(glm::dot(faceN, avgN) < 0.f) {
+                std::swap(b,c);
+            }
+            out.indices.push_back(a);
+            out.indices.push_back(b);
+            out.indices.push_back(c);
         };
         for(uint32 v=0; v<T; ++v){
             for(uint32 u=0; u<T; ++u){
@@ -363,6 +368,231 @@ MeshSrcData MakeTeapotSrcData(const TeapotDesc& d) {
             }
         }
     }
+    return out;
+}
+
+MeshSrcData MakePlaneSrcData(const PlaneDesc& d){
+    MeshSrcData out;
+    uint32 sx = glm::max<uint32>(1u, d.subdivX);
+    uint32 sz = glm::max<uint32>(1u, d.subdivZ);
+    glm::vec2 half = d.size * 0.5f;
+    glm::vec4 color = d.color;
+    out.vertices.reserve((sx+1)*(sz+1));
+    for(uint32 z=0; z<=sz; ++z){
+        float fz = (float)z / sz; // 0..1
+        float posZ = glm::mix(-half.y, half.y, fz);
+        for(uint32 x=0; x<=sx; ++x){
+            float fx = (float)x / sx;
+            float posX = glm::mix(-half.x, half.x, fx);
+            Vertex v;
+            v.position = {posX,0.f,posZ};
+            v.normal={0,1,0};
+            v.color=color;
+            v.uv={fx,1.f - fz};
+            out.vertices.push_back(v);
+        }
+    }
+    uint32 stride = sx+1;
+    for(uint32 z=0; z<sz; ++z){
+        for(uint32 x=0; x<sx; ++x){
+            uint32 i0 = z*stride + x;
+            uint32 i1 = i0 + 1;
+            uint32 i2 = i0 + stride;
+            uint32 i3 = i2 + 1;
+            pushTriCCW(out, i0,i2,i1);
+            pushTriCCW(out, i1,i2,i3);
+        }
+    }
+    return out;
+}
+
+MeshSrcData MakeCylinderSrcData(const CylinderDesc& d){
+    MeshSrcData out;
+    uint32 radial = glm::max<uint32>(3u, d.radialSegments);
+    uint32 hseg = glm::max<uint32>(1u, d.heightSegments);
+    float R = d.radius;
+    float halfH = d.height * 0.5f;
+    glm::vec4 color = d.color;
+    // Side vertices (duplicate first seam vertex for simpler indexing use wrap)
+    for(uint32 y=0; y<=hseg; ++y){
+        float fy = (float)y / hseg; // 0..1 bottom->top
+        float py = -halfH + fy * d.height;
+        for(uint32 r=0; r<=radial; ++r){
+            float fr = (float)r / radial;
+            float ang = fr * glm::two_pi<float>();
+            float c = glm::cos(ang), s = glm::sin(ang);
+            glm::vec3 normal = {c,0,s};
+            Vertex v; v.position={c*R, py, s*R};
+            v.normal=normal;
+            v.color=color;
+            v.uv={fr, 1.f - fy};
+            out.vertices.push_back(v);
+        }
+    }
+    // Side indices
+    uint32 stride = radial+1;
+    for(uint32 y=0; y<hseg; ++y){
+        for(uint32 r=0; r<radial; ++r){
+            uint32 i0 = y*stride + r;
+            uint32 i1 = i0 + 1;
+            uint32 i2 = i0 + stride;
+            uint32 i3 = i2 + 1;
+            pushTriCCW(out, i0,i2,i1);
+            pushTriCCW(out, i1,i2,i3);
+        }
+    }
+    auto makeCap = [&](bool top){
+        if(!top && !d.capBottom) return;
+        if(top && !d.capTop) return;
+        uint32 centerIndex = (uint32)out.vertices.size();
+        Vertex center; center.position = {0.f, top?halfH:-halfH, 0.f};
+        center.normal = {0.f, top?1.f:-1.f, 0.f};
+        center.color = color;
+        center.uv = {0.5f, 0.5f};
+        out.vertices.push_back(center);
+        uint32 ringStart = centerIndex + 1;
+        for(uint32 r=0; r<=radial; ++r){
+            float fr = (float)r / radial;
+            float ang = fr * glm::two_pi<float>();
+            float c = glm::cos(ang), s = glm::sin(ang);
+            Vertex v; v.position={c*R, top?halfH:-halfH, s*R};
+            v.normal=center.normal;
+            v.color=color;
+            v.uv={0.5f + c*0.5f, 0.5f + (top?-s:s)*0.5f};
+            out.vertices.push_back(v);
+        }
+        for(uint32 r=0; r<radial; ++r){
+            uint32 a = ringStart + r;
+            uint32 b = ringStart + r + 1;
+            if(top)
+                pushTriCCW(out, centerIndex, a, b);
+            else
+                pushTriCCW(out, centerIndex, b, a);
+        }
+    };
+    makeCap(true);
+    makeCap(false);
+    return out;
+}
+
+MeshSrcData MakeConeSrcData(const ConeDesc& d){
+    MeshSrcData out;
+    uint32 radial = glm::max<uint32>(3u, d.radialSegments);
+    uint32 hseg = glm::max<uint32>(1u, d.heightSegments);
+    float R = d.radius;
+    float halfH = d.height * 0.5f;
+    glm::vec4 color = d.color;
+    // Generate side (excluding apex duplication along seam)
+    // We create rings from base (y=-halfH, radius=R) to apex (y=+halfH, radius=0).
+    for(uint32 y=0; y<=hseg; ++y){
+        float fy = (float)y / hseg; // 0..1
+        float py = -halfH + fy * d.height;
+        float ringR = R * (1.f - fy);
+        for(uint32 r=0; r<=radial; ++r){
+            float fr = (float)r / radial;
+            float ang = fr * glm::two_pi<float>();
+            float c = glm::cos(ang), s = glm::sin(ang);
+            glm::vec3 pos {c*ringR, py, s*ringR};
+            // Normal: combine radial direction with slope. Unnormalized slope vector along side: (c, R/height, s) but sign for y.
+            glm::vec3 slope = {c, R / d.height, s}; // using derivative of param mapping
+            glm::vec3 n = glm::normalize(slope);
+            Vertex v; v.position=pos; v.normal=n; v.color=color; v.uv={fr, 1.f - fy};
+            out.vertices.push_back(v);
+        }
+    }
+    uint32 stride = radial+1;
+    for(uint32 y=0; y<hseg; ++y){
+        for(uint32 r=0; r<radial; ++r){
+            uint32 i0 = y*stride + r;
+            uint32 i1 = i0 + 1;
+            uint32 i2 = i0 + stride;
+            uint32 i3 = i2 + 1;
+            // Skip degenerate triangles where top ring has radius 0 (apex) -> collapse quads to fans automatically by second tri degeneracy check inside push
+            pushTriCCW(out, i0,i2,i1);
+            // Only add second tri if neither of its area collapses (avoid duplicate apex normals). Check positions.
+            const glm::vec3 &A = out.vertices[i1].position;
+            const glm::vec3 &B = out.vertices[i2].position;
+            const glm::vec3 &C = out.vertices[i3].position;
+            if(glm::length2(A-B) > 1e-12f && glm::length2(B-C) > 1e-12f && glm::length2(A-C) > 1e-12f)
+                pushTriCCW(out, i1,i2,i3);
+        }
+    }
+    if(d.capBase){
+        uint32 centerIndex = (uint32)out.vertices.size();
+        Vertex center;
+        center.position={0,-halfH,0};
+        center.normal={0,-1,0};
+        center.color=color;
+        center.uv={0.5f,0.5f};
+        out.vertices.push_back(center);
+        uint32 ringStart = centerIndex + 1;
+        for(uint32 r=0; r<=radial; ++r){
+            float fr = (float)r / radial;
+            float ang = fr * glm::two_pi<float>();
+            float c = glm::cos(ang), s = glm::sin(ang);
+            Vertex v;
+            v.position={c*R, -halfH, s*R};
+            v.normal={0,-1,0};
+            v.color=color;
+            v.uv={0.5f + c*0.5f, 0.5f + s*0.5f};
+            out.vertices.push_back(v);
+        }
+        for(uint32 r=0; r<radial; ++r){
+            uint32 a = ringStart + r;
+            uint32 b = ringStart + r + 1;
+            pushTriCCW(out, centerIndex, b, a); // bottom so reverse compared to top cap
+        }
+    }
+    return out;
+}
+
+MeshSrcData MakeAxesGizmoSrcData(const AxesGizmoDesc& d){
+    MeshSrcData out;
+    auto appendMesh = [&](const MeshSrcData& src, const glm::mat4& M, const glm::mat3& N, 
+                          const glm::vec4& overrideColor)
+    {
+        uint32 base = (uint32)out.vertices.size();
+        out.vertices.reserve(out.vertices.size() + src.vertices.size());
+        out.indices.reserve(out.indices.size() + src.indices.size());
+        for(const auto& v : src.vertices){
+            Vertex nv;
+            glm::vec4 p4 = M * glm::vec4(v.position,1.f);
+            nv.position = glm::vec3(p4);
+            nv.normal = glm::normalize(N * v.normal);
+            nv.color = overrideColor;
+            nv.uv = v.uv; // keep local UVs
+            out.vertices.push_back(nv);
+        }
+        for(uint32 idx : src.indices){ out.indices.push_back(base + idx); }
+    };
+    // Prepare base primitive descriptors
+    float shaftLen = glm::max(0.f, d.axisLength - d.coneHeight);
+    CylinderDesc cylDesc; cylDesc.radius = d.shaftRadius; cylDesc.height = shaftLen; cylDesc.radialSegments = d.radialSegments; cylDesc.heightSegments = d.shaftHeightSegments; cylDesc.capTop = false; cylDesc.capBottom = false; cylDesc.color = {1,1,1,1};
+    ConeDesc coneDesc; coneDesc.radius = d.coneRadius; coneDesc.height = d.coneHeight; coneDesc.radialSegments = d.radialSegments; coneDesc.heightSegments = 1; coneDesc.capBase = true; coneDesc.color = {1,1,1,1};
+    MeshSrcData shaft = MakeCylinderSrcData(cylDesc);
+    MeshSrcData head = MakeConeSrcData(coneDesc);
+    // Place along +Y first (local build): cylinder centered at origin currently spans [-h/2, +h/2]. Need it from 0..shaftLen.
+    // Transform: translate by +shaftLen/2 in Y. Cone currently base at -h/2 apex at +h/2. Want base at shaftLen and apex at shaftLen + coneHeight.
+    glm::mat4 Tshaft = glm::translate(glm::mat4(1.f), glm::vec3(0.f, shaftLen * 0.5f, 0.f));
+    glm::mat4 Thead = glm::translate(glm::mat4(1.f), glm::vec3(0.f, shaftLen + coneDesc.height*0.5f, 0.f));
+    glm::mat3 Niden(1.f);
+    // Y axis (already aligned)
+    appendMesh(shaft, Tshaft, Niden, d.colorY);
+    appendMesh(head, Thead, Niden, d.colorY);
+    // X axis: rotate +Z->? Actually need Y axis geometry rotated so Y becomes X.
+    auto rotYtoX = glm::rotate(glm::mat4(1.f), -glm::half_pi<float>(), glm::vec3(0,0,1)); // rotate -90 around Z so Y->X
+    glm::mat4 TshaftX = rotYtoX * Tshaft;
+    glm::mat4 TheadX = rotYtoX * Thead;
+    glm::mat3 NrotX = glm::mat3(rotYtoX);
+    appendMesh(shaft, TshaftX, NrotX, d.colorX);
+    appendMesh(head, TheadX, NrotX, d.colorX);
+    // Z axis: rotate +Y to +Z via +90 around X
+    auto rotYtoZ = glm::rotate(glm::mat4(1.f), glm::half_pi<float>(), glm::vec3(1,0,0));
+    glm::mat4 TshaftZ = rotYtoZ * Tshaft;
+    glm::mat4 TheadZ = rotYtoZ * Thead;
+    glm::mat3 NrotZ = glm::mat3(rotYtoZ);
+    appendMesh(shaft, TshaftZ, NrotZ, d.colorZ);
+    appendMesh(head, TheadZ, NrotZ, d.colorZ);
     return out;
 }
 
