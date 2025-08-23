@@ -11,6 +11,8 @@
 #include <SDL.h>
 #include <SDL_vulkan.h>
 
+#include "rhi/vulkan/sync/RHIVkFence.h"
+
 namespace RHI::Vulkan {
 
 UniquePtr<RHIVkSwapchain> RHIVkSwapchain::createUnique(
@@ -156,11 +158,19 @@ uint32 RHIVkSwapchain::acquireNextImage(RHISemaphore* imageAvailableSemaphore) {
     return m_imageIndex;
 }
 
-void RHIVkSwapchain::present(uint32 imageIndex, RHISemaphore* waitSemaphore) {
+void RHIVkSwapchain::present(uint32 imageIndex, RHISemaphore *waitSemaphore, RHIFence *signalFence) {
     // Submit the present to the queue
-    VkQueue queue = m_ctx->getVkGraphicsQueue()->getVk();
+    VkQueue vkQueue = m_ctx->getVkGraphicsQueue()->getVk();
     VkSemaphore vkWaitSemaphore = waitSemaphore ?
         static_cast<RHIVkSemaphore*>(waitSemaphore)->getVk() : VK_NULL_HANDLE;
+    VkFence vkFence = signalFence ?
+        static_cast<RHIVkFence*>(signalFence)->getVk() : VK_NULL_HANDLE;
+
+    VkSwapchainPresentFenceInfoEXT fenceInfo{};
+    fenceInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_EXT;
+    fenceInfo.swapchainCount = 1;
+    fenceInfo.pFences = &vkFence;
+
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.waitSemaphoreCount = 1;
@@ -169,7 +179,9 @@ void RHIVkSwapchain::present(uint32 imageIndex, RHISemaphore* waitSemaphore) {
     presentInfo.pSwapchains = &m_swapchain;
     presentInfo.pImageIndices = &imageIndex;
     presentInfo.pResults = nullptr;
-    VkResult presentResult = vkQueuePresentKHR(queue, &presentInfo);
+    presentInfo.pNext = &fenceInfo;
+
+    VkResult presentResult = vkQueuePresentKHR(vkQueue, &presentInfo);
     ASSERT(presentResult == VK_SUCCESS || presentResult == VK_SUBOPTIMAL_KHR);
 }
 

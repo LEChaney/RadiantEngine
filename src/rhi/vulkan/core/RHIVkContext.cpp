@@ -138,7 +138,7 @@ RHIVkContext::~RHIVkContext() {
 void RHIVkContext::createInstance() {
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = "RHI Vulkan Test";
+    appInfo.pApplicationName = "Vulkan RHI";
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName = "RadiantEngine";
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
@@ -193,6 +193,17 @@ void RHIVkContext::createInstance() {
         if (hasInstExt(surfaceExt)) {
             enabledExts.push_back(surfaceExt);
         }
+    }
+    // Enable extensions required by swapchain maintenance1 device extension
+    if (hasInstExt("VK_EXT_surface_maintenance1")) {
+        enabledExts.push_back("VK_EXT_surface_maintenance1");
+    } else {
+        ASSERT(false && "VK_EXT_surface_maintenance1 is required for swapchain maintenance1 extension");
+    }
+    if (hasInstExt("VK_KHR_get_surface_capabilities2")) {
+        enabledExts.push_back("VK_KHR_get_surface_capabilities2");
+    } else {
+        ASSERT(false && "VK_KHR_get_surface_capabilities2 is required for swapchain capabilities");
     }
     // Enable debug utils if validation is enabled
     if (enableValidation && hasInstExt("VK_EXT_debug_utils")) {
@@ -295,8 +306,49 @@ void RHIVkContext::pickPhysicalDevice() {
     }
     Array<VkPhysicalDevice> devices(deviceCount);
     vkEnumeratePhysicalDevices(m_instance, &deviceCount, devices.data());
-    // Just pick the first device for now
-    m_physicalDevice = devices[0];
+
+    // Select the best device: prefer discrete > integrated > anything else
+    auto deviceTypeScore = [](VkPhysicalDeviceType type) -> int {
+        switch (type) {
+            case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU: return 100;
+            case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU: return 50;
+            case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU: return 40;
+            case VK_PHYSICAL_DEVICE_TYPE_CPU: return 10;
+            default: return 1;
+        }
+    };
+
+    int bestScore = -1;
+    VkPhysicalDevice bestDevice = VK_NULL_HANDLE;
+    VkPhysicalDeviceProperties bestProps{};
+
+    for (auto pd : devices) {
+        VkPhysicalDeviceProperties props{};
+        vkGetPhysicalDeviceProperties(pd, &props);
+        int score = deviceTypeScore(props.deviceType);
+        if (score > bestScore) {
+            bestScore = score;
+            bestDevice = pd;
+            bestProps = props;
+        }
+    }
+
+    auto vkDeviceTypeStr = [](VkPhysicalDeviceType t) {
+        switch (t) {
+            case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU: return "Discrete";
+            case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU: return "Integrated";
+            case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU: return "Virtual";
+            case VK_PHYSICAL_DEVICE_TYPE_CPU: return "CPU";
+            default: return "Other";
+        }
+    };
+
+    if (bestDevice == VK_NULL_HANDLE) {
+        throw std::runtime_error("Failed to select a suitable GPU");
+    }
+    m_physicalDevice = bestDevice;
+    fmt::println("[Vulkan] Selected physical device: {} (type {}, score {})", 
+        bestProps.deviceName, vkDeviceTypeStr(bestProps.deviceType), bestScore);
 }
 
 uint32 RHIVkContext::findGraphicsQueueFamily() const {
@@ -331,17 +383,23 @@ bool RHIVkContext::gatherDeviceExtensions(Array<const char*>& deviceExtensions) 
         }
         return false;
     };
+    bool hasSwapchainMaintenance1 = hasExt("VK_EXT_swapchain_maintenance1");
     bool hasDeferredHost = hasExt("VK_KHR_deferred_host_operations");
     bool hasAccel = hasExt("VK_KHR_acceleration_structure");
     bool hasRtPipeline = hasExt("VK_KHR_ray_tracing_pipeline");
     bool hasRayQueryExt = hasExt("VK_KHR_ray_query");
     bool hasMeshShader = hasExt("VK_EXT_mesh_shader");
+    if (!hasSwapchainMaintenance1) {
+        throw std::runtime_error("Required swapchain maintenance extension (VK_EXT_swapchain_maintenance1) not supported by selected GPU");
+    }
     if (!(hasDeferredHost && hasAccel && hasRtPipeline)) {
         throw std::runtime_error("Required ray tracing extensions not supported by selected GPU");
     }
     if (!hasMeshShader) {
         throw std::runtime_error("Required mesh shader extension VK_EXT_mesh_shader not supported by selected GPU");
     }
+    // Add swapchain maintenance1 (EXT or KHR name)
+    deviceExtensions.push_back("VK_EXT_swapchain_maintenance1");
     deviceExtensions.push_back("VK_KHR_deferred_host_operations");
     deviceExtensions.push_back("VK_KHR_acceleration_structure");
     deviceExtensions.push_back("VK_KHR_ray_tracing_pipeline");
@@ -378,11 +436,11 @@ void RHIVkContext::createLogicalDevice() {
     deviceCi.enabledExtensionCount = static_cast<uint32>(deviceExtensions.size());
     deviceCi.ppEnabledExtensionNames = deviceExtensions.data();
     // Query feature chain
-    // NOTE: Feature query & enabling previously handled by buildFeatureChains; now inlined to reduce indirection and avoid dangling pNext pointers.
     VkPhysicalDeviceFeatures2 queryFeatures2{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
     VkPhysicalDeviceDescriptorBufferFeaturesEXT queryDescBuf{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT };
     VkPhysicalDeviceVulkan13Features queryVk13{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
     VkPhysicalDeviceVulkan12Features queryVk12{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
+    VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT querySwapchain{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_EXT };
     VkPhysicalDeviceMeshShaderFeaturesEXT queryMesh{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT };
     VkPhysicalDeviceAccelerationStructureFeaturesKHR queryAccel{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR };
     VkPhysicalDeviceRayTracingPipelineFeaturesKHR queryRtPipe{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR };
@@ -390,7 +448,8 @@ void RHIVkContext::createLogicalDevice() {
     queryFeatures2.pNext = &queryDescBuf;
     queryDescBuf.pNext = &queryVk13;
     queryVk13.pNext = &queryVk12;
-    queryVk12.pNext = &queryMesh;
+    queryVk12.pNext = &querySwapchain;
+    querySwapchain.pNext = &queryMesh;
     queryMesh.pNext = &queryAccel;
     queryAccel.pNext = &queryRtPipe;
     if (enableRayQuery) {
@@ -402,6 +461,7 @@ void RHIVkContext::createLogicalDevice() {
     VkPhysicalDeviceDescriptorBufferFeaturesEXT enableDescBuf{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT };
     VkPhysicalDeviceVulkan13Features enableVk13{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
     VkPhysicalDeviceVulkan12Features enableVk12{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
+    VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT enableSwapchain{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_EXT };
     VkPhysicalDeviceMeshShaderFeaturesEXT enableMesh{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT };
     VkPhysicalDeviceAccelerationStructureFeaturesKHR enableAccel{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR };
     VkPhysicalDeviceRayTracingPipelineFeaturesKHR enableRtPipe{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR };
@@ -409,7 +469,8 @@ void RHIVkContext::createLogicalDevice() {
     enableFeatures2.pNext = &enableDescBuf;
     enableDescBuf.pNext = &enableVk13;
     enableVk13.pNext = &enableVk12;
-    enableVk12.pNext = &enableMesh;
+    enableVk12.pNext = &enableSwapchain;
+    enableSwapchain.pNext = &enableMesh;
     enableMesh.pNext = &enableAccel;
     enableAccel.pNext = &enableRtPipe;
     if (enableRayQuery) {
@@ -476,6 +537,12 @@ void RHIVkContext::createLogicalDevice() {
     }
     if (queryVk13.maintenance4) {
         enableVk13.maintenance4 = VK_TRUE;
+    }
+    // Swapchain
+    if (querySwapchain.swapchainMaintenance1) {
+        enableSwapchain.swapchainMaintenance1 = VK_TRUE;
+    } else {
+        ASSERT(false && "Required swapchain maintenance 1 feature not supported by selected GPU");
     }
     // Mesh shader
     if (queryMesh.meshShader) {

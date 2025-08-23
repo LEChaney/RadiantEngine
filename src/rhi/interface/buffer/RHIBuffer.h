@@ -50,6 +50,7 @@ protected:
     void* m_mapped = nullptr; // pointer to mapped memory, nullptr if not mapped
 };
 
+// TODO: Make templated version
 struct RHIBufferSlice {
     RHIBuffer* buffer = nullptr; // pointer to the buffer this slice belongs to
     uint64 offset = 0;

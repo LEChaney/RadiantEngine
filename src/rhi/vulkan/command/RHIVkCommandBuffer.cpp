@@ -175,6 +175,16 @@ void RHIVkCommandBuffer::copyImageToBuffer(RHI::RHIImage* image, RHI::RHIBuffer*
     vkCmdCopyImageToBuffer(m_vkCmd, vkImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, vkBuffer, 1, &region);
 }
 
+void RHIVkCommandBuffer::copyBuffer(RHIBuffer* src, RHIBuffer* dst, uint64 srcOffset, uint64 dstOffset, uint64 size) {
+    VkBufferCopy region{};
+    region.srcOffset = srcOffset;
+    region.dstOffset = dstOffset;
+    region.size = size;
+    auto vkSrc = static_cast<RHIVkBuffer*>(src)->getVk();
+    auto vkDst = static_cast<RHIVkBuffer*>(dst)->getVk();
+    vkCmdCopyBuffer(m_vkCmd, vkSrc, vkDst, 1, &region);
+}
+
 void RHIVkCommandBuffer::bindVkPipeline(VkPipelineBindPoint bindPoint, RHIPipeline* pipeline) {
     auto vkPipe = static_cast<RHIVkPipeline*>(pipeline);
     vkCmdBindPipeline(m_vkCmd, bindPoint, vkPipe->getVk());

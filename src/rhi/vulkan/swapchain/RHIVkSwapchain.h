@@ -27,7 +27,7 @@ public:
     RHIVkSwapchain& operator=(RHIVkSwapchain&&) = delete;
 
     uint32 acquireNextImage(RHISemaphore* imageAvailableSemaphore) override;
-    void present(uint32 imageIndex, RHISemaphore* waitSemaphore) override;
+    void present(uint32 imageIndex, RHISemaphore *waitSemaphore, RHIFence *signalFence) override;
     uint32_t imageCount() const override;
     void resize(uint32_t width, uint32_t height) override;
 

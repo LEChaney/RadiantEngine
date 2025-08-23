@@ -24,18 +24,36 @@ UniquePtr<RHIVkPipeline> RHIVkPipeline::createUniqueGraphics(
 {
     ASSERT(desc.layout && desc.meshShader && desc.fragmentShader && "Graphics pipeline descriptor must have layout, mesh shader, fragment shader");
 
-    // Stage infos: mesh + fragment
-    VkPipelineShaderStageCreateInfo stages[2]{};
-    stages[0].sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    stages[0].stage  = VK_SHADER_STAGE_MESH_BIT_EXT; // Mesh shader stage
-    stages[0].module = static_cast<RHIVkShaderModule*>(desc.meshShader)->getVk();
-    stages[0].pName  = "main";
-    stages[0].flags  = 0; // Could add specialization in future
+    // Up to 3 stages: optional task, required mesh, required fragment
+    VkPipelineShaderStageCreateInfo stages[3]{};
+    uint32_t stageCount = 0;
 
-    stages[1].sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    stages[1].stage  = VK_SHADER_STAGE_FRAGMENT_BIT;
-    stages[1].module = static_cast<RHIVkShaderModule*>(desc.fragmentShader)->getVk();
-    stages[1].pName  = "main";
+    if (desc.taskShader) {
+        auto* taskVk = static_cast<RHIVkShaderModule*>(desc.taskShader);
+        VkPipelineShaderStageCreateInfo& s = stages[stageCount++];
+        s.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        s.stage  = VK_SHADER_STAGE_TASK_BIT_EXT;
+        s.module = taskVk->getVk();
+        s.pName  = "main";
+    }
+
+    {
+        auto* meshVk = static_cast<RHIVkShaderModule*>(desc.meshShader);
+        VkPipelineShaderStageCreateInfo& s = stages[stageCount++];
+        s.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        s.stage  = VK_SHADER_STAGE_MESH_BIT_EXT;
+        s.module = meshVk->getVk();
+        s.pName  = "main";
+    }
+
+    {
+        auto* fragVk = static_cast<RHIVkShaderModule*>(desc.fragmentShader);
+        VkPipelineShaderStageCreateInfo& s = stages[stageCount++];
+        s.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        s.stage  = VK_SHADER_STAGE_FRAGMENT_BIT;
+        s.module = fragVk->getVk();
+        s.pName  = "main";
+    }
 
     // Fixed function structures (many unused with mesh shaders)
     VkPipelineViewportStateCreateInfo viewportState{};
@@ -101,7 +119,7 @@ UniquePtr<RHIVkPipeline> RHIVkPipeline::createUniqueGraphics(
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineInfo.pNext = &rendering;
-    pipelineInfo.stageCount = 2;
+    pipelineInfo.stageCount = stageCount;
     pipelineInfo.pStages = stages;
     pipelineInfo.pViewportState = &viewportState;
     pipelineInfo.pRasterizationState = &raster;

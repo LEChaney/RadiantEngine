@@ -35,6 +35,7 @@ RHIVkBuffer::RHIVkBuffer(RHIVkContext* context, uint64 size, RHIBufferUsageFlags
 RHIVkBuffer::~RHIVkBuffer() {
     VmaAllocator allocator = m_ctx->getVmaAllocator();
     if (m_buffer && m_allocation) {
+        unmap(); // Ensure unmapping before destruction
         vmaDestroyBuffer(allocator, m_buffer, m_allocation);
     }
 }
@@ -51,8 +52,13 @@ void *RHIVkBuffer::map()
 }
 
 void RHIVkBuffer::unmap() {
+    if (!m_mapped) {
+        return; // Not mapped
+    }
+
     VmaAllocator allocator = m_ctx->getVmaAllocator();
     vmaUnmapMemory(allocator, m_allocation);
+    m_mapped = nullptr; // Clear mapped pointer
 }
 
 uint64 RHIVkBuffer::getDeviceAddress() const {

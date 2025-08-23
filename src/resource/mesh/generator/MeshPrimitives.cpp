@@ -546,7 +546,7 @@ MeshSrcData MakeConeSrcData(const ConeDesc& d){
     return out;
 }
 
-MeshSrcData MakeAxesGizmoSrcData(const AxesGizmoDesc& d){
+MeshSrcData MakeAxesSrcData(const AxesDesc& d){
     MeshSrcData out;
     auto appendMesh = [&](const MeshSrcData& src, const glm::mat4& M, const glm::mat3& N, 
                           const glm::vec4& overrideColor)

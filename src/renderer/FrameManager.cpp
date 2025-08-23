@@ -27,12 +27,14 @@ FrameManager::FrameManager(RHIContext* ctx, RHISwapchain* swapchain, uint32 maxF
     m_imgAvailableSemaphores.resize(m_maxFramesInFlight);
     m_renderFinishedSemaphores.resize(m_maxFramesInFlight);
     m_renderFinishedFences.resize(m_maxFramesInFlight);
+    m_presentFinishedFences.resize(m_maxFramesInFlight);
 
     for (uint32 i = 0; i < m_maxFramesInFlight; ++i) {
         m_commandBuffers[i] = m_ctx->createCommandBuffer();
         m_imgAvailableSemaphores[i] = m_ctx->createSemaphore();
         m_renderFinishedSemaphores[i] = m_ctx->createSemaphore();
         m_renderFinishedFences[i] = m_ctx->createFence();
+        m_presentFinishedFences[i] = m_ctx->createFence();
         m_isDynRendering.push_back(false);
     }
 }
@@ -74,7 +76,8 @@ FrameContext FrameManager::acquireFrame() {
         .swapImgs = swapchainImage,
         .imgAvailableSemaphore = m_imgAvailableSemaphores[m_currentFrame].get(),
         .renderFinishedSemaphore = m_renderFinishedSemaphores[m_currentFrame].get(),
-        .renderFinishedFence = m_renderFinishedFences[m_currentFrame].get()
+        .renderFinishedFence = m_renderFinishedFences[m_currentFrame].get(),
+        .presentFinishedFence = m_presentFinishedFences[m_currentFrame].get(),
     };
 
     m_commandBuffers[m_currentFrame]->reset();
@@ -87,7 +90,12 @@ void FrameManager::submitAndPresent(const FrameContext& frame, const FrameSubmit
     frame.cmd->transitionImageLayout(frame.swapImgs.color, RHIImageLayout::Present);
     m_commandBuffers[m_currentFrame]->end();
 
-    // TODO: Add ability to pass in queue to submit to
+    // Since the renderFinishedSemaphore could still be in use by a previous present, we need to wait
+    // on this present fence to ensure that the presentation engine is done with the semaphore before
+    // we can re-use it.
+    frame.presentFinishedFence->wait();
+    frame.presentFinishedFence->reset();
+
     auto* queue = frameSubmitInfo.queue ? frameSubmitInfo.queue : m_ctx->getGraphicsQueue();
     RHIQueueSubmitDesc queueSubmitInfo{
         .commandBuffers = {frame.cmd},
@@ -97,7 +105,7 @@ void FrameManager::submitAndPresent(const FrameContext& frame, const FrameSubmit
     };
     queue->submit(queueSubmitInfo);
 
-    m_swapchain->present(frame.swapImgs.imageIndex, frame.renderFinishedSemaphore);
+    m_swapchain->present(frame.swapImgs.imageIndex, frame.renderFinishedSemaphore, frame.presentFinishedFence);
     m_currentFrame = (m_currentFrame + 1) % m_maxFramesInFlight;
 }
 

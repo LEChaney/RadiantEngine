@@ -9,6 +9,8 @@ class RHIShaderModule;
 
 struct RHIGraphicsPipelineDescriptor {
     RHIPipelineLayout* layout = nullptr;
+    // Optional task shader. When provided, pipeline stages are: task -> mesh -> fragment.
+    RHIShaderModule* taskShader = nullptr; // may be null
     RHIShaderModule* meshShader = nullptr;
     RHIShaderModule* fragmentShader = nullptr;
     RHIFormat colorFormat = RHIFormat::RHI_FORMAT_UNDEFINED;

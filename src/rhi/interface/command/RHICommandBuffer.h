@@ -58,6 +58,8 @@ public:
     // Transition image layout with explicit old layout
     virtual void transitionImageLayout(class RHIImage* image, RHIImageLayout oldLayout, RHIImageLayout newLayout) = 0;
     virtual void copyImageToBuffer(class RHIImage* image, class RHIBuffer* buffer, uint32 width, uint32 height) = 0;
+    // Buffer to buffer copy
+    virtual void copyBuffer(RHIBuffer* src, RHIBuffer* dst, uint64 srcOffset, uint64 dstOffset, uint64 size) = 0;
     virtual void bindComputePipeline(RHIPipeline* pipeline) = 0;
     virtual void bindGraphicsPipeline(RHIPipeline* get) = 0;
     virtual void bindDescriptorBuffers(const Array<RHIDescriptorBuffer*>& descBuffers) = 0;

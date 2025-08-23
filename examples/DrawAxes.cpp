@@ -106,14 +106,14 @@ int main(int argc, char** argv){
     auto frameMgr = FrameManager::createUnique(ctx.get(), swapchain.get(), 2);
 
     // Build axes gizmo mesh and meshlets
-    AxesGizmoDesc adesc {
+    AxesDesc adesc {
         .axisLength = 1.5f,
         .shaftRadius = 0.02f,
         .coneRadius = 0.08f,
         .coneHeight = 0.2f,
         .radialSegments = 24
     };
-    MeshSrcData gizmo = MakeAxesGizmoSrcData(adesc);
+    MeshSrcData gizmo = MakeAxesSrcData(adesc);
     BuildParams buildParams; buildParams.gridResolution = 0; // sequential meshlets
     MeshletBuildResult build = buildMeshlets(gizmo, buildParams);
     PackedMeshlets packed = packMeshlets(gizmo, build);

@@ -39,12 +39,13 @@ struct FrameContext {
     RHI::RHISemaphore* imgAvailableSemaphore;   // acquire semaphore
     RHI::RHISemaphore* renderFinishedSemaphore; // present wait semaphore
     RHI::RHIFence* renderFinishedFence;         // signaled when this frame's GPU work is done
+    RHI::RHIFence* presentFinishedFence;        // signaled when present operation is done
 };
 
 struct FrameSubmitInfo {
     RHI::RHIQueue* queue = nullptr;
-    RHI::RHIPipelineStageFlags waitAcquireStage = RHI::RHIPipelineStage::AllCommands;
-    RHI::RHIPipelineStageFlags signalPresentStage = RHI::RHIPipelineStage::AllCommands;
+    RHI::RHIPipelineStageFlags waitAcquireStage = RHI::RHIPipelineStage::ColorAttachmentOutput;
+    RHI::RHIPipelineStageFlags signalPresentStage = RHI::RHIPipelineStage::ColorAttachmentOutput;
 };
 
 class FrameManager {
@@ -81,6 +82,7 @@ private:
     SmallArray<UniquePtr<RHI::RHISemaphore>, k_expectedFrameCount> m_imgAvailableSemaphores;   // Per-frame-in-flight
     SmallArray<UniquePtr<RHI::RHISemaphore>, k_expectedFrameCount> m_renderFinishedSemaphores; // Per-frame-in-flight
     SmallArray<UniquePtr<RHI::RHIFence>, k_expectedFrameCount> m_renderFinishedFences;         // Per-frame-in-flight
+    SmallArray<UniquePtr<RHI::RHIFence>, k_expectedFrameCount> m_presentFinishedFences;        // Per-frame-in-flight
 #ifdef _DEBUG
     SmallArray<bool, k_expectedFrameCount> m_isDynRendering; // Track if dynamic rendering begun for each frame
 #endif

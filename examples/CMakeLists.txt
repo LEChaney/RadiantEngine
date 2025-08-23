@@ -41,6 +41,11 @@ if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/TeapotMeshlet.cpp)
     add_radiant_example(TeapotMeshlet ${CMAKE_CURRENT_SOURCE_DIR}/TeapotMeshlet.cpp)
 endif()
 
-if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/AxesGizmo.cpp)
-    add_radiant_example(AxesGizmo ${CMAKE_CURRENT_SOURCE_DIR}/AxesGizmo.cpp)
+if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/DrawAxes.cpp)
+    add_radiant_example(DrawAxes ${CMAKE_CURRENT_SOURCE_DIR}/DrawAxes.cpp)
+endif()
+
+# New multi-mesh task shader stress test example
+if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/MultiMeshTask.cpp)
+    add_radiant_example(MultiMeshTask ${CMAKE_CURRENT_SOURCE_DIR}/MultiMeshTask.cpp)
 endif()

@@ -59,7 +59,7 @@ struct ConeDesc {
     glm::vec4 color {1.f,1.f,1.f,1.f};
 };
 
-struct AxesGizmoDesc {
+struct AxesDesc {
     // Total length of each axis (shaft + cone tip)
     float axisLength = 1.0f;
     // Radius of cylindrical shaft
@@ -85,7 +85,7 @@ MeshSrcData MakeTeapotSrcData(const TeapotDesc& d = {});
 MeshSrcData MakePlaneSrcData(const PlaneDesc& d = {});
 MeshSrcData MakeCylinderSrcData(const CylinderDesc& d = {});
 MeshSrcData MakeConeSrcData(const ConeDesc& d = {});
-MeshSrcData MakeAxesGizmoSrcData(const AxesGizmoDesc& d = {});
+MeshSrcData MakeAxesSrcData(const AxesDesc& d = {});
 
 // Add more (torus, grid, etc.)
 

@@ -3,10 +3,12 @@
 #include "ankerl/svector.h"
 #include <vector>
 #include <memory>
+#include <utility>
 #include <cassert>
 #include <cstdint>
 #include <filesystem>
 #include <initializer_list>
+#include <type_traits>
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -66,6 +68,42 @@ using Set = ankerl::unordered_dense::set<T>;
 
 template<typename T>
 using InitializerList = std::initializer_list<T>;
+
+// Cast helpers (verbosity reduction)
+// static_cast wrapper
+template<class To, class From>
+constexpr To cast(From&& value) noexcept {
+    return static_cast<To>(std::forward<From>(value));
+}
+
+// dynamic_cast wrapper (pointer overload)
+template<class To, class From>
+To dyncast(From* ptr) noexcept { // returns nullptr on failure when To is a pointer
+    return dynamic_cast<To>(ptr);
+}
+
+// dynamic_cast wrapper (reference overload) - may throw std::bad_cast
+template<class To, class From>
+To dyncast(From& ref) { // no noexcept: dynamic_cast on references can throw
+    return dynamic_cast<To>(ref);
+}
+
+// reinterpret_cast wrapper
+template<class To, class From>
+constexpr To rcast(From&& value) noexcept {
+    return reinterpret_cast<To>(std::forward<From>(value));
+}
+
+// Optional: bounds-checked narrowing cast (asserts in debug, returns value in release)
+template<class To, class From>
+constexpr To narrow(From value) {
+    To out = static_cast<To>(value);
+#if !defined(NDEBUG)
+    // If round-trip changes the value, it's a narrowing error
+    ASSERT(static_cast<From>(out) == value && "narrow(): data loss");
+#endif
+    return out;
+}
 
 // Generic flags wrapper
 template<typename Enum>

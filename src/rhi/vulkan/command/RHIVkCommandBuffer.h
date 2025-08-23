@@ -39,6 +39,7 @@ public:
     // Transition image layout with explicit old layout
     void transitionImageLayout(RHIImage* image, RHIImageLayout oldLayout, RHIImageLayout newLayout) override;
     void copyImageToBuffer(RHIImage* image, RHIBuffer* buffer, uint32_t width, uint32_t height) override;
+    void copyBuffer(RHIBuffer* src, RHIBuffer* dst, uint64 srcOffset, uint64 dstOffset, uint64 size) override;
     void bindComputePipeline(RHIPipeline* pipeline) override;
     void bindGraphicsPipeline(RHIPipeline* pipeline) override;
     void bindDescriptorBuffers(const Array<RHIDescriptorBuffer*>& descBuffers) override;

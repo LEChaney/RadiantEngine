@@ -32,7 +32,7 @@ public:
     RHISwapchain& operator=(RHISwapchain&&) = delete;
 
     virtual uint32 acquireNextImage(RHISemaphore* imageAvailableSemaphore) = 0;
-    virtual void present(uint32 imageIndex, RHISemaphore* waitSemaphore) = 0;
+    virtual void present(uint32 imageIndex, RHISemaphore *waitSemaphore, RHIFence *signalFence) = 0;
     virtual RHIImage* getColorImage(uint32 imageIndex) = 0;
     virtual RHIImageView* getColorImageView(uint32 imageIndex) = 0;
     virtual RHIImage* getDepthImage(uint32 imageIndex) = 0;
