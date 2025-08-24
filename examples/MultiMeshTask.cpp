@@ -103,7 +103,7 @@ int main(int argc, char** argv) {
     Array<MeshletGPU> allMeshlets; allMeshlets.reserve(1<<16);
     Array<MeshletBounds> bounds; bounds.reserve(1<<16);
 
-    constexpr uint32 instCountPerMesh = 25; // stress (large to test chunking)
+    constexpr uint32 instCountPerMesh = 25;
     constexpr uint32 kTaskGroupSize = 64; // THREAD_COUNT in shader
     Array<TaskBatch> taskBatches;
     taskBatches.reserve(meshes.size() * instCountPerMesh / kTaskGroupSize); // 1 per task group
@@ -167,44 +167,63 @@ int main(int argc, char** argv) {
 
         auto meshMeshletCount = cast<uint32>(meshlets.size());
         if(instCountPerMesh > 0 && meshMeshletCount > 0){
-            // A "meshlet batch" = consecutive meshlets where we include ALL instances for each meshlet in the batch.
-            // If a batch fits entirely within one tile (meshletsPerBatch > 0) we emit batch tiles.
-            // Otherwise (tile smaller than one full instance span) we fall back to per-meshlet "instance stripe" tiles.
-            uint32 meshletsPerBatch = kTaskGroupSize / instCountPerMesh; // meshlets we can cover with all their instances
             uint32 taskGroupsForMesh = 0;
-            if(meshletsPerBatch > 0){
-                // Batch tiles (each covers meshletCount * instCountPerMesh pairs)
-                for(uint32 m = 0; m < meshMeshletCount; ){
-                    uint32 remain = meshMeshletCount - m;
-                    uint32 batchCount = remain < meshletsPerBatch ? remain : meshletsPerBatch;
-                    taskBatches.push_back({
-                        .meshletStart = meshletBase + m,
-                        .meshletCount = batchCount,
-                        .instanceStart = instBase,
-                        .instanceCount = instCountPerMesh
-                    });
-                    m += batchCount;
-                    ++taskGroupsForMesh;
-                }
+
+            // Choose tiling factors (A meshlets × B instances) maximizing A*B <= kTaskGroupSize.
+            // Constraints:
+            //  - 1 <= A <= meshMeshletCount
+            //  - 1 <= B <= instCountPerMesh
+            //  - A * B <= kTaskGroupSize
+            // Special fast path: if instCountPerMesh >= kTaskGroupSize we can only emit stripes:
+            //    A = 1, B = kTaskGroupSize (each tile is a slice of one meshlet's instances).
+            uint32 A = 1;
+            uint32 B = 1;
+
+            if(instCountPerMesh >= kTaskGroupSize){
+                A = 1;
+                B = kTaskGroupSize;
             } else {
-                // Instance stripe tiles (split instances of each meshlet into stripes of up to kTaskGroupSize)
-                for(uint32 m = 0; m < meshMeshletCount; ++m){
-                    for(uint32 instStart = 0; instStart < instCountPerMesh; instStart += kTaskGroupSize){
-                        uint32 stripeCount = instCountPerMesh - instStart;
-                        if(stripeCount > kTaskGroupSize) stripeCount = kTaskGroupSize;
-                        taskBatches.push_back({
-                            .meshletStart = meshletBase + m,
-                            .meshletCount = 1,
-                            .instanceStart = instBase + instStart,
-                            .instanceCount = stripeCount
-                        });
-                        ++taskGroupsForMesh;
+                // Search B descending (prefer larger instance spans for vertex reuse of a meshlet)
+                uint32 bestPairs = 0;
+                uint32 maxB = std::min(instCountPerMesh, kTaskGroupSize);
+                for(uint32 b = maxB; b >= 1; --b){
+                    uint32 a = kTaskGroupSize / b;
+                    if(a == 0) continue;
+                    if(a > meshMeshletCount) a = meshMeshletCount; // can't exceed remaining meshlets in first batch
+                    uint32 pairs = a * b;
+                    if(pairs > bestPairs){
+                        bestPairs = pairs;
+                        A = a;
+                        B = b;
+                        if(pairs == kTaskGroupSize) break; // perfect fill
                     }
+                    if(b == 1) break; // prevent unsigned wrap
                 }
             }
+
+            // Emit tiles over meshlet-major, instance-minor grid:
+            // For meshlets in chunks of A, for instances in chunks of B.
+            // Edge tiles (last row/column) shrink A and/or B to remaining counts.
+            for(uint32 m0 = 0; m0 < meshMeshletCount; m0 += A){
+                uint32 thisA = std::min(A, meshMeshletCount - m0);
+                for(uint32 i0 = 0; i0 < instCountPerMesh; i0 += B){
+                    uint32 thisB = std::min(B, instCountPerMesh - i0);
+                    // Safety: ensure tile does not exceed group size
+                    ASSERT(thisA * thisB <= kTaskGroupSize);
+                    taskBatches.push_back({
+                        .meshletStart  = meshletBase + m0,
+                        .meshletCount  = thisA,
+                        .instanceStart = instBase + i0,
+                        .instanceCount = thisB
+                    });
+                    ++taskGroupsForMesh;
+                }
+            }
+
             totalTaskGroups += taskGroupsForMesh;
-            std::printf("Mesh %zu: meshlets=%u instances=%u groups=%u totalPairs=%u\n", meshIdx, 
-                meshMeshletCount, instCountPerMesh, taskGroupsForMesh, meshMeshletCount * instCountPerMesh);
+            std::printf("Mesh %u: meshlets=%u instances=%u tile(meshlets=%u,instances=%u) groups=%u totalPairs=%u\n",
+                meshIdx, meshMeshletCount, instCountPerMesh, A, B, taskGroupsForMesh,
+                meshMeshletCount * instCountPerMesh);
         }
 
         // Advance bases
