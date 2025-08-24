@@ -27,11 +27,11 @@ using Renderer::FrameManager;
 // --- Data structures matching shader layout ---
 struct MeshletGPU { uint32 vertexOffset; uint8 vertexCount; uint32 indexOffset; uint8 primitiveCount; };
 struct InstanceData { glm::mat4 model; glm::vec4 color; };
-// TaskTile encodes either:
+// TaskBatch encodes either:
 //  A) A rectangle of meshletCount full meshlets each with instanceCount instances (instanceStart aligned to mesh's instance base)
 //  B) A partial segment of a single meshlet (meshletCount==1) starting at instanceStart with instanceCount instances
 // This flattens the previous (pairStart/pairCount) representation while keeping decoding simple in the task shader.
-struct TaskTile { uint32 meshletStart, meshletCount, instanceStart, instanceCount; };
+struct TaskBatch { uint32 meshletStart, meshletCount, instanceStart, instanceCount; };
 struct MeshletBounds { glm::vec4 centerRadius; };
 
 struct PipelineRes {
@@ -55,7 +55,7 @@ static glm::mat4 makePerspectiveReverseZ(float fovyRadians, float aspect, float 
     return m;
 }
 
-int main(int argc, char** argv){
+int main(int argc, char** argv) {
     (void)argc; (void)argv;
     if(SDL_Init(SDL_INIT_VIDEO) != 0){ std::printf("SDL init failed: %s\n", SDL_GetError()); return 1; }
     SDL_Window* window = SDL_CreateWindow("MultiMeshTask", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
@@ -103,19 +103,19 @@ int main(int argc, char** argv){
     Array<MeshletGPU> allMeshlets; allMeshlets.reserve(1<<16);
     Array<MeshletBounds> bounds; bounds.reserve(1<<16);
 
-    constexpr uint32 instCountPerMesh = 10000; // stress (large to test chunking)
+    constexpr uint32 instCountPerMesh = 25; // stress (large to test chunking)
     constexpr uint32 kTaskGroupSize = 64; // THREAD_COUNT in shader
-    Array<TaskTile> taskTiles;
-    taskTiles.reserve(meshes.size() * instCountPerMesh / kTaskGroupSize); // 1 per task group
+    Array<TaskBatch> taskBatches;
+    taskBatches.reserve(meshes.size() * instCountPerMesh / kTaskGroupSize); // 1 per task group
     Array<InstanceData> allInstances;
     allInstances.reserve(10000);
 
     uint32 vertBase=0, idxBase=0, meshletBase=0, instBase=0;
-    uint32 totalTaskGroups = 0; // number of amplification groups (one dispatch group per TaskTile)
+    uint32 totalTaskGroups = 0; // number of amplification groups (one dispatch group per TaskBatch)
     std::mt19937 rng(1337);
     std::uniform_real_distribution<float> dist(-1.f,1.f);
 
-    for (size_t meshIdx = 0; meshIdx < meshes.size(); ++meshIdx) {
+    for (uint32 meshIdx = 0; meshIdx < meshes.size(); ++meshIdx) {
         auto&[vertices, indices, meshlets] = meshes[meshIdx];
         // Append vertices & indices`
         allVertices.insert(allVertices.end(), vertices.begin(), vertices.end());
@@ -165,8 +165,8 @@ int main(int argc, char** argv){
             allInstances.push_back(instData);
         }
 
-        auto meshletCountLocal = cast<uint32>(meshlets.size());
-        if(instCountPerMesh > 0 && meshletCountLocal > 0){
+        auto meshMeshletCount = cast<uint32>(meshlets.size());
+        if(instCountPerMesh > 0 && meshMeshletCount > 0){
             // A "meshlet batch" = consecutive meshlets where we include ALL instances for each meshlet in the batch.
             // If a batch fits entirely within one tile (meshletsPerBatch > 0) we emit batch tiles.
             // Otherwise (tile smaller than one full instance span) we fall back to per-meshlet "instance stripe" tiles.
@@ -174,10 +174,10 @@ int main(int argc, char** argv){
             uint32 taskGroupsForMesh = 0;
             if(meshletsPerBatch > 0){
                 // Batch tiles (each covers meshletCount * instCountPerMesh pairs)
-                for(uint32 m = 0; m < meshletCountLocal; ){
-                    uint32 remain = meshletCountLocal - m;
+                for(uint32 m = 0; m < meshMeshletCount; ){
+                    uint32 remain = meshMeshletCount - m;
                     uint32 batchCount = remain < meshletsPerBatch ? remain : meshletsPerBatch;
-                    taskTiles.push_back({
+                    taskBatches.push_back({
                         .meshletStart = meshletBase + m,
                         .meshletCount = batchCount,
                         .instanceStart = instBase,
@@ -188,11 +188,11 @@ int main(int argc, char** argv){
                 }
             } else {
                 // Instance stripe tiles (split instances of each meshlet into stripes of up to kTaskGroupSize)
-                for(uint32 m = 0; m < meshletCountLocal; ++m){
+                for(uint32 m = 0; m < meshMeshletCount; ++m){
                     for(uint32 instStart = 0; instStart < instCountPerMesh; instStart += kTaskGroupSize){
                         uint32 stripeCount = instCountPerMesh - instStart;
                         if(stripeCount > kTaskGroupSize) stripeCount = kTaskGroupSize;
-                        taskTiles.push_back({
+                        taskBatches.push_back({
                             .meshletStart = meshletBase + m,
                             .meshletCount = 1,
                             .instanceStart = instBase + instStart,
@@ -203,8 +203,8 @@ int main(int argc, char** argv){
                 }
             }
             totalTaskGroups += taskGroupsForMesh;
-            std::printf("Mesh %zu: meshlets=%u groups=%u totalPairs=%llu\n", meshIdx, meshletCountLocal, taskGroupsForMesh,
-                (unsigned long long)(uint64(meshletCountLocal)*uint64(instCountPerMesh)));
+            std::printf("Mesh %zu: meshlets=%u instances=%u groups=%u totalPairs=%u\n", meshIdx, 
+                meshMeshletCount, instCountPerMesh, taskGroupsForMesh, meshMeshletCount * instCountPerMesh);
         }
 
         // Advance bases
@@ -255,7 +255,7 @@ int main(int argc, char** argv){
     auto verticesBuf = makeStaticBuf(allVertices.data(), allVertices.size()*sizeof(Vertex), 0);
     auto primIdxBuf  = makeStaticBuf(allPrimIdx.data(), allPrimIdx.size()*sizeof(uint8), 0);
     auto boundsBuf   = makeStaticBuf(bounds.data(), bounds.size()*sizeof(MeshletBounds), 0);
-    auto tileBuf     = makeStaticBuf(taskTiles.data(), taskTiles.size()*sizeof(TaskTile), 0);
+    auto tileBuf     = makeStaticBuf(taskBatches.data(), taskBatches.size()*sizeof(TaskBatch), 0);
     auto instanceBuf = makeDynamicMappedBuf(allInstances.data(), allInstances.size()*sizeof(InstanceData), 0);
 
     // --- Pipeline & descriptors --- (task + mesh + frag)
@@ -265,7 +265,7 @@ int main(int argc, char** argv){
         {1, RHIDescriptorType::StorageBuffer, RHIShaderStage::Mesh},
         {2, RHIDescriptorType::StorageBuffer, RHIShaderStage::Mesh},
         {3, RHIDescriptorType::StorageBuffer, RHIShaderStage::Task | RHIShaderStage::Mesh},
-        {4, RHIDescriptorType::StorageBuffer, RHIShaderStage::Task}, // TaskTile buffer
+        {4, RHIDescriptorType::StorageBuffer, RHIShaderStage::Task}, // TaskBatch buffer
         {5, RHIDescriptorType::StorageBuffer, RHIShaderStage::Task},
     });
     pipe.descriptorBuffer = ctx->createDescriptorBuffer({ .sizeBytes = 512*1024 });

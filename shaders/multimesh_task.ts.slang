@@ -1,6 +1,6 @@
 // multimesh_task.ts.slang
 // Task shader: emits up to THREAD_COUNT (meshlet,instance) pairs per amplification group.
-// CPU precomputes a TaskTile table (1 entry per amplification group) so we avoid per-group search.
+// CPU precomputes a TaskBatch table (1 entry per amplification group) so we avoid per-group search.
 // @entry TaskMain as_6_5 spirv
 
 #ifndef THREAD_COUNT
@@ -13,7 +13,7 @@
 
 struct MeshletGPU { uint32_t vertexOffset; uint8_t vertexCount; uint32_t indexOffset; uint8_t primitiveCount; };
 struct InstanceData { float4x4 model; float4 color; };
-struct TaskTile { 
+struct TaskBatch { 
     uint32_t meshletStart;
     uint32_t meshletCount;
     uint32_t instanceStart;
@@ -28,7 +28,7 @@ struct PushData { float4x4 ViewProj; };
 
 [[vk::binding(0,0)]] StructuredBuffer<MeshletGPU>    gMeshlets  : register(t0, space0);
 [[vk::binding(3,0)]] StructuredBuffer<InstanceData>  gInstances : register(t3, space0);
-[[vk::binding(4,0)]] StructuredBuffer<TaskTile>      gTiles     : register(t4, space0);
+[[vk::binding(4,0)]] StructuredBuffer<TaskBatch>     gBatch     : register(t4, space0);
 [[vk::binding(5,0)]] StructuredBuffer<MeshletBounds> gBounds    : register(t5, space0); // (optional / future culling)
 
 groupshared TaskPayload gPayload;
@@ -38,8 +38,8 @@ groupshared TaskPayload gPayload;
 void TaskMain(uint gtid : SV_GroupThreadID, uint3 groupID : SV_GroupID)
 {
     uint gid = groupID.x; // amplification group index
-    TaskTile dr = gTiles[gid];
-    uint emitCount = dr.meshletCount * dr.instanceCount; // 0..THREAD_COUNT (This should be clamped on CPU)
+    TaskBatch batch = gBatch[gid];
+    uint emitCount = batch.meshletCount * batch.instanceCount; // 0..THREAD_COUNT (This should be clamped on CPU)
 
     // Early out if no pairs to emit
     if(emitCount == 0){
@@ -50,10 +50,10 @@ void TaskMain(uint gtid : SV_GroupThreadID, uint3 groupID : SV_GroupID)
     }
 
     if(gtid < emitCount){
-        uint meshletRel = gtid / dr.instanceCount;
-        uint instRel    = gtid % dr.instanceCount;
-        uint meshletIndex  = dr.meshletStart + meshletRel;
-        uint instanceIndex = dr.instanceStart + instRel;
+        uint meshletRel = gtid / batch.instanceCount;
+        uint instRel    = gtid % batch.instanceCount;
+        uint meshletIndex  = batch.meshletStart + meshletRel;
+        uint instanceIndex = batch.instanceStart + instRel;
         gPayload.pairs[gtid] = Pair(meshletIndex, instanceIndex);
     }
     GroupMemoryBarrierWithGroupSync();
