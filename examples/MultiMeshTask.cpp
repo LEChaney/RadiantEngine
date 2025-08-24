@@ -27,8 +27,11 @@ using Renderer::FrameManager;
 // --- Data structures matching shader layout ---
 struct MeshletGPU { uint32 vertexOffset; uint8 vertexCount; uint32 indexOffset; uint8 primitiveCount; };
 struct InstanceData { glm::mat4 model; glm::vec4 color; };
-struct DrawRecord { uint32 meshletStart, meshletCount, instanceStart, instanceCount, groupBase; };
-struct GroupRecord { uint32 meshletStart; uint32 meshletCount; uint32 instanceStart; uint32 instanceCount; uint32 pairStart; uint32 pairCount; };
+// TaskTile encodes either:
+//  A) A rectangle of meshletCount full meshlets each with instanceCount instances (instanceStart aligned to mesh's instance base)
+//  B) A partial segment of a single meshlet (meshletCount==1) starting at instanceStart with instanceCount instances
+// This flattens the previous (pairStart/pairCount) representation while keeping decoding simple in the task shader.
+struct TaskTile { uint32 meshletStart, meshletCount, instanceStart, instanceCount; };
 struct MeshletBounds { glm::vec4 centerRadius; };
 
 struct PipelineRes {
@@ -100,13 +103,15 @@ int main(int argc, char** argv){
     Array<MeshletGPU> allMeshlets; allMeshlets.reserve(1<<16);
     Array<MeshletBounds> bounds; bounds.reserve(1<<16);
 
-    Array<DrawRecord> drawRecords; drawRecords.reserve(meshes.size());
-    Array<InstanceData> allInstances; allInstances.reserve(10000);
-    Array<GroupRecord> groupRecords; groupRecords.reserve(drawRecords.size()); // one per amplification group
+    constexpr uint32 instCountPerMesh = 10000; // stress (large to test chunking)
+    constexpr uint32 kTaskGroupSize = 64; // THREAD_COUNT in shader
+    Array<TaskTile> taskTiles;
+    taskTiles.reserve(meshes.size() * instCountPerMesh / kTaskGroupSize); // 1 per task group
+    Array<InstanceData> allInstances;
+    allInstances.reserve(10000);
 
     uint32 vertBase=0, idxBase=0, meshletBase=0, instBase=0;
-    uint32 totalTaskGroups = 0; // number of amplification groups (one dispatch group per entry in groupRecords)
-    constexpr uint32 kGroupSize = 64; // THREAD_COUNT in shader
+    uint32 totalTaskGroups = 0; // number of amplification groups (one dispatch group per TaskTile)
     std::mt19937 rng(1337);
     std::uniform_real_distribution<float> dist(-1.f,1.f);
 
@@ -139,7 +144,6 @@ int main(int argc, char** argv){
         }
 
         // Create many instances arranged in shells per mesh type
-        constexpr uint32 instCountPerMesh = 350; // stress (large to test chunking)
         for (uint32 instIdx = 0; instIdx < instCountPerMesh; ++instIdx) {
             float frac = cast<float>(instIdx) / cast<float>(instCountPerMesh);
             float ang = frac * glm::two_pi<float>() * (1.f + 0.2f * cast<float>(meshIdx));
@@ -161,19 +165,47 @@ int main(int argc, char** argv){
             allInstances.push_back(instData);
         }
 
-        auto meshletCount = cast<uint32>(meshlets.size());
-        // Compute number of amplification groups needed for this draw
-        uint64 pairCount64 = uint64(meshletCount) * uint64(instCountPerMesh);
-        uint32 groupsForDraw = pairCount64 == 0 ? 0 : uint32((pairCount64 + kGroupSize - 1) / kGroupSize);
-        drawRecords.push_back({ meshletBase, meshletCount, instBase, instCountPerMesh, totalTaskGroups });
-        // Emit group records
-        for(uint32 g=0; g<groupsForDraw; ++g){
-            uint64 pairStart = uint64(g) * kGroupSize;
-            uint64 remaining = pairCount64 - pairStart;
-            uint32 emit = remaining < kGroupSize ? uint32(remaining) : kGroupSize;
-            groupRecords.push_back({ meshletBase, meshletCount, instBase, instCountPerMesh, uint32(pairStart), emit });
+        auto meshletCountLocal = cast<uint32>(meshlets.size());
+        if(instCountPerMesh > 0 && meshletCountLocal > 0){
+            // A "meshlet batch" = consecutive meshlets where we include ALL instances for each meshlet in the batch.
+            // If a batch fits entirely within one tile (meshletsPerBatch > 0) we emit batch tiles.
+            // Otherwise (tile smaller than one full instance span) we fall back to per-meshlet "instance stripe" tiles.
+            uint32 meshletsPerBatch = kTaskGroupSize / instCountPerMesh; // meshlets we can cover with all their instances
+            uint32 taskGroupsForMesh = 0;
+            if(meshletsPerBatch > 0){
+                // Batch tiles (each covers meshletCount * instCountPerMesh pairs)
+                for(uint32 m = 0; m < meshletCountLocal; ){
+                    uint32 remain = meshletCountLocal - m;
+                    uint32 batchCount = remain < meshletsPerBatch ? remain : meshletsPerBatch;
+                    taskTiles.push_back({
+                        .meshletStart = meshletBase + m,
+                        .meshletCount = batchCount,
+                        .instanceStart = instBase,
+                        .instanceCount = instCountPerMesh
+                    });
+                    m += batchCount;
+                    ++taskGroupsForMesh;
+                }
+            } else {
+                // Instance stripe tiles (split instances of each meshlet into stripes of up to kTaskGroupSize)
+                for(uint32 m = 0; m < meshletCountLocal; ++m){
+                    for(uint32 instStart = 0; instStart < instCountPerMesh; instStart += kTaskGroupSize){
+                        uint32 stripeCount = instCountPerMesh - instStart;
+                        if(stripeCount > kTaskGroupSize) stripeCount = kTaskGroupSize;
+                        taskTiles.push_back({
+                            .meshletStart = meshletBase + m,
+                            .meshletCount = 1,
+                            .instanceStart = instBase + instStart,
+                            .instanceCount = stripeCount
+                        });
+                        ++taskGroupsForMesh;
+                    }
+                }
+            }
+            totalTaskGroups += taskGroupsForMesh;
+            std::printf("Mesh %zu: meshlets=%u groups=%u totalPairs=%llu\n", meshIdx, meshletCountLocal, taskGroupsForMesh,
+                (unsigned long long)(uint64(meshletCountLocal)*uint64(instCountPerMesh)));
         }
-        totalTaskGroups += groupsForDraw;
 
         // Advance bases
         vertBase = cast<uint32>(allVertices.size());
@@ -223,7 +255,7 @@ int main(int argc, char** argv){
     auto verticesBuf = makeStaticBuf(allVertices.data(), allVertices.size()*sizeof(Vertex), 0);
     auto primIdxBuf  = makeStaticBuf(allPrimIdx.data(), allPrimIdx.size()*sizeof(uint8), 0);
     auto boundsBuf   = makeStaticBuf(bounds.data(), bounds.size()*sizeof(MeshletBounds), 0);
-    auto groupBuf    = makeDynamicMappedBuf(groupRecords.data(), groupRecords.size()*sizeof(GroupRecord), 0);
+    auto tileBuf     = makeStaticBuf(taskTiles.data(), taskTiles.size()*sizeof(TaskTile), 0);
     auto instanceBuf = makeDynamicMappedBuf(allInstances.data(), allInstances.size()*sizeof(InstanceData), 0);
 
     // --- Pipeline & descriptors --- (task + mesh + frag)
@@ -233,7 +265,7 @@ int main(int argc, char** argv){
         {1, RHIDescriptorType::StorageBuffer, RHIShaderStage::Mesh},
         {2, RHIDescriptorType::StorageBuffer, RHIShaderStage::Mesh},
         {3, RHIDescriptorType::StorageBuffer, RHIShaderStage::Task | RHIShaderStage::Mesh},
-        {4, RHIDescriptorType::StorageBuffer, RHIShaderStage::Task},
+        {4, RHIDescriptorType::StorageBuffer, RHIShaderStage::Task}, // TaskTile buffer
         {5, RHIDescriptorType::StorageBuffer, RHIShaderStage::Task},
     });
     pipe.descriptorBuffer = ctx->createDescriptorBuffer({ .sizeBytes = 512*1024 });
@@ -259,7 +291,7 @@ int main(int argc, char** argv){
        .writeStorageBuffer(1,0, verticesBuf->createSlice())
        .writeStorageBuffer(2,0, primIdxBuf->createSlice())
        .writeStorageBuffer(3,0, instanceBuf->createSlice())
-       .writeStorageBuffer(4,0, groupBuf->createSlice())
+       .writeStorageBuffer(4,0, tileBuf->createSlice())
        .writeStorageBuffer(5,0, boundsBuf->createSlice())
        .flush();
 
@@ -272,16 +304,12 @@ int main(int argc, char** argv){
         float t = float(SDL_GetTicks64() - startTicks) * 0.001f;
 
         // Animate a subset of instances (e.g., first of each draw) by rotating
-        for(size_t d = 0; d < drawRecords.size(); ++d){
-            auto& dr = drawRecords[d];
-            if(dr.instanceCount == 0) {
-                continue;
-            }
+        for(size_t ii = 0; ii < allInstances.size(); ii += instCountPerMesh){
             // TODO: Templated version of buffer slice
             RHIBufferSlice gpuInstDataSlice = instanceBuf->createSlice(
-                dr.instanceStart * sizeof(InstanceData), dr.instanceCount * sizeof(InstanceData));
+                ii * sizeof(InstanceData), sizeof(InstanceData));
             auto gpuInstData = rcast<InstanceData*>(gpuInstDataSlice.getMapped());
-            float ang = t * 0.5f + cast<float>(d);
+            float ang = t * 0.5f + cast<float>(ii);
             glm::mat4 m = glm::rotate(glm::mat4(1.f), ang, glm::vec3(0,1,0));
             m = glm::scale(m, glm::vec3(1.2f));
             gpuInstData->model = m;

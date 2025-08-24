@@ -2,6 +2,10 @@
 // Mesh shader consuming payload produced by task shader
 // @entry MeshletMain ms_6_5 spirv
 
+#ifndef DEBUG_MESHLET_COLOR
+#define DEBUG_MESHLET_COLOR 0
+#endif
+
 #ifndef THREAD_COUNT
 #define THREAD_COUNT 64
 #endif
@@ -47,10 +51,18 @@ void MeshletMain(uint gtid : SV_GroupThreadID,
         Vertex src = gVertices[m.vertexOffset + v];
         VSOut dst;
         float4 wPos = mul(inst.model, float4(src.position,1));
-    dst.position = mul(PC.ViewProj, wPos);
+        dst.position = mul(PC.ViewProj, wPos);
         dst.normal = mul((float3x3)inst.model, src.normal);
         dst.uv = src.uv;
+#if DEBUG_MESHLET_COLOR
+        float3 dbg = float3(
+            float(pair.meshletIndex & 1),
+            float((pair.meshletIndex >> 1) & 3) / 3.0,
+            float((pair.meshletIndex >> 3) & 7) / 7.0);
+        dst.color = float4(dbg, 1.0);
+#else
         dst.color = src.color * inst.color;
+#endif
         outVerts[v] = dst;
     }
 

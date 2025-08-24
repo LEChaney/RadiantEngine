@@ -1,6 +1,6 @@
 // multimesh_task.ts.slang
 // Task shader: emits up to THREAD_COUNT (meshlet,instance) pairs per amplification group.
-// CPU precomputes a GroupRecord table (1 entry per amplification group) so we avoid per-group search.
+// CPU precomputes a TaskTile table (1 entry per amplification group) so we avoid per-group search.
 // @entry TaskMain as_6_5 spirv
 
 #ifndef THREAD_COUNT
@@ -13,13 +13,11 @@
 
 struct MeshletGPU { uint32_t vertexOffset; uint8_t vertexCount; uint32_t indexOffset; uint8_t primitiveCount; };
 struct InstanceData { float4x4 model; float4 color; };
-struct GroupRecord { 
+struct TaskTile { 
     uint32_t meshletStart;
     uint32_t meshletCount;
     uint32_t instanceStart;
     uint32_t instanceCount;
-    uint32_t pairStart;
-    uint32_t pairCount;
 };
 struct MeshletBounds { float4 centerRadius; };
 struct Pair { uint32_t meshletIndex; uint32_t instanceIndex; };
@@ -28,10 +26,10 @@ struct TaskPayload { uint32_t pairCount; Pair pairs[MAX_PAIRS_PER_TASK]; };
 struct PushData { float4x4 ViewProj; };
 [[vk::push_constant]] PushData PC;
 
-[[vk::binding(0,0)]] StructuredBuffer<MeshletGPU>    gMeshlets       : register(t0, space0);
-[[vk::binding(3,0)]] StructuredBuffer<InstanceData>  gInstances      : register(t3, space0);
-[[vk::binding(4,0)]] StructuredBuffer<GroupRecord>   gGroups         : register(t4, space0);
-[[vk::binding(5,0)]] StructuredBuffer<MeshletBounds> gBounds         : register(t5, space0); // (optional / future culling)
+[[vk::binding(0,0)]] StructuredBuffer<MeshletGPU>    gMeshlets  : register(t0, space0);
+[[vk::binding(3,0)]] StructuredBuffer<InstanceData>  gInstances : register(t3, space0);
+[[vk::binding(4,0)]] StructuredBuffer<TaskTile>      gTiles     : register(t4, space0);
+[[vk::binding(5,0)]] StructuredBuffer<MeshletBounds> gBounds    : register(t5, space0); // (optional / future culling)
 
 groupshared TaskPayload gPayload;
 
@@ -40,8 +38,8 @@ groupshared TaskPayload gPayload;
 void TaskMain(uint gtid : SV_GroupThreadID, uint3 groupID : SV_GroupID)
 {
     uint gid = groupID.x; // amplification group index
-    GroupRecord GR = gGroups[gid];
-    uint emitCount = GR.pairCount; // 0..THREAD_COUNT
+    TaskTile dr = gTiles[gid];
+    uint emitCount = dr.meshletCount * dr.instanceCount; // 0..THREAD_COUNT (This should be clamped on CPU)
 
     // Early out if no pairs to emit
     if(emitCount == 0){
@@ -52,11 +50,10 @@ void TaskMain(uint gtid : SV_GroupThreadID, uint3 groupID : SV_GroupID)
     }
 
     if(gtid < emitCount){
-        uint pairOffset = GR.pairStart + gtid; // global pair index within draw's cartesian product
-        uint meshletRel = pairOffset / GR.instanceCount;
-        uint instRel    = pairOffset % GR.instanceCount;
-        uint meshletIndex  = GR.meshletStart + meshletRel;
-        uint instanceIndex = GR.instanceStart + instRel;
+        uint meshletRel = gtid / dr.instanceCount;
+        uint instRel    = gtid % dr.instanceCount;
+        uint meshletIndex  = dr.meshletStart + meshletRel;
+        uint instanceIndex = dr.instanceStart + instRel;
         gPayload.pairs[gtid] = Pair(meshletIndex, instanceIndex);
     }
     GroupMemoryBarrierWithGroupSync();
