@@ -45,7 +45,12 @@ MeshletPipelineResources createMeshletPipeline(RHIContext* ctx, RHIFormat colorF
     out.descriptorBuffer = ctx->createDescriptorBuffer({ .sizeBytes = 128 * 1024 });
     out.pipelineLayout = ctx->createPipelineLayout({
         .setLayouts = { out.setLayout.get() },
-        .pushConstantRanges = { { .stages = RHIShaderStage::Mesh, .offset = 0, .size = sizeof(glm::mat4) } }
+        // Expose push constants to both Mesh + Fragment stages (matrix + fade float)
+        .pushConstantRanges = {{
+            .stages = RHIShaderStage::Mesh | RHIShaderStage::Fragment,
+            .offset = 0,
+            .size = sizeof(glm::mat4) + sizeof(float)
+        }}
     });
     out.meshShader = ctx->createShaderModule(msPath);
     out.fragShader = ctx->createShaderModule(psPath);
@@ -139,7 +144,7 @@ int main(int argc, char** argv){
     // Executable placed in bin/(Config)/ ; shaders copied to bin/(Config)/shaders
     auto pipeline = createMeshletPipeline(
         ctx.get(), swapchain->getColorFormat(), swapchain->getDepthFormat(),
-        "shaders/mesh_meshlet.ms.slang.spv", "shaders/mesh_meshlet_lit.ps.slang.spv");
+        "shaders/mesh_meshlet.ms.slang.spv", "shaders/mesh_meshlet_stochastic.ps.slang.spv");
 
     auto set = pipeline.descriptorBuffer->allocateSet(pipeline.setLayout.get(), "MeshletSet");
     set .writeStorageBuffer(0,0, meshletsBuf->createSlice())
@@ -170,8 +175,13 @@ int main(int argc, char** argv){
         frame.cmd->bindDescriptorBuffers({ pipeline.descriptorBuffer.get() });
         frame.cmd->bindDescriptorSets({ { .setIndex = 0, .set = set } },
             pipeline.pipelineLayout.get(), RHIPipelineBindPoint::Graphics);
+        struct PushPC { glm::mat4 MVP; float Fade; };
+        PushPC pc { 
+            mvp, 
+            0.5f * (std::sin(timeSec*1.2f) + 1.0f)
+        }; // Fade oscillates 0..1
         frame.cmd->pushConstants(pipeline.pipelineLayout.get(),
-            RHIShaderStage::Mesh, 0, sizeof(glm::mat4), &mvp);
+            RHIShaderStage::Mesh | RHIShaderStage::Fragment, 0, sizeof(pc), &pc);
         uint32 meshletCount = (uint32)packed.meshlets.size();
         frame.cmd->dispatchMesh(meshletCount, 1, 1);
 

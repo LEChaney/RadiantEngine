@@ -51,7 +51,8 @@ struct MeshletGPU {
 };
 
 struct CameraPC {
-    float4x4 MVP;
+    float4x4 MVP;  // 64 bytes
+    float    Fade; // 68 bytes total (used by fragment shader for fade animation)
 };
 [[vk::push_constant]] CameraPC Cam;
 
@@ -84,7 +85,7 @@ void MeshletMain(
     {
         Vertex src = gVertices[m.vertexOffset + v];
         VSOut dst;
-        dst.position = mul(Cam.MVP, float4(src.position, 1.0));
+    dst.position = mul(Cam.MVP, float4(src.position, 1.0));
         dst.normal   = src.normal;
         dst.uv       = src.uv;
 #if DEBUG_MESHLET_COLOR
