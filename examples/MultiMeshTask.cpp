@@ -27,10 +27,22 @@ using Renderer::FrameManager;
 // --- Data structures matching shader layout ---
 struct MeshletGPU { uint32 vertexOffset; uint8 vertexCount; uint32 indexOffset; uint8 primitiveCount; };
 struct InstanceData { glm::mat4 model; glm::vec4 color; };
-// TaskBatch encodes either:
-//  A) A rectangle of meshletCount full meshlets each with instanceCount instances (instanceStart aligned to mesh's instance base)
-//  B) A partial segment of a single meshlet (meshletCount==1) starting at instanceStart with instanceCount instances
-// This flattens the previous (pairStart/pairCount) representation while keeping decoding simple in the task shader.
+// TaskBatch encodes one tiling "tile" of the 2D (meshlet × instance) pair grid produced by the CPU tiler.
+// Two tile forms are generated:
+//  1. Meshlet batch tile: meshletCount > 1 (or ==1) AND instanceStart == 0 AND instanceCount == full per‑mesh instance count.
+//     Represents consecutive meshlets, each including ALL their instances. Maximizes reuse; only produced when
+//     (instancesPerMesh <= kTaskGroupSize) so multiple meshlets fit inside one workgroup.
+//  2. Instance stripe tile: meshletCount == 1 and instanceCount is a slice (stripe) of that meshlet's instance range
+//     starting at instanceStart. Used when a full instance span (or multiple meshlets with all instances) would exceed
+//     the thread group size (instancesPerMesh > kTaskGroupSize) or for the tail stripe.
+// Invariants the task shader relies on:
+//  - meshletCount * instanceCount <= kTaskGroupSize (fits in one amplification group / thread group)
+//  - If meshletCount > 1 then instanceStart == 0 and instanceCount == instancesPerMesh (pure batch)
+//  - If meshletCount == 1 stripe may have instanceStart > 0 and 1 <= instanceCount <= instancesPerMesh
+// Decoding in task shader: emitCount = meshletCount * instanceCount; thread linear index maps to
+//   meshletIndex = meshletStart + (tid / instanceCount)
+//   instanceIndex = instanceStart + (tid % instanceCount)
+// This structure keeps per-dispatch enumeration O(1) and near‑full utilization except for edge (tail) tiles.
 struct TaskBatch { uint32 meshletStart, meshletCount, instanceStart, instanceCount; };
 struct MeshletBounds { glm::vec4 centerRadius; };
 
@@ -166,7 +178,7 @@ int main(int argc, char** argv) {
         }
 
         auto meshMeshletCount = cast<uint32>(meshlets.size());
-        if(instCountPerMesh > 0 && meshMeshletCount > 0){
+        if (instCountPerMesh > 0 && meshMeshletCount > 0) {
             uint32 taskGroupsForMesh = 0;
 
             // Choose tiling factors (A meshlets × B instances) maximizing A*B <= kTaskGroupSize.
@@ -179,34 +191,42 @@ int main(int argc, char** argv) {
             uint32 A = 1;
             uint32 B = 1;
 
-            if(instCountPerMesh >= kTaskGroupSize){
+            if (instCountPerMesh >= kTaskGroupSize) {
                 A = 1;
                 B = kTaskGroupSize;
             } else {
                 // Search B descending (prefer larger instance spans for vertex reuse of a meshlet)
                 uint32 bestPairs = 0;
                 uint32 maxB = std::min(instCountPerMesh, kTaskGroupSize);
-                for(uint32 b = maxB; b >= 1; --b){
+                for (uint32 b = maxB; b >= 1; --b) {
                     uint32 a = kTaskGroupSize / b;
-                    if(a == 0) continue;
-                    if(a > meshMeshletCount) a = meshMeshletCount; // can't exceed remaining meshlets in first batch
+                    if (a == 0) {
+                        continue;
+                    }
+                    if (a > meshMeshletCount) {
+                        a = meshMeshletCount; // can't exceed remaining meshlets in first batch
+                    }
                     uint32 pairs = a * b;
-                    if(pairs > bestPairs){
+                    if (pairs > bestPairs) {
                         bestPairs = pairs;
                         A = a;
                         B = b;
-                        if(pairs == kTaskGroupSize) break; // perfect fill
+                        if (pairs == kTaskGroupSize) {
+                            break; // perfect fill
+                        }
                     }
-                    if(b == 1) break; // prevent unsigned wrap
+                    if (b == 1) {
+                        break; // prevent unsigned wrap
+                    }
                 }
             }
 
             // Emit tiles over meshlet-major, instance-minor grid:
             // For meshlets in chunks of A, for instances in chunks of B.
             // Edge tiles (last row/column) shrink A and/or B to remaining counts.
-            for(uint32 m0 = 0; m0 < meshMeshletCount; m0 += A){
+            for (uint32 m0 = 0; m0 < meshMeshletCount; m0 += A) {
                 uint32 thisA = std::min(A, meshMeshletCount - m0);
-                for(uint32 i0 = 0; i0 < instCountPerMesh; i0 += B){
+                for (uint32 i0 = 0; i0 < instCountPerMesh; i0 += B) {
                     uint32 thisB = std::min(B, instCountPerMesh - i0);
                     // Safety: ensure tile does not exceed group size
                     ASSERT(thisA * thisB <= kTaskGroupSize);
