@@ -39,6 +39,8 @@ Each group alphabetized; no duplicate includes. Never rely only on transitive in
 | Variables / parameters / members | camelCase |
 | Macros / compile-time constants | UPPER_CASE |
 | Member variables | m_camelCase |
+- Prefer more descriptive variable names over short or single-letter names, especially when the short name has ambiguous meaning. E.g. `SlangCompiler& comp` -> `SlangCompiler& compiler`.
+- Still limit variable names to a reasonable length; avoid overly long names that hinder readability.
 
 ### Modern C++ Usage
 1. Prefer `enum class` over raw `enum`.
