@@ -53,4 +53,26 @@ SpacesInConditionalStatement: false
 SpacesInCStyleCastParentheses: false
 SpacesInParentheses: false
 TabWidth: 4
+###############################################################################
+# Added strictness for RadiantEngine style (AI/Copilot friendly)
+# User goals:
+# - Never collapse control statements / loops / conditionals onto one line
+# - Always use braces
+# - Prefer spacious, readable arithmetic (spaces around operators)
+# Some of this is already covered by LLVM base style; extra toggles below.
+###############################################################################
+# Disallow short single-line statements / loops / conditionals
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortBlocksOnASingleLine: false
+# Insert braces automatically for single-statement control bodies (clang-format 17+)
+InsertBraces: true
+# Ensure a space before parens on control statements (if/for/while/switch)
+SpaceBeforeParens: ControlStatements
+# (Default LLVM already inserts spaces around most binary operators, including math.)
+
+# NOTE: clang-format cannot forcibly split multiple unrelated statements separated
+# by semicolons on a single line when they are not part of a control header.
+# Use clang-tidy (readability-isolate-declaration) / pre-commit hook for that.
 ...
