@@ -40,7 +40,7 @@ Each group alphabetized; no duplicate includes. Never rely only on transitive in
 | Macros / compile-time constants | UPPER_CASE |
 | Member variables | m_camelCase |
 - Prefer more descriptive variable names over short or single-letter names, especially when the short name has ambiguous meaning. E.g. `SlangCompiler& comp` -> `SlangCompiler& compiler`.
-- Still limit variable names to a reasonable length; avoid overly long names that hinder readability.
+- Still limit variable names to a reasonable length; avoid overly long names that hinder readability. E.g. `amplificationShader` -> `ampShader`.
 
 ### Modern C++ Usage
 1. Prefer `enum class` over raw `enum`.
@@ -48,6 +48,10 @@ Each group alphabetized; no duplicate includes. Never rely only on transitive in
 3. Explicitly `= delete` / `= default` special members when needed.
 4. Mark overrides with `override`.
 5. Prefer types defined in src/core/CoreDefs.h over standard library and basic types. (this includes `uint32` over `uint32_t`, `Array` over `std::vector`, `Map` over `std::unordered_map`, etc)
+
+### Type Casting
+1. Avoid C-style casts.
+2. Prefer aliased typecast functions in `src/core/CoreDefs.h`. E.g. `cast<T>(value)` over `static_cast<T>(value)`, `rcast<T>(value)` instead of `reinterpret_cast<T>(value)`, `dynCast<T>(value)` instead of `dynamic_cast<T>(value)`.
 
 ### Error Handling
 1. Early return with context string or structured result object; avoid silent failure.
