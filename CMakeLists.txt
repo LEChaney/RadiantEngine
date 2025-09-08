@@ -4,7 +4,7 @@
 cmake_minimum_required (VERSION 3.16)
 
 # TODO: Rename this project
-project ("vulkan_guide")
+project ("RadiantEngine")
 
 # GoogleTest FetchContent for unit tests
 include(FetchContent)
