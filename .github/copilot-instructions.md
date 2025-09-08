@@ -10,6 +10,7 @@ ONLY style / formatting / naming / density rules for AI-generated C++ in this re
    Still: no multi statements inside; just a single return or trivial expression. Not allowed for loops or conditionals.
 4. No single-line loops: expand body on separate lines.
 5. Early returns encouraged for clarity, but must follow rule 1 & 2.
+6. Switch cases bodies must NOT be on the same line as the case label: disallow `case 1: doSomething();` style.
 
 ### Statement Density
 1. One statement per line (one semicolon terminator per line except for for‑loop headers).
